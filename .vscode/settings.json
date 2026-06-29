@@ -1,0 +1,42 @@
+{
+    "editor.formatOnSave": true,
+    // 讓 Ruff 處理格式化
+    "editor.codeActionsOnSave": {
+        "source.fixAll": "always"
+    },
+    "python.analysis.autoImportCompletions": false,
+    "workbench.colorTheme": "Monokai",
+    "files.autoSave": "afterDelay",
+    "python.analysis.typeCheckingMode": "off",
+    "editor.tokenColorCustomizations": {
+        "[Monokai]": {
+            "variables": "#8cc",
+            "numbers": "#70c53b",
+            // "comments": "#FF0000", // 註解
+            // "functions": "#00FF00", // 函式名稱
+            // "keywords": "#0000FF", // 關鍵字（如 if, def）
+            // "strings": "#9ae674", // 字串
+            "textMateRules": [
+                {
+                    "scope": [
+                        "variable.other.constant",
+                        "constant.other.caps",
+                        "variable.other.enummember"
+                    ],
+                    "settings": {
+                        "foreground": "#FFCC00" // 這裡改成你想要的常數顏色（例如亮橘黃色）
+                    }
+                }
+            ]
+        }
+    },
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true
+    },
+    "notebook.codeActionsOnSave": {
+        "source.organizeImports.ruff": "explicit",
+        "source.fixAll.ruff": "explicit"
+    },
+    "python.REPL.enableREPLSmartSend": false
+}
