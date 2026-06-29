@@ -6,6 +6,7 @@ import asset_manager
 import config
 import tool
 import world_generator
+from player import Player
 
 # 告訴系統將下一個建立的視窗放在螢幕正中央
 os.environ['SDL_VIDEO_CENTERED'] = '1'
@@ -21,7 +22,7 @@ config.img_blocks = asset_manager.load_all_blocks()
 
 config.world_data = world_generator.make_map(config.MAP_WIDHT, config.MAP_HEIGHT)
 
-player_rect = pygame.Rect(0, 0, 40, 80)
+player = Player(100, 0)
 
 while running:
     screen.fill(tool.Colors.CYAN)
@@ -34,16 +35,6 @@ while running:
             screen = pygame.display.set_mode((new_widht, new_height), pygame.RESIZABLE)
         if event.type == pygame.QUIT:
             running = False
-    if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-        config.scroll_x -= 10
-    if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-        config.scroll_x += 10
-    if keys[pygame.K_UP] or keys[pygame.K_w]:
-        config.scroll_y -= 10
-    if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-        config.scroll_y += 10
-    config.scroll_x = tool.num_range(0, 4000, config.scroll_x)
-    config.scroll_y = tool.num_range(0, 1200, config.scroll_y)
     for y_idx, row in enumerate(config.world_data):
         for x_idx, block_name in enumerate(row):
             if block_name == "air":
@@ -54,7 +45,17 @@ while running:
 
             screen.blit(config.img_blocks[block_name], (pixel_x, pixel_y))
 
-    pygame.draw.rect(screen, tool.Colors.BLUE, player_rect)
+    player.handle_input()
+    player.update(config.world_data)
+    player.draw(screen, config.scroll_x, config.scroll_y)
+
+    # 畫面捲動
+    target_scroll_x = player.rect.centerx - (config.WIDTH // 2)
+    target_scroll_y = player.rect.centery - (config.HEIGHT // 2)
+
+    # 3. 加上你原本就很厲害的緩動或範圍限制 (利用你寫好的 tool.num_range)
+    config.scroll_x = tool.num_range(0, 3000, target_scroll_x)
+    config.scroll_y = tool.num_range(0, 1200, target_scroll_y)
 
     pygame.display.flip()
     clock.tick(60)

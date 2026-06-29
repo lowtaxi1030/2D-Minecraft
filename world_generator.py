@@ -29,7 +29,7 @@ def make_map(map_width, map_height):
 
 def _make_terrain(map_width):
     height_map = []
-    current_height = 10
+    current_height = 20
 
     for _ in range(map_width):
         current_height += random.choice([-1, 0, 0, 0, 0, 1])
