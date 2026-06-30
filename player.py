@@ -7,7 +7,7 @@ import tool
 class Player:
     def __init__(self, x, y):
         # 1. 初始化玩家的形狀與位置 (先用 Rect 方塊代替)
-        self.rect = pygame.Rect(x, y, 40, 80)
+        self.rect = pygame.Rect(x, y, 40, 70)
 
         # 2. 物理相關變數
         self.vel_x = 0
@@ -16,7 +16,7 @@ class Player:
         self.speed = 5
         self.jump_power = -12
         self.is_grounded = False
-        self.all_modes = ["spectator", "survival"]
+        self.all_modes = ["spectator", "creative"]
         self.m_i = 1
         self.mode = self.all_modes[self.m_i]
 
@@ -53,7 +53,7 @@ class Player:
                 if event.key == pygame.K_m:
                     self.m_i = (self.m_i + 1) % len(self.all_modes)
                     self.mode = self.all_modes[self.m_i]
-                    if self.mode == "survival":
+                    if self.mode == "creative":
                         # 1. 先算出玩家當前在哪一個 X 軸的方塊網格 (grid_x)
                         grid_x = int(self.rect.centerx // config.BLOCK_SIZE)
                         # 確保 grid_x 沒有超出地圖陣列邊界
@@ -136,7 +136,7 @@ class Player:
                         self.rect.top = block_rect.bottom
                         self.vel_y = 0
         max_player_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - 40
-        max_player_y = (config.MAP_HEIGHT * config.BLOCK_SIZE) - 80
+        max_player_y = (config.MAP_HEIGHT * config.BLOCK_SIZE) - 70
         self.rect.x = tool.num_range(0, max_player_x, self.rect.x)
         self.rect.y = tool.num_range(0, max_player_y, self.rect.y)
 

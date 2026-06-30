@@ -28,6 +28,7 @@ while running:
     screen.fill(tool.Colors.CYAN)
     events = pygame.event.get()
     keys = pygame.key.get_pressed()
+    mouse_buttons = pygame.mouse.get_pressed()
     for event in events:
         if event.type == pygame.VIDEORESIZE:
             config.current_width = tool.num_range(300, 1400, event.w)
@@ -35,6 +36,20 @@ while running:
             screen = pygame.display.set_mode((config.current_width, config.current_height), pygame.RESIZABLE)
         if event.type == pygame.QUIT:
             running = False
+    if any(mouse_buttons):
+        # 滑鼠事件
+        mouse_pos = pygame.mouse.get_pos()
+
+        # 計算世界座標
+        world_x = tool.num_range(0, config.MAP_WIDTH - 1, (mouse_pos[0] + config.scroll_x) // config.BLOCK_SIZE)
+        world_y = tool.num_range(0, config.MAP_HEIGHT - 1, (mouse_pos[1] + config.scroll_y) // config.BLOCK_SIZE)
+        clicked_block = config.world_data[world_y][world_x]
+
+        if mouse_buttons[0]:
+            if clicked_block != "air":
+                config.world_data[world_y][world_x] = "air"
+        elif mouse_buttons[2]:
+            pass
 
     start_x = max(0, config.scroll_x // config.BLOCK_SIZE)
     end_x = min(config.MAP_WIDTH, (config.scroll_x + config.current_width) // config.BLOCK_SIZE + 1)
