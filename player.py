@@ -137,8 +137,8 @@ class Player:
             surface,
             f"X: {self.rect.x // config.BLOCK_SIZE}, Y: {self.rect.y // config.BLOCK_SIZE}",
             tool.Colors.WHITE,
-            config.WIDTH - 100,
-            config.HEIGHT - 30,
+            config.current_width - 150,
+            config.current_height - 30,
             size=15,
             alpha=160,
         )

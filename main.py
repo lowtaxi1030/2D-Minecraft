@@ -30,17 +30,17 @@ while running:
     keys = pygame.key.get_pressed()
     for event in events:
         if event.type == pygame.VIDEORESIZE:
-            new_widht = tool.num_range(300, 1400, event.w)
-            new_height = tool.num_range(200, 800, event.h)
-            screen = pygame.display.set_mode((new_widht, new_height), pygame.RESIZABLE)
+            config.current_width = tool.num_range(300, 1400, event.w)
+            config.current_height = tool.num_range(200, 800, event.h)
+            screen = pygame.display.set_mode((config.current_width, config.current_height), pygame.RESIZABLE)
         if event.type == pygame.QUIT:
             running = False
 
     start_x = max(0, config.scroll_x // config.BLOCK_SIZE)
-    end_x = min(config.MAP_WIDTH, (config.scroll_x + config.WIDTH) // config.BLOCK_SIZE + 1)
+    end_x = min(config.MAP_WIDTH, (config.scroll_x + config.current_width) // config.BLOCK_SIZE + 1)
 
     start_y = max(0, config.scroll_y // config.BLOCK_SIZE)
-    end_y = min(config.MAP_HEIGHT, (config.scroll_y + config.HEIGHT) // config.BLOCK_SIZE + 1)
+    end_y = min(config.MAP_HEIGHT, (config.scroll_y + config.current_height) // config.BLOCK_SIZE + 1)
     for y_idx in range(start_y, end_y):
         for x_idx in range(start_x, end_x):
 
@@ -58,12 +58,12 @@ while running:
     player.draw(screen, config.scroll_x, config.scroll_y)
 
     # 畫面捲動
-    target_scroll_x = player.rect.centerx - (config.WIDTH // 2)
-    target_scroll_y = player.rect.centery - (config.HEIGHT // 2)
+    target_scroll_x = player.rect.centerx - (config.current_width // 2)
+    target_scroll_y = player.rect.centery - (config.current_height // 2)
 
     # 3. 加上你原本就很厲害的緩動或範圍限制 (利用你寫好的 tool.num_range)
-    max_scroll_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - config.WIDTH
-    max_scroll_y = (config.MAP_HEIGHT * config.BLOCK_SIZE) - config.HEIGHT
+    max_scroll_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - config.current_width
+    max_scroll_y = (config.MAP_HEIGHT * config.BLOCK_SIZE) - config.current_height
     config.scroll_x = tool.num_range(0, max_scroll_x, target_scroll_x)
     config.scroll_y = tool.num_range(0, max_scroll_y, target_scroll_y)
 

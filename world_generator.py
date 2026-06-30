@@ -5,7 +5,7 @@ def make_map(map_width, map_height):
     world_data = []
     height_map = _make_terrain(map_width)
     dirt_depth_map = [random.randint(3, 5) for _ in range(map_width)]
-    rock_depth_map = [random.randint(20, 30) for _ in range(map_width)]
+    rock_depth_map = [random.randint(25, 40) for _ in range(map_width)]
 
     # 橫向一列一列由上往下生成
     for y in range(map_height):
@@ -50,46 +50,15 @@ def _generate_veins(world_data, map_width, map_height):
     # 🛠️ 在這裡集中管理所有礦物的生成規則，要新增礦物只要在這邊加一行就好！
     ore_rules = [
         # {"name": 礦物名稱, "min_y": 最高高度, "max_y": 最低高度, "veins_range": 群落數範圍, "size_range": 每坨大小, "target_stones": 能替換的石頭}
-        {
-            "name": "iron ore",
-            "min_y": 15,
-            "max_y": 50,
-            "veins_range": (5, 10),
-            "size_range": (5, 18),
-            "target_stones": ["rock"],
-        },
-        {
-            "name": "gold ore",
-            "min_y": 20,
-            "max_y": 50,
-            "veins_range": (5, 10),
-            "size_range": (4, 8),
-            "target_stones": ["rock"],
-        },
-        {
-            "name": "coal ore",
-            "min_y": 20,
-            "max_y": 50,
-            "veins_range": (5, 10),
-            "size_range": (5, 25),
-            "target_stones": ["rock"],
-        },
-        {
-            "name": "deepslate DO",
-            "min_y": 50,
-            "max_y": 75,
-            "veins_range": (2, 5),
-            "size_range": (1, 6),
-            "target_stones": ["deepslate"],
-        },
-        {
-            "name": "deepslate IO",
-            "min_y": 50,
-            "max_y": 75,
-            "veins_range": (8, 15),
-            "size_range": (5, 15),
-            "target_stones": ["deepslate"],
-        },
+        {"name": "iron ore", "min_y": 15, "max_y": 58, "veins_range": (5, 10), "size_range": (5, 18), "target_stones": ["rock"]},
+        {"name": "coal ore", "min_y": 15, "max_y": 58, "veins_range": (5, 10), "size_range": (5, 25), "target_stones": ["rock"]},
+        {"name": "copper ore", "min_y": 20, "max_y": 58, "veins_range": (5, 10), "size_range": (4, 8), "target_stones": ["rock"]},
+        {"name": "gold ore", "min_y": 20, "max_y": 58, "veins_range": (3, 7), "size_range": (4, 8), "target_stones": ["rock"]},
+        {"name": "diamond ore", "min_y": 40, "max_y": 58, "veins_range": (1, 3), "size_range": (1, 6), "target_stones": ["rock"]},
+        {"name": "deepslate IO", "min_y": 60, "max_y": 119, "veins_range": (8, 15), "size_range": (5, 18), "target_stones": ["deepslate"]},
+        {"name": "deepslate CO", "min_y": 60, "max_y": 119, "veins_range": (8, 15), "size_range": (5, 20), "target_stones": ["deepslate"]},
+        {"name": "deepslate EO", "min_y": 80, "max_y": 119, "veins_range": (3, 8), "size_range": (1, 1), "target_stones": ["deepslate"]},
+        {"name": "deepslate DO", "min_y": 60, "max_y": 119, "veins_range": (2, 5), "size_range": (1, 6), "target_stones": ["deepslate"]},
     ]
 
     # ✨ 核心魔法：用一個迴圈，把所有礦物的規則依序拿出來跑
