@@ -1,5 +1,8 @@
 import random
 
+import config
+import tool
+
 
 def make_map(map_width, map_height):
     world_data = []
@@ -36,14 +39,15 @@ def make_map(map_width, map_height):
 
 
 def _make_terrain(map_width):
-    height_map = []
+    config.height_map = []
     current_height = 20
 
     for _ in range(map_width):
         current_height += random.choice([-1, 0, 0, 0, 0, 1])
-        height_map.append(current_height)
+        current_height = tool.num_range(8, None, current_height)
+        config.height_map.append(current_height)
 
-    return height_map
+    return config.height_map
 
 
 def _generate_veins(world_data, map_width, map_height):
@@ -58,7 +62,7 @@ def _generate_veins(world_data, map_width, map_height):
         {"name": "deepslate IO", "min_y": 60, "max_y": 119, "veins_range": (8, 15), "size_range": (5, 18), "target_stones": ["deepslate"]},
         {"name": "deepslate CO", "min_y": 60, "max_y": 119, "veins_range": (8, 15), "size_range": (5, 20), "target_stones": ["deepslate"]},
         {"name": "deepslate EO", "min_y": 80, "max_y": 119, "veins_range": (3, 8), "size_range": (1, 1), "target_stones": ["deepslate"]},
-        {"name": "deepslate DO", "min_y": 60, "max_y": 119, "veins_range": (2, 5), "size_range": (1, 6), "target_stones": ["deepslate"]},
+        {"name": "deepslate DO", "min_y": 60, "max_y": 119, "veins_range": (3, 8), "size_range": (1, 6), "target_stones": ["deepslate"]},
     ]
 
     # ✨ 核心魔法：用一個迴圈，把所有礦物的規則依序拿出來跑

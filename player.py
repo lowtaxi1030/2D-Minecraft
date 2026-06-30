@@ -53,14 +53,40 @@ class Player:
                 if event.key == pygame.K_m:
                     self.m_i = (self.m_i + 1) % len(self.all_modes)
                     self.mode = self.all_modes[self.m_i]
+                    if self.mode == "survival":
+                        # 1. 先算出玩家當前在哪一個 X 軸的方塊網格 (grid_x)
+                        grid_x = int(self.rect.centerx // config.BLOCK_SIZE)
+                        # 確保 grid_x 沒有超出地圖陣列邊界
+                        grid_x = max(0, min(config.MAP_WIDTH - 1, grid_x))
+
+                        # 2. 找出這個位置的地表 Y 軸位置 (假設你之前有存地表高度，或直接找地圖第一個不是 air 的地方)
+                        # 這裡用你原本世界生成時的 height_map[grid_x] 來當作安全高度
+                        # 乘以 BLOCK_SIZE 變成像素，再往上減去一個玩家的高度，讓他完美站在草地上！
+                        # 注意：你需要讓 player 能讀到 world 的 height_map，或者在切換時傳進來
+                        surface_y = config.height_map[grid_x] * config.BLOCK_SIZE
+                        self.rect.bottom = surface_y
+
+                        # 3. 記得把速度歸零，免得帶著旁觀者模式的超高時速砸向地面
+                        self.vel_x = 0
+                        self.vel_y = 0
 
     def update(self, world_data):
         """處理重力、移動位置、以及與地圖方塊的碰撞偵測"""
+        center_grid_x = self.rect.centerx // config.BLOCK_SIZE
+        center_grid_y = self.rect.centery // config.BLOCK_SIZE
+
+        start_x = max(0, center_grid_x - 2)
+        end_x = min(config.MAP_WIDTH, center_grid_x + 3)
+
+        start_y = max(0, center_grid_y - 2)
+        end_y = min(config.MAP_HEIGHT, center_grid_y + 3)
+
         self.rect.x += self.vel_x
 
         # 檢查玩家周圍的方塊
-        for y_idx, row in enumerate(world_data):
-            for x_idx, block_name in enumerate(row):
+        for y_idx in range(start_y, end_y):
+            for x_idx in range(start_x, end_x):
+                block_name = world_data[y_idx][x_idx]
                 if block_name == "air" or self.mode == "spectator":
                     continue
 
@@ -85,8 +111,9 @@ class Player:
         # 預設玩家在空中
         self.is_grounded = False
 
-        for y_idx, row in enumerate(world_data):
-            for x_idx, block_name in enumerate(row):
+        for y_idx in range(start_y, end_y):
+            for x_idx in range(start_x, end_x):
+                block_name = world_data[y_idx][x_idx]
                 # 空氣不用檢查碰撞
                 if block_name == "air" or self.mode == "spectator":
                     continue

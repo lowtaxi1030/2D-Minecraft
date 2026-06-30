@@ -4,9 +4,10 @@ scroll_x, scroll_y = 0, 0
 
 BLOCK_SIZE = 40
 img_blocks = {}
-MAP_WIDTH = 200
+MAP_WIDTH = 300
 MAP_HEIGHT = 120
 
 world_data = []
+height_map = []
 
 Timer_Speed = 1
