@@ -7,7 +7,7 @@ from math import cos, radians, sin
 
 import pygame as p
 
-# 初始化 Pygame (必須先初始化才能使用字體)
+# 初始化 p (必須先初始化才能使用字體)
 p.init()
 p.mixer.init()
 
@@ -30,7 +30,7 @@ def set_screen(screen: p.Surface):
 
 class CR:  # ColoredRect
     def __init__(self, rect, color, show=True, can_collide=True):
-        self.rect = rect  # pygame.Rect
+        self.rect = rect  # p.Rect
         self.color = color  # (R, G, B)
         self.show = show
         self.can_collide = can_collide
@@ -124,7 +124,7 @@ class Colors:
 
     @staticmethod
     def two_color_wave(color1: Color, color2: Color, speed: int | float, time_func=p.time.get_ticks):
-        """根據時間在兩個顏色之間波動，\n time_func 是要用的時間函式，預設是 pygame 的 get_ticks()"""
+        """根據時間在兩個顏色之間波動，\n time_func 是要用的時間函式，預設是 p 的 get_ticks()"""
 
         ratio = (sin(time_func() / 1000.0 * speed) + 1) / 2  # 產生 0 到 1 的波動
         return Colors.two_color_gradient(color1, color2, ratio)
@@ -133,6 +133,84 @@ class Colors:
     def two_color_change(color1: Color, color2: Color, condition: bool):
         """condition 為 True 時回傳 color1, 為 False 時回傳 color2"""
         return color1 if condition else color2
+
+
+text_cache = {}
+
+root = pathlib.Path(__file__).parent.resolve(strict=False)
+
+
+def show_text(screen, text, text_color, x, y, size=24, center=False, screen_center=False, show=True, font_type="", alpha=255, line_gap=5):
+    # 1. 產生唯一的快取 Key (包含 alpha 也要放進去，因為 alpha 不同圖片就不同)
+    # 如果 text 是清單，轉成字串來當 key
+    text_str = "".join(text) if isinstance(text, list) else text
+    key = (text_str, text_color, size, font_type, alpha)
+
+    # 2. 檢查快取：如果這組文字已經畫過了，直接拿出來 blit
+    if key in text_cache:
+        surfaces, relative_rects = text_cache[key]
+    else:
+        # --- 以下內容只有在「第一次畫這段字」時才會執行 ---
+        surfaces = []
+        relative_rects = []
+
+        # 字體初始化 (這也很耗時，只有沒快取才做)
+        if font_type == "":
+            font = p.font.Font(str(root / "Ubuntu.ttf"), size)
+        elif font_type == "None":
+            font = p.font.SysFont(None, size)
+        else:
+            font = p.font.SysFont(font_type, size)
+
+        text_list = [text] if isinstance(text, str) else text
+
+        temp_y = 0
+        for t in text_list:
+            # 渲染並處理透明度
+            t_surf = font.render(t, True, text_color)
+            final_surf = p.Surface(t_surf.get_size(), p.SRCALPHA).convert_alpha()  # 記得加 convert_alpha
+            final_surf.blit(t_surf, (0, 0))
+            if alpha < 255:
+                final_surf.set_alpha(alpha)
+
+            # 儲存 Surface
+            surfaces.append(final_surf)
+
+            # 儲存相對位置 (以 y=0 為起點，方便後續根據傳入的 y 移動)
+            t_rect = final_surf.get_rect()
+            t_rect.top = temp_y
+            relative_rects.append(t_rect)
+
+            temp_y = t_rect.bottom + line_gap
+
+        # 存入快取：把這一組 Surface 和它們的相對位置存起來
+        text_cache[key] = (surfaces, relative_rects)
+
+    # 3. 繪製邏輯 (這一部分每一幀都會跑，但現在只剩 blit，非常快)
+    first_rect = None
+    total_text_height = relative_rects[-1].bottom if relative_rects else 0
+    for i, surf in enumerate(surfaces):
+        # 複製一份矩形來做位置偏移計算
+        draw_rect = relative_rects[i].copy()
+
+        # 根據外部傳入的 x, y 進行偏移
+        if center:
+            line_center_offset_y = relative_rects[i].top + (draw_rect.height / 2) - (total_text_height / 2)
+            draw_rect.center = (x, y + line_center_offset_y)
+        else:
+            draw_rect.top = y + relative_rects[i].top
+            if screen_center:
+                draw_rect.centerx = screen.get_rect().w // 2
+            else:
+                draw_rect.x = x
+
+        if i == 0:
+            first_rect = draw_rect
+        if show:
+            screen.blit(surf, draw_rect)
+
+    return first_rect
+
 
 
 def screen_vague(vague):

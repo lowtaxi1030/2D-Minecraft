@@ -20,7 +20,7 @@ pygame.display.set_caption(screen_text)
 
 config.img_blocks = asset_manager.load_all_blocks()
 
-config.world_data = world_generator.make_map(config.MAP_WIDHT, config.MAP_HEIGHT)
+config.world_data = world_generator.make_map(config.MAP_WIDTH, config.MAP_HEIGHT)
 
 player = Player(100, 0)
 
@@ -35,8 +35,16 @@ while running:
             screen = pygame.display.set_mode((new_widht, new_height), pygame.RESIZABLE)
         if event.type == pygame.QUIT:
             running = False
-    for y_idx, row in enumerate(config.world_data):
-        for x_idx, block_name in enumerate(row):
+
+    start_x = max(0, config.scroll_x // config.BLOCK_SIZE)
+    end_x = min(config.MAP_WIDTH, (config.scroll_x + config.WIDTH) // config.BLOCK_SIZE + 1)
+
+    start_y = max(0, config.scroll_y // config.BLOCK_SIZE)
+    end_y = min(config.MAP_HEIGHT, (config.scroll_y + config.HEIGHT) // config.BLOCK_SIZE + 1)
+    for y_idx in range(start_y, end_y):
+        for x_idx in range(start_x, end_x):
+
+            block_name = config.world_data[y_idx][x_idx]
             if block_name == "air":
                 continue
 
@@ -45,7 +53,7 @@ while running:
 
             screen.blit(config.img_blocks[block_name], (pixel_x, pixel_y))
 
-    player.handle_input()
+    player.handle_input(events)
     player.update(config.world_data)
     player.draw(screen, config.scroll_x, config.scroll_y)
 
@@ -54,8 +62,10 @@ while running:
     target_scroll_y = player.rect.centery - (config.HEIGHT // 2)
 
     # 3. 加上你原本就很厲害的緩動或範圍限制 (利用你寫好的 tool.num_range)
-    config.scroll_x = tool.num_range(0, 3000, target_scroll_x)
-    config.scroll_y = tool.num_range(0, 1200, target_scroll_y)
+    max_scroll_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - config.WIDTH
+    max_scroll_y = (config.MAP_HEIGHT * config.BLOCK_SIZE) - config.HEIGHT
+    config.scroll_x = tool.num_range(0, max_scroll_x, target_scroll_x)
+    config.scroll_y = tool.num_range(0, max_scroll_y, target_scroll_y)
 
     pygame.display.flip()
     clock.tick(60)

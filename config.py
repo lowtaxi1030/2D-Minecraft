@@ -3,8 +3,8 @@ scroll_x, scroll_y = 0, 0
 
 BLOCK_SIZE = 40
 img_blocks = {}
-MAP_WIDHT = 100
-MAP_HEIGHT = 40
+MAP_WIDTH = 200
+MAP_HEIGHT = 80
 
 world_data = []
 
