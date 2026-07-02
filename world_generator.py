@@ -1,6 +1,7 @@
 import math
-import opensimplex
 import random
+
+import opensimplex
 
 import config
 import tool
@@ -44,10 +45,10 @@ def make_map(map_width, map_height):
 
 def _make_terrain(map_width):
     config.height_map = []
-    
+
     # 💡 提示：設定一個隨機種子，讓每次地形都不一樣
     opensimplex.seed(random.randint(0, 999999))
-    
+
     baseline = 25  # 地平線基準面
 
     for x in range(map_width):
@@ -55,16 +56,16 @@ def _make_terrain(map_width):
         # 因為是 1D 地形，我們固定 Y 座標為 0 即可。
         # x / 30.0 決定山的陡峭度，* 18.0 決定山的高度起伏
         raw_noise = opensimplex.noise2(x / 30.0, 0)
-        
+
         # 2. ✨ 關鍵：取 3 次方！這會讓接近 0 的地方大面積變平平的
         # math.copysign 是為了保留原本的正負號（讓它有山也有谷）
         flattened_noise = math.copysign(abs(raw_noise) ** 2.5, raw_noise)
-        
+
         # 3. 乘以山的高度落差
         noise_val = flattened_noise * 22.0
-        
+
         current_height = baseline + int(noise_val)
-        
+
         # 安全防護，防止方塊超出地圖
         current_height = tool.clamp(5, config.MAP_HEIGHT - 5, current_height)
         config.height_map.append(current_height)
@@ -73,7 +74,7 @@ def _make_terrain(map_width):
 
 
 def _generate_veins(world_data, map_width, map_height):
-    
+
     map_width_mutiplyer = config.MAP_WIDTH // 100
     map_height_mutiplyer = config.MAP_HEIGHT // 80
 
@@ -87,10 +88,38 @@ def _generate_veins(world_data, map_width, map_height):
         {"name": "copper_ore", "min_y": 20, "max_y": 58, "veins_range": (3, 8), "size_range": (4, 8), "target_stones": ["stone"]},
         {"name": "gold_ore", "min_y": 20, "max_y": 58, "veins_range": (3, 7), "size_range": (4, 8), "target_stones": ["stone"]},
         {"name": "diamond_ore", "min_y": 40, "max_y": 58, "veins_range": (1, 3), "size_range": (1, 6), "target_stones": ["stone"]},
-        {"name": "deepslate_iron_ore", "min_y": 60, "max_y": 119, "veins_range": (8, 15), "size_range": (5, 18), "target_stones": ["deepslate"]},
-        {"name": "deepslate_coal_ore", "min_y": 60, "max_y": 119, "veins_range": (8, 15), "size_range": (5, 20), "target_stones": ["deepslate"]},
-        {"name": "deepslate_emerald_ore", "min_y": 80, "max_y": 119, "veins_range": (3, 8), "size_range": (1, 1), "target_stones": ["deepslate"]},
-        {"name": "deepslate_diamond_ore", "min_y": 60, "max_y": 119, "veins_range": (3, 8), "size_range": (1, 6), "target_stones": ["deepslate"]},
+        {
+            "name": "deepslate_iron_ore",
+            "min_y": 60,
+            "max_y": 119,
+            "veins_range": (8, 15),
+            "size_range": (5, 18),
+            "target_stones": ["deepslate"],
+        },
+        {
+            "name": "deepslate_coal_ore",
+            "min_y": 60,
+            "max_y": 119,
+            "veins_range": (8, 15),
+            "size_range": (5, 20),
+            "target_stones": ["deepslate"],
+        },
+        {
+            "name": "deepslate_emerald_ore",
+            "min_y": 80,
+            "max_y": 119,
+            "veins_range": (3, 8),
+            "size_range": (1, 1),
+            "target_stones": ["deepslate"],
+        },
+        {
+            "name": "deepslate_diamond_ore",
+            "min_y": 60,
+            "max_y": 119,
+            "veins_range": (3, 8),
+            "size_range": (1, 6),
+            "target_stones": ["deepslate"],
+        },
     ]
 
     # ✨ 核心魔法：用一個迴圈，把所有礦物的規則依序拿出來跑
@@ -99,7 +128,12 @@ def _generate_veins(world_data, map_width, map_height):
         num_of_veins = random.randint(rule["veins_range"][0] * final_mut, rule["veins_range"][1] * final_mut)
 
         for _ in range(num_of_veins):
-            while True:
+            attempts = 0
+            max_attempts = 30
+
+            while attempts < max_attempts:
+                attempts += 1
+
                 center_x = random.randint(0, map_width - 1)
                 # 使用規則裡指定的 Y 軸範圍
                 center_y = random.randint(rule["min_y"], rule["max_y"])

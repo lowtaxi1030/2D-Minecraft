@@ -7,7 +7,7 @@ import tool
 class Player:
     def __init__(self, x, y):
         # 1. 初始化玩家的形狀與位置 (先用 Rect 方塊代替)
-        self.rect = pygame.Rect(x, y, 35, 70)
+        self.rect = pygame.Rect(x, y, config.BLOCK_SIZE * 0.875, config.BLOCK_SIZE * 2 * 0.875)
 
         # 2. 物理相關變數
         self.vel_x = 0
@@ -26,17 +26,18 @@ class Player:
         # 記錄格式： { pygame.K_d: 上次按下的時間(毫秒), pygame.K_a: 上次按下的時間(毫秒) }
         self.last_press_time = {}
         self.DOUBLE_DELAY = 250
+
     def check_double_press(self, key):
         current_time = pygame.time.get_ticks()
         is_double = False
-        
+
         # 如果這個按鍵之前被按過，就計算時差
         if key in self.last_press_time:
             time_diff = current_time - self.last_press_time[key]
             # 💡 提示：如果時差在 250 毫秒內，且大於 10 毫秒（防止同一幀重複觸發）
             if 10 < time_diff <= self.DOUBLE_DELAY:
                 is_double = True
-                
+
         # 💡 提示：記得更新這一次按下的時間，留給下一次判斷用
         self.last_press_time[key] = current_time
         return is_double
@@ -98,10 +99,12 @@ class Player:
         top_y = tool.clamp(0, config.MAP_HEIGHT - 1, int(self.rect.top // config.BLOCK_SIZE))
         bottom_y = tool.clamp(0, config.MAP_HEIGHT - 1, int((self.rect.bottom - 1) // config.BLOCK_SIZE))
 
-        self.is_stuck = (config.world_data[top_y][left_x] != "air" or 
-                            config.world_data[bottom_y][left_x] != "air" or 
-                            config.world_data[top_y][right_x] != "air" or 
-                            config.world_data[bottom_y][right_x] != "air") and self.mode != "spectator"
+        self.is_stuck = (
+            config.world_data[top_y][left_x] != "air"
+            or config.world_data[bottom_y][left_x] != "air"
+            or config.world_data[top_y][right_x] != "air"
+            or config.world_data[bottom_y][right_x] != "air"
+        ) and self.mode != "spectator"
 
         center_grid_x = self.rect.centerx // config.BLOCK_SIZE
         center_grid_y = self.rect.centery // config.BLOCK_SIZE
