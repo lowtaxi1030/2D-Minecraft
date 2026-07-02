@@ -14,7 +14,7 @@ class Player:
         self.vel_y = 0
         self.jump_strength = -10
         self.is_grounded = False
-        self.all_modes = ["spectator", "creative"]
+        self.all_modes = ["spectator", "survival"]  # , "creative"
         self.mode_index = 1
         self.mode = self.all_modes[self.mode_index]
         self.current_speed = config.PLAYER_SPEED
@@ -26,6 +26,19 @@ class Player:
         # 記錄格式： { pygame.K_d: 上次按下的時間(毫秒), pygame.K_a: 上次按下的時間(毫秒) }
         self.last_press_time = {}
         self.DOUBLE_DELAY = 250
+
+        # 背包程式
+        # 格式：{"type": "方塊名稱", "count": 數量}
+        # 如果格子是空的，就直接用 None 表示
+        self.hotbar = [None] * 9  # 熱鍵列，長度為9
+        self.inventory = [None] * 27  # 主背包長度為9X3=27
+
+        self.selected_hotbar_index = 0
+
+        # ---- 🧪 測試用：先手動塞一點東西進去，等等開發畫面才看得到 ----
+        self.hotbar[0] = {"type": "dirt", "count": 64}
+        self.hotbar[1] = {"type": "stone", "count": 32}
+        self.hotbar[2] = {"type": "iron_ore", "count": 5}
 
     def check_double_press(self, key):
         current_time = pygame.time.get_ticks()
@@ -77,7 +90,7 @@ class Player:
                 if event.key == pygame.K_m:
                     self.mode_index = (self.mode_index + 1) % len(self.all_modes)
                     self.mode = self.all_modes[self.mode_index]
-                    if self.mode == "creative":
+                    if self.mode in ["creative", "survival"]:
                         self.vel_x = 0
                         self.vel_y = 0
                 if self.mode != "spectator":
@@ -133,15 +146,49 @@ class Player:
                         # 把玩家的右側擋在方塊的左側
                         self.rect.right = block_rect.left
                         if self.auto_jump and self.is_grounded:
-                            self.vel_y = self.jump_strength
-                            self.is_grounded = False
+                            height_difference = self.rect.bottom - block_rect.top
+
+                            # 💡 提示 1：算出玩家正頭頂上方 1 格的網格位置
+                            # 用玩家中心點的 X 座標除以方塊大小，得知目前在哪一欄
+                            head_grid_x = int(self.rect.centerx // config.BLOCK_SIZE)
+                            # 用玩家頭頂的 Y 座標減去 1 格的距離，除以方塊大小，得知頭頂上一格在哪一列
+                            head_grid_y = int((self.rect.top - config.BLOCK_SIZE) // config.BLOCK_SIZE)
+
+                            # 💡 提示 2：安全防護，確保網格座標在世界地圖內
+                            head_grid_y = tool.clamp(0, config.MAP_HEIGHT - 1, head_grid_y)
+                            head_grid_x = tool.clamp(0, config.MAP_WIDTH - 1, head_grid_x)
+
+                            # 💡 提示 3：檢查頭頂那一格是不是空的（假設空的叫做 "air"）
+                            is_ceiling_clear = world_data[head_grid_y][head_grid_x] == "air"
+
+                            # 💡 關鍵：高度差要在 1.5 格內，【並且】頭頂必須是空的才能跳！
+                            if (0 < height_difference <= config.BLOCK_SIZE * 1.5) and is_ceiling_clear:
+                                self.vel_y = self.jump_strength
+                                self.is_grounded = False
                     # 往左走時撞到（速度小於 0）
                     elif self.vel_x < 0:
                         # 把玩家的左側擋在方塊的右側
                         self.rect.left = block_rect.right
                         if self.auto_jump and self.is_grounded:
-                            self.vel_y = self.jump_strength
-                            self.is_grounded = False
+                            height_difference = self.rect.bottom - block_rect.top
+
+                            # 💡 提示 1：算出玩家正頭頂上方 1 格的網格位置
+                            # 用玩家中心點的 X 座標除以方塊大小，得知目前在哪一欄
+                            head_grid_x = int(self.rect.centerx // config.BLOCK_SIZE)
+                            # 用玩家頭頂的 Y 座標減去 1 格的距離，除以方塊大小，得知頭頂上一格在哪一列
+                            head_grid_y = int((self.rect.top - config.BLOCK_SIZE) // config.BLOCK_SIZE)
+
+                            # 💡 提示 2：安全防護，確保網格座標在世界地圖內
+                            head_grid_y = tool.clamp(0, config.MAP_HEIGHT - 1, head_grid_y)
+                            head_grid_x = tool.clamp(0, config.MAP_WIDTH - 1, head_grid_x)
+
+                            # 💡 提示 3：檢查頭頂那一格是不是空的（假設空的叫做 "air"）
+                            is_ceiling_clear = world_data[head_grid_y][head_grid_x] == "air"
+
+                            # 💡 關鍵：高度差要在 1.5 格內，【並且】頭頂必須是空的才能跳！
+                            if (0 < height_difference <= config.BLOCK_SIZE * 1.5) and is_ceiling_clear:
+                                self.vel_y = self.jump_strength
+                                self.is_grounded = False
         # 應用重力
         if self.mode != "spectator":
             self.vel_y += config.GRAVITY

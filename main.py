@@ -5,6 +5,7 @@ import pygame
 import asset_manager
 import config
 import tool
+import ui_manager
 import world_generator
 from player import Player
 
@@ -22,6 +23,8 @@ config.img_blocks = asset_manager.load_all_blocks()
 config.world_data = world_generator.make_map(config.MAP_WIDTH, config.MAP_HEIGHT)
 player = Player(100, 0)
 
+ui = ui_manager.UI()
+
 while running:
     screen.fill(tool.Colors.CYAN)
     events = pygame.event.get()
@@ -29,7 +32,7 @@ while running:
     mouse_buttons = pygame.mouse.get_pressed()
     for event in events:
         if event.type == pygame.VIDEORESIZE:
-            config.current_width =  event.w
+            config.current_width = event.w
             config.current_height = event.h
             # screen = pygame.display.set_mode((config.current_width, config.current_height), pygame.RESIZABLE)
             screen = pygame.display.set_mode((event.w, event.h), screen.get_flags())
@@ -81,6 +84,8 @@ while running:
     max_scroll_y = (config.MAP_HEIGHT * config.BLOCK_SIZE) - config.current_height
     config.scroll_x = tool.clamp(0, max_scroll_x, target_scroll_x)
     config.scroll_y = tool.clamp(0, max_scroll_y, target_scroll_y)
+
+    ui.draw(screen, player)
 
     pygame.display.flip()
     clock.tick(60)
