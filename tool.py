@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math
 import os
 import pathlib
@@ -116,7 +118,7 @@ class Colors:
     @staticmethod
     def two_color_gradient(color1: Color, color2: Color, ratio: float):
         """ratio 是 color1 的比例，回傳兩個顏色的漸層色"""
-        ratio = num_range(0, 1, ratio)
+        ratio = clamp(0, 1, ratio)
         r = int(color1[0] * ratio + color2[0] * (1 - ratio))
         g = int(color1[1] * ratio + color2[1] * (1 - ratio))
         b = int(color1[2] * ratio + color2[2] * (1 - ratio))
@@ -236,13 +238,12 @@ def os_open_file(pt):
         sub.call(["xdg-open", pt])
 
 
-def num_range(start, end, num):
-    res = num
-    if end is not None:
-        res = min(res, end)
-    if start is not None:  # 改成 if，確保下限也會被檢查
-        res = max(res, start)
-    return res
+def clamp(start, end, num):
+    if start is None:
+        start = -math.inf
+    if end is None:
+        end = math.inf
+    return min(max(start, num), end)
 
 
 def in_range(start, end, num):
@@ -334,7 +335,7 @@ def num_to_KMBT(num):
 def update_scrolling(current_y, target_y, smoth=0.1, min_val=0, max_val=None):
     # 1. 先確保目標值在合法範圍內
     if max_val is not None:
-        target_y = num_range(min_val, target_y, max_val)
+        target_y = clamp(min_val, target_y, max_val)
 
     # 2. 計算緩動 (Lerp 邏輯)
     if current_y != target_y and abs(target_y - current_y) > 0.1:
@@ -344,7 +345,7 @@ def update_scrolling(current_y, target_y, smoth=0.1, min_val=0, max_val=None):
 
     # 3. 再次強制修正 current_y 確保不溢出 (這對邊界回彈很有用)
     if max_val is not None:
-        current_y = num_range(min_val, current_y, max_val)
+        current_y = clamp(min_val, current_y, max_val)
 
     return current_y
 
@@ -354,8 +355,8 @@ class FloatingText:
     def __init__(self, text, start_x, start_y, color, size=20, time=60, speed=1.0, center=F):
         self.text = text
         # 確保文字至少離邊界 20 像素，且不超出右下角
-        self.x = num_range(20, W - 60, start_x)
-        self.y = num_range(20, H - 20, start_y)
+        self.x = clamp(20, W - 60, start_x)
+        self.y = clamp(20, H - 20, start_y)
         self.color = color
         self.timer = time  # 文字顯示多久
         self.max_time = time

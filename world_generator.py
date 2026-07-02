@@ -1,3 +1,5 @@
+import math
+import opensimplex
 import random
 
 import config
@@ -20,13 +22,15 @@ def make_map(map_width, map_height):
             # 根據 y 的位置（深度）來決定方塊種類
             if y < target_y:
                 block = "air"  # 最上面 10 格是天空
+            elif y == config.MAP_HEIGHT - 1:
+                block = "bedrock"
             elif y == target_y:
                 block = "grass"  # 第 10 格是表面草地
             elif target_y < y < dirt_end_y:
-                block = "soil"  # 再往下 4 格是泥土
+                block = "dirt"  # 再往下 4 格是泥土
             elif y < dirt_end_y + rock_depth_map[x]:
-                block = "rock"
-            else:
+                block = "stone"
+            elif y < config.MAP_HEIGHT:
                 block = "deepslate"
 
             row.append(block)
@@ -40,35 +44,59 @@ def make_map(map_width, map_height):
 
 def _make_terrain(map_width):
     config.height_map = []
-    current_height = 20
+    
+    # 💡 提示：設定一個隨機種子，讓每次地形都不一樣
+    opensimplex.seed(random.randint(0, 999999))
+    
+    baseline = 25  # 地平線基準面
 
-    for _ in range(map_width):
-        current_height += random.choice([-1, 0, 0, 0, 0, 1])
-        current_height = tool.num_range(8, None, current_height)
+    for x in range(map_width):
+        # 💡 核心用法：丟入 X 座標。
+        # 因為是 1D 地形，我們固定 Y 座標為 0 即可。
+        # x / 30.0 決定山的陡峭度，* 18.0 決定山的高度起伏
+        raw_noise = opensimplex.noise2(x / 30.0, 0)
+        
+        # 2. ✨ 關鍵：取 3 次方！這會讓接近 0 的地方大面積變平平的
+        # math.copysign 是為了保留原本的正負號（讓它有山也有谷）
+        flattened_noise = math.copysign(abs(raw_noise) ** 2.5, raw_noise)
+        
+        # 3. 乘以山的高度落差
+        noise_val = flattened_noise * 22.0
+        
+        current_height = baseline + int(noise_val)
+        
+        # 安全防護，防止方塊超出地圖
+        current_height = tool.clamp(5, config.MAP_HEIGHT - 5, current_height)
         config.height_map.append(current_height)
 
     return config.height_map
 
 
 def _generate_veins(world_data, map_width, map_height):
+    
+    map_width_mutiplyer = config.MAP_WIDTH // 100
+    map_height_mutiplyer = config.MAP_HEIGHT // 80
+
+    final_mut = (map_width_mutiplyer + map_height_mutiplyer) // 2
+
     # 🛠️ 在這裡集中管理所有礦物的生成規則，要新增礦物只要在這邊加一行就好！
     ore_rules = [
         # {"name": 礦物名稱, "min_y": 最高高度, "max_y": 最低高度, "veins_range": 群落數範圍, "size_range": 每坨大小, "target_stones": 能替換的石頭}
-        {"name": "iron ore", "min_y": 15, "max_y": 58, "veins_range": (5, 8), "size_range": (5, 18), "target_stones": ["rock"]},
-        {"name": "coal ore", "min_y": 15, "max_y": 58, "veins_range": (3, 8), "size_range": (5, 25), "target_stones": ["rock"]},
-        {"name": "copper ore", "min_y": 20, "max_y": 58, "veins_range": (3, 8), "size_range": (4, 8), "target_stones": ["rock"]},
-        {"name": "gold ore", "min_y": 20, "max_y": 58, "veins_range": (3, 7), "size_range": (4, 8), "target_stones": ["rock"]},
-        {"name": "diamond ore", "min_y": 40, "max_y": 58, "veins_range": (1, 3), "size_range": (1, 6), "target_stones": ["rock"]},
-        {"name": "deepslate IO", "min_y": 60, "max_y": 119, "veins_range": (8, 15), "size_range": (5, 18), "target_stones": ["deepslate"]},
-        {"name": "deepslate CO", "min_y": 60, "max_y": 119, "veins_range": (8, 15), "size_range": (5, 20), "target_stones": ["deepslate"]},
-        {"name": "deepslate EO", "min_y": 80, "max_y": 119, "veins_range": (3, 8), "size_range": (1, 1), "target_stones": ["deepslate"]},
-        {"name": "deepslate DO", "min_y": 60, "max_y": 119, "veins_range": (3, 8), "size_range": (1, 6), "target_stones": ["deepslate"]},
+        {"name": "iron_ore", "min_y": 15, "max_y": 58, "veins_range": (5, 8), "size_range": (5, 18), "target_stones": ["stone"]},
+        {"name": "coal_ore", "min_y": 15, "max_y": 58, "veins_range": (3, 8), "size_range": (5, 25), "target_stones": ["stone"]},
+        {"name": "copper_ore", "min_y": 20, "max_y": 58, "veins_range": (3, 8), "size_range": (4, 8), "target_stones": ["stone"]},
+        {"name": "gold_ore", "min_y": 20, "max_y": 58, "veins_range": (3, 7), "size_range": (4, 8), "target_stones": ["stone"]},
+        {"name": "diamond_ore", "min_y": 40, "max_y": 58, "veins_range": (1, 3), "size_range": (1, 6), "target_stones": ["stone"]},
+        {"name": "deepslate_iron_ore", "min_y": 60, "max_y": 119, "veins_range": (8, 15), "size_range": (5, 18), "target_stones": ["deepslate"]},
+        {"name": "deepslate_coal_ore", "min_y": 60, "max_y": 119, "veins_range": (8, 15), "size_range": (5, 20), "target_stones": ["deepslate"]},
+        {"name": "deepslate_emerald_ore", "min_y": 80, "max_y": 119, "veins_range": (3, 8), "size_range": (1, 1), "target_stones": ["deepslate"]},
+        {"name": "deepslate_diamond_ore", "min_y": 60, "max_y": 119, "veins_range": (3, 8), "size_range": (1, 6), "target_stones": ["deepslate"]},
     ]
 
     # ✨ 核心魔法：用一個迴圈，把所有礦物的規則依序拿出來跑
     for rule in ore_rules:
         # 根據當前礦物的規則，隨機決定這次要生幾坨礦脈
-        num_of_veins = random.randint(rule["veins_range"][0], rule["veins_range"][1])
+        num_of_veins = random.randint(rule["veins_range"][0] * final_mut, rule["veins_range"][1] * final_mut)
 
         for _ in range(num_of_veins):
             while True:
@@ -114,7 +142,7 @@ def _veins_spawn(world_data, vein_size, center_y, center_x, map_width, map_heigh
         next_y = max(0, min(map_height - 1, base_y + dy))
 
         # 如果下一個位置是石頭，且還沒被感染
-        if world_data[next_y][next_x] in ["rock", "deepslate"] and (next_x, next_y) not in infected_blocks:
+        if world_data[next_y][next_x] in ["stone", "deepslate"] and (next_x, next_y) not in infected_blocks:
             # 放下礦石
             world_data[next_y][next_x] = vein_name
             # 把這格加入「被感染清單」，下次也可能從這格突觸

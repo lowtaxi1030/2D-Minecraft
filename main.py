@@ -19,9 +19,7 @@ screen_text = "2D Minecraft - V0.0.0"
 pygame.display.set_caption(screen_text)
 
 config.img_blocks = asset_manager.load_all_blocks()
-
 config.world_data = world_generator.make_map(config.MAP_WIDTH, config.MAP_HEIGHT)
-
 player = Player(100, 0)
 
 while running:
@@ -31,9 +29,10 @@ while running:
     mouse_buttons = pygame.mouse.get_pressed()
     for event in events:
         if event.type == pygame.VIDEORESIZE:
-            config.current_width = tool.num_range(300, 1400, event.w)
-            config.current_height = tool.num_range(200, 800, event.h)
-            screen = pygame.display.set_mode((config.current_width, config.current_height), pygame.RESIZABLE)
+            config.current_width =  event.w
+            config.current_height = event.h
+            # screen = pygame.display.set_mode((config.current_width, config.current_height), pygame.RESIZABLE)
+            screen = pygame.display.set_mode((event.w, event.h), screen.get_flags())
         if event.type == pygame.QUIT:
             running = False
     if any(mouse_buttons):
@@ -41,8 +40,8 @@ while running:
         mouse_pos = pygame.mouse.get_pos()
 
         # 計算世界座標
-        world_x = tool.num_range(0, config.MAP_WIDTH - 1, (mouse_pos[0] + config.scroll_x) // config.BLOCK_SIZE)
-        world_y = tool.num_range(0, config.MAP_HEIGHT - 1, (mouse_pos[1] + config.scroll_y) // config.BLOCK_SIZE)
+        world_x = tool.clamp(0, config.MAP_WIDTH - 1, (mouse_pos[0] + config.scroll_x) // config.BLOCK_SIZE)
+        world_y = tool.clamp(0, config.MAP_HEIGHT - 1, (mouse_pos[1] + config.scroll_y) // config.BLOCK_SIZE)
         clicked_block = config.world_data[world_y][world_x]
 
         if mouse_buttons[0]:
@@ -56,19 +55,20 @@ while running:
 
     start_y = max(0, config.scroll_y // config.BLOCK_SIZE)
     end_y = min(config.MAP_HEIGHT, (config.scroll_y + config.current_height) // config.BLOCK_SIZE + 1)
-    for y_idx in range(start_y, end_y):
-        for x_idx in range(start_x, end_x):
+    for y_pos in range(start_y, end_y):
+        for x_pos in range(start_x, end_x):
 
-            block_name = config.world_data[y_idx][x_idx]
+            block_name = config.world_data[y_pos][x_pos]
             if block_name == "air":
                 continue
 
-            pixel_x = x_idx * config.BLOCK_SIZE - config.scroll_x
-            pixel_y = y_idx * config.BLOCK_SIZE - config.scroll_y
+            pixel_x = x_pos * config.BLOCK_SIZE - config.scroll_x
+            pixel_y = y_pos * config.BLOCK_SIZE - config.scroll_y
 
             screen.blit(config.img_blocks[block_name], (pixel_x, pixel_y))
 
-    player.handle_input(events)
+    if not player.is_stuck:
+        player.handle_input(events)
     player.update(config.world_data)
     player.draw(screen, config.scroll_x, config.scroll_y)
 
@@ -79,8 +79,8 @@ while running:
     # 3. 加上你原本就很厲害的緩動或範圍限制 (利用你寫好的 tool.num_range)
     max_scroll_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - config.current_width
     max_scroll_y = (config.MAP_HEIGHT * config.BLOCK_SIZE) - config.current_height
-    config.scroll_x = tool.num_range(0, max_scroll_x, target_scroll_x)
-    config.scroll_y = tool.num_range(0, max_scroll_y, target_scroll_y)
+    config.scroll_x = tool.clamp(0, max_scroll_x, target_scroll_x)
+    config.scroll_y = tool.clamp(0, max_scroll_y, target_scroll_y)
 
     pygame.display.flip()
     clock.tick(60)

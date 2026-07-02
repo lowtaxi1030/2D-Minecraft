@@ -29,3 +29,4 @@ def load_all_blocks():
         # 存入字典
         img_blocks[name] = scaled_img
     return img_blocks
+
