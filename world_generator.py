@@ -11,7 +11,7 @@ def make_map(map_width, map_height):
     world_data = []
     height_map = _make_terrain(map_width)
     dirt_depth_map = [random.randint(3, 5) for _ in range(map_width)]
-    rock_depth_map = [random.randint(25, 40) for _ in range(map_width)]
+    rock_depth_map = [random.randint(int(config.MAP_HEIGHT // 2.5) - 5, int(config.MAP_HEIGHT // 2.5) + 5) for _ in range(map_width)]
 
     # 橫向一列一列由上往下生成
     for y in range(map_height):
@@ -164,10 +164,14 @@ def _veins_spawn(world_data, vein_size, center_y, center_x, map_width, map_heigh
         world_data[center_y][center_x] = vein_name
         blocks_placed += 1
 
+    # 🎯 建立一個安全計數器，防止無限迴圈
+    attempts = 0
+    max_attempts = vein_size * 5
+
     # 用 while 確保一定要放滿指定格數
-    while blocks_placed < vein_size:
-        # ✨ 關鍵修改：從「所有已經感染的方塊」中隨機挑選一個
-        # 這樣我們就像從已經生好的礦塊邊緣隨機「突觸」一格，不會一直跑遠
+    while blocks_placed < vein_size and attempts < max_attempts:
+        attempts += 1
+        
         base_x, base_y = random.choice(list(infected_blocks))
 
         # 從這個挑選到的「突觸點」隨機抽一個上下左右的方向
