@@ -12,9 +12,9 @@ class Player:
         # 2. 物理相關變數
         self.vel_x = 0
         self.vel_y = 0
-        self.jump_strength = -6.5
+        self.jump_strength = -(config.BLOCK_SIZE / (20/3))
         self.is_grounded = False
-        self.all_modes = ["spectator", "creative"]  # , "survival"
+        self.all_modes = ["spectator", "creative", "survival"]  # , "survival"
         self.mode_index = 1
         self.mode = self.all_modes[self.mode_index]
         self.current_speed = config.PLAYER_SPEED
@@ -23,6 +23,7 @@ class Player:
         self.is_running = False
         self.auto_jump = True
         self.is_flying = False
+        self.is_open_inv = False
 
         # 記錄格式： { pygame.K_d: 上次按下的時間(毫秒), pygame.K_a: 上次按下的時間(毫秒) }
         self.last_press_time = {}
@@ -37,9 +38,12 @@ class Player:
         self.selected_hotbar_index = 0
 
         # ---- 🧪 測試用：先手動塞一點東西進去，等等開發畫面才看得到 ----
-        self.hotbar[0] = {"type": "dirt", "count": 64}
-        self.hotbar[1] = {"type": "stone", "count": 32}
-        self.hotbar[2] = {"type": "iron_ore", "count": 5}
+        self.hotbar[0] = {"type": "grass", "count": 64}
+        self.hotbar[1] = {"type": "dirt", "count": 64}
+        self.hotbar[2] = {"type": "stone", "count": 32}
+        self.hotbar[3] = {"type": "iron_ore", "count": 5}
+        self.hotbar[4] = {"type": "coal_ore", "count": 10}
+        self.hotbar[5] = {"type": "deepslate", "count": 10}
 
     def check_double_press(self, key):
         current_time = pygame.time.get_ticks()
@@ -65,22 +69,22 @@ class Player:
 
             # X 軸：左右控制
             if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                self.vel_x -= 10  # 往左是負
+                self.vel_x -= config.PLAYER_FLYING_SPEED  # 往左是負
             if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                self.vel_x += 10  # 往右是正
+                self.vel_x += config.PLAYER_FLYING_SPEED  # 往右是正
 
             # Y 軸：上下自由飛行
             if keys[pygame.K_UP] or keys[pygame.K_w]:
-                self.vel_y -= 10  # 網上飛是負（對抗重力）
+                self.vel_y -= config.PLAYER_FLYING_SPEED  # 網上飛是負（對抗重力）
             if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-                self.vel_y += 10  # 往下飛是正
+                self.vel_y += config.PLAYER_FLYING_SPEED  # 往下飛是正
         elif self.mode != "spectator":
             self.vel_x = 0
 
             if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                self.vel_x = -10 if self.is_flying else -self.current_speed
+                self.vel_x = -config.PLAYER_FLYING_SPEED if self.is_flying else -self.current_speed
             elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                self.vel_x = 10 if self.is_flying else self.current_speed
+                self.vel_x = config.PLAYER_FLYING_SPEED if self.is_flying else self.current_speed
             if (keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]) and self.is_grounded:
                 if not self.is_flying:
                     self.vel_y = self.jump_strength
@@ -94,7 +98,9 @@ class Player:
                     if self.mode in ["creative", "survival"]:
                         self.vel_x = 0
                         self.vel_y = 0
-                
+                if event.key == pygame.K_e:
+                    self.is_open_inv = not self.is_open_inv
+
                 if pygame.K_1 <= event.key <= pygame.K_9:
                     self.selected_hotbar_index = event.key - pygame.K_1
 
@@ -122,7 +128,7 @@ class Player:
                 self.selected_hotbar_index -= event.y
                 if self.selected_hotbar_index >= 9:
                     self.selected_hotbar_index = 0
-                
+
                 if self.selected_hotbar_index <= -1:
                     self.selected_hotbar_index = 8
 
@@ -244,9 +250,9 @@ class Player:
                         if sign_y > 0:  # 往下掉撞到 -> 站在地板上
                             self.rect.bottom = block_rect.top
                             self.is_grounded = True
-                        else:           # 往上跳撞到 -> 頭撞到天花板
+                        else:  # 往上跳撞到 -> 頭撞到天花板
                             self.rect.top = block_rect.bottom
-                        
+
                         self.vel_y = 0  # 速度煞車歸零
                         hit_y = True
                         break

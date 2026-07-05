@@ -9,7 +9,7 @@ BASE_DIR = Path(__file__).parent
 
 IMAGE_PATH = BASE_DIR / "images"
 
-BLOCKS_PATH = IMAGE_PATH / "blocks"
+BLOCKS_PATH = IMAGE_PATH / "2d_blocks"
 
 pygame.init()
 
@@ -51,8 +51,17 @@ try:
 except FileNotFoundError as e:
     sys.exit(f"找不到 hotbar_bg 或 select_frame 的圖\n{e}")
 
+try:
+    inventory_img = pygame.image.load(f"{str(IMAGE_PATH)}/ui/inventory.png")
+    inventory_img = pygame.transform.scale_by(inventory_img, 3.5)
+    inv_rect = inventory_img.get_rect()
+    inv_rect.center = (config.WIDTH // 2, config.HEIGHT // 2)
 
-def update_img_pos(img_rect: pygame.Rect, new_pos: tuple = None, screen_center=True, is_bottom=False):
+except FileNotFoundError as e:
+    sys.exit(f"找不到 inventory 的圖片\n{e}")
+
+
+def update_img_pos(img_rect: pygame.Rect, new_pos: tuple = None, y_center=False, screen_center=True, is_bottom=False):
     """
     更新 UI 圖片位置的工具函式
     :param img_rect: 要修改的 pygame.Rect 物件
@@ -63,6 +72,8 @@ def update_img_pos(img_rect: pygame.Rect, new_pos: tuple = None, screen_center=T
     # 1. 處理水平置中
     if screen_center:
         img_rect.centerx = config.current_width // 2
+        if new_pos is not None:
+            img_rect.y = new_pos[1]
     elif new_pos is not None:
         img_rect.x = new_pos[0]
 
@@ -71,3 +82,6 @@ def update_img_pos(img_rect: pygame.Rect, new_pos: tuple = None, screen_center=T
         img_rect.bottom = config.current_height - 10  # 留 10 像素邊距
     elif new_pos is not None:
         img_rect.y = new_pos[1]
+
+    if y_center:
+        img_rect.centery = config.current_height // 2

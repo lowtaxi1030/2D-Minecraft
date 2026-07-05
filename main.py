@@ -30,28 +30,39 @@ while running:
     events = pygame.event.get()
     keys = pygame.key.get_pressed()
     mouse_buttons = pygame.mouse.get_pressed()
+    mouse_pos = pygame.mouse.get_pos()
+
     for event in events:
         if event.type == pygame.VIDEORESIZE:
             config.current_width = event.w
             config.current_height = event.h
             # screen = pygame.display.set_mode((config.current_width, config.current_height), pygame.RESIZABLE)
             screen = pygame.display.set_mode((event.w, event.h), screen.get_flags())
+
         if event.type == pygame.QUIT:
             running = False
     if any(mouse_buttons):
-        # 滑鼠事件
-        mouse_pos = pygame.mouse.get_pos()
-
         # 計算世界座標
-        world_x = tool.clamp(0, config.MAP_WIDTH - 1, (mouse_pos[0] + int(config.scroll_x)) // config.BLOCK_SIZE)
-        world_y = tool.clamp(0, config.MAP_HEIGHT - 1, (mouse_pos[1] + int(config.scroll_y)) // config.BLOCK_SIZE)
-        clicked_block = config.world_data[world_y][world_x]
+        world_x = int(tool.clamp(0, config.MAP_WIDTH - 1, (mouse_pos[0] + int(config.scroll_x)) // config.BLOCK_SIZE))
+        world_y = int(tool.clamp(0, config.MAP_HEIGHT - 1, (mouse_pos[1] + int(config.scroll_y)) // config.BLOCK_SIZE))
+        if not (world_x < 0 or world_x > config.MAP_WIDTH or world_y < 0 or world_y > config.MAP_HEIGHT):
+            clicked_block = config.world_data[world_y][world_x]
 
-        if mouse_buttons[0]:
-            if clicked_block != "air":
-                config.world_data[world_y][world_x] = "air"
-        elif mouse_buttons[2]:
-            pass
+            if mouse_buttons[0]:
+                if clicked_block != "air":
+                    config.world_data[world_y][world_x] = "air"
+
+            # 放置方塊
+            elif mouse_buttons[2] and clicked_block == "air":
+                current_item = player.hotbar[player.selected_hotbar_index]
+
+                if current_item is not None:
+                    new_block_rect = pygame.Rect(
+                        world_x * config.BLOCK_SIZE, world_y * config.BLOCK_SIZE, config.BLOCK_SIZE, config.BLOCK_SIZE
+                    )
+                    if not player.rect.colliderect(new_block_rect):
+                        # 成功放置！
+                        config.world_data[world_y][world_x] = current_item["type"]
 
     start_x = max(0, int(config.scroll_x) // config.BLOCK_SIZE)
     end_x = min(config.MAP_WIDTH, (int(config.scroll_x) + config.current_width) // config.BLOCK_SIZE + 1)
@@ -62,13 +73,22 @@ while running:
         for x_pos in range(start_x, end_x):
 
             block_name = config.world_data[y_pos][x_pos]
-            if block_name == "air":
-                continue
+            if block_name != "air":
 
-            pixel_x = x_pos * config.BLOCK_SIZE - int(config.scroll_x)
-            pixel_y = y_pos * config.BLOCK_SIZE - int(config.scroll_y)
+                pixel_x = x_pos * config.BLOCK_SIZE - int(config.scroll_x)
+                pixel_y = y_pos * config.BLOCK_SIZE - int(config.scroll_y)
 
-            screen.blit(config.img_blocks[block_name], (pixel_x, pixel_y))
+                screen.blit(config.img_blocks[block_name], (pixel_x, pixel_y))
+
+            block_rect = pygame.Rect(
+                x_pos * config.BLOCK_SIZE - config.scroll_x,
+                y_pos * config.BLOCK_SIZE - config.scroll_y,
+                config.BLOCK_SIZE,
+                config.BLOCK_SIZE,
+            )
+
+            if block_rect.collidepoint(mouse_pos):
+                pygame.draw.rect(screen, tool.Colors.BLACK, block_rect, max(1, config.BLOCK_SIZE // 20))
 
     if not player.is_stuck:
         player.handle_input(events)
