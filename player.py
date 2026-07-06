@@ -98,6 +98,8 @@ class Player:
                     if self.mode in ["creative", "survival"]:
                         self.vel_x = 0
                         self.vel_y = 0
+                    if self.mode == "survival":
+                        self.is_flying = False
                 if event.key == pygame.K_e:
                     self.is_open_inv = not self.is_open_inv
 
