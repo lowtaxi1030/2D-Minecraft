@@ -2,6 +2,7 @@ import pygame
 
 import config
 import tool
+import ui_obs as ui
 
 
 class Player:
@@ -264,36 +265,11 @@ class Player:
             if hit_y:
                 # 🎯 撞到了就直接完全報廢這幀剩下的碎步，絕對不會過度疊加移動
                 break
-        """
-        rem_y = abs(total_move_y)  # 還剩下多少 Y 距離要走
-        sign_y = 1 if total_move_y > 0 else -1
-
-        while rem_y > 0:
-            current_step = min(step_size, rem_y)
-            player_rect.y += current_step * sign_y
-            rem_y -= current_step
-
-            hit_y = False
-            for ob in current_setup.get("obstacles", []):
-                if ob.mode == "attack" and ob.can_collide:
-                    ob_rect = ob.get_rect()
-                    if player_rect.colliderect(ob_rect):
-                        # 撞到了！用中心點推出牆外
-                        if player_rect.centery < ob_rect.centery:
-                            player_rect.y = ob_rect.top - player_size
-                        else:
-                            player_rect.y = ob_rect.bottom
-                        hit_y = True
-                        break
-
-            if hit_y:
-                break
-        """
         max_player_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - 35
         self.rect.x = tool.clamp(0, max_player_x, self.rect.x)
         self.rect.y = tool.clamp(None, None, self.rect.y)
 
-    def draw(self, surface: pygame.Surface, scroll_x, scroll_y):
+    def draw(self, screen: pygame.Surface, scroll_x, scroll_y):
         """將玩家畫在畫面上 (記得扣除鏡頭捲動位移)"""
         # 計算在螢幕上的實際繪製位置
         render_x = self.rect.x - scroll_x
@@ -308,13 +284,13 @@ class Player:
             temp_surface.fill((0, 128, 255, 128))
 
             # 3. 把這個半透明的 Surface 畫到螢幕上（記得扣掉鏡頭的捲動偏移 scroll）
-            surface.blit(temp_surface, (render_x, render_y))
+            screen.blit(temp_surface, (render_x, render_y))
         else:
             # 生存模式：照舊畫你原本完全不透明的普通方塊
             # 這裡的坐標一樣要記得扣掉你的 scroll 喔！
-            pygame.draw.rect(surface, (0, 128, 255), (render_x, render_y, self.rect.width, self.rect.height))
-        tool.show_text(
-            surface,
+            pygame.draw.rect(screen, (0, 128, 255), (render_x, render_y, self.rect.width, self.rect.height))
+        ui.show_text(
+            screen,
             f"X: {self.rect.x // config.BLOCK_SIZE}, Y: {self.rect.y // config.BLOCK_SIZE}",
             tool.Colors.WHITE,
             config.current_width - 150,

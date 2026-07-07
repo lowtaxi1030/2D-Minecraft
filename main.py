@@ -1,4 +1,3 @@
-import ctypes
 import os
 
 import pygame
@@ -18,28 +17,17 @@ pygame.init()
 screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT), pygame.RESIZABLE)
 running = True
 clock = pygame.time.Clock()
-screen_text = "2D Minecraft - V0.0.0"
-pygame.display.set_caption(screen_text)
+# screen_text = "2D Minecraft - V0.0.0"
+pygame.display.set_caption("2D Minecraft - V0.0.0")  # 之後放screen_text
 
 config.img_blocks = assets.load_all_blocks()
-config.org_img_blocks = config.img_blocks.copy()
+# config.org_img_blocks = config.img_blocks.copy()
 
 config.world_data = world_generator.make_map(config.MAP_WIDTH, config.MAP_HEIGHT)
 player = Player(100, 0)
 
 ui = ui_manager.UI()
 menu_manager = menu_manager.MenuManager()
-
-try:
-    # 🎯 提示：改用 Pygame 內建方法，精準抓取「本遊戲視窗」的 Windows 控制代碼
-    wm_info = pygame.display.get_wm_info()
-    hwnd = wm_info.get("window")  # 這樣拿到的絕對是遊戲視窗自己！
-
-    if hwnd:
-        english_layout = 0x04090409
-        ctypes.windll.user32.PostMessageW(hwnd, 0x50, 0, english_layout)
-except Exception as e:
-    print(f"無法強制切換語言: {e}")
 
 while running:
     events = pygame.event.get()
@@ -130,9 +118,13 @@ while running:
         ui.update(player)
         ui.draw(screen, player)
 
-    elif config.game_state == "OPTIONS":
+    elif config.game_state == "OPTION":
         menu_manager.update(events, mouse_pos)
-        menu_manager.draw_options(screen)
+        menu_manager.draw(screen)
+
+    elif config.game_state == "VIDEO_OPTION":
+        menu_manager.update(events, mouse_pos)
+        menu_manager.draw(screen)
 
     pygame.display.flip()
     clock.tick(60)

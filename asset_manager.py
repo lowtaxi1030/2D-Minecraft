@@ -70,8 +70,16 @@ try:
     setting_btn_rect = setting_button_img.get_rect()
     setting_btn_rect.center = (config.WIDTH // 2, config.HEIGHT // 2)
 
+    FOV_bg_img = pygame.image.load(f"{str(IMAGE_PATH)}/ui/FOV.png")
+    FOV_bg_img = pygame.transform.scale_by(FOV_bg_img, 0.45)
+    FOV_bg_rect = FOV_bg_img.get_rect()
+
+    FOV_lever_img = pygame.image.load(f"{str(IMAGE_PATH)}/ui/FOV_lever.png")
+    FOV_lever_img = pygame.transform.scale_by(FOV_lever_img, 0.5)
+    FOV_lever_rect = FOV_lever_img.get_rect()
+
 except FileNotFoundError as e:
-    sys.exit(f"找不到 setting_button 的圖片\n{e}")
+    sys.exit(f"找不到 setting_button 或 FOV 或 FOV_lever 的圖片\n{e}")
 
 
 def update_img_pos(img_rect: pygame.Rect, new_pos: tuple = None, y_center=False, screen_center=True, is_bottom=False):

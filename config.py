@@ -22,4 +22,4 @@ SLOT_SIZE = 70
 PADDING = 5
 
 
-game_state = "OPTIONS"
+game_state = "OPTION"

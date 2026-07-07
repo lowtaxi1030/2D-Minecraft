@@ -160,7 +160,7 @@ def _veins_spawn(world_data, vein_size, center_y, center_x, map_width, map_heigh
     infected_blocks.add((center_x, center_y))
 
     # 先把中心點放下去
-    if world_data[center_y][center_x] in ["rock", "deepslate"]:
+    if world_data[center_y][center_x] in ["stone", "deepslate"]:
         world_data[center_y][center_x] = vein_name
         blocks_placed += 1
 
@@ -171,7 +171,7 @@ def _veins_spawn(world_data, vein_size, center_y, center_x, map_width, map_heigh
     # 用 while 確保一定要放滿指定格數
     while blocks_placed < vein_size and attempts < max_attempts:
         attempts += 1
-        
+
         base_x, base_y = random.choice(list(infected_blocks))
 
         # 從這個挑選到的「突觸點」隨機抽一個上下左右的方向
