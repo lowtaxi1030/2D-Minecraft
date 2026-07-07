@@ -2,8 +2,9 @@ WIDTH, HEIGHT = 1000, 600
 current_width, current_height = 1000, 600
 scroll_x, scroll_y = 0, 0
 
-BLOCK_SIZE = 40
+BLOCK_SIZE = 60
 img_blocks = {}
+org_img_blocks = {}
 MAP_WIDTH = 1200
 MAP_HEIGHT = 140
 
@@ -19,3 +20,6 @@ PLAYER_FLYING_SPEED = BLOCK_SIZE // 4
 
 SLOT_SIZE = 70
 PADDING = 5
+
+
+game_state = "OPTIONS"

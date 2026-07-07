@@ -2,6 +2,7 @@ import pygame
 
 import asset_manager as assets
 import config
+import tool
 
 pygame.init()
 

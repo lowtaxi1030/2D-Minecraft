@@ -15,6 +15,7 @@ pygame.init()
 
 
 def load_all_blocks():
+    global bg_dirt_img
 
     img_blocks = {}
 
@@ -29,6 +30,10 @@ def load_all_blocks():
 
         # 存入字典
         img_blocks[name] = scaled_img
+
+    bg_dirt_img = img_blocks["dirt"].copy()
+    bg_dirt_img = pygame.transform.scale(bg_dirt_img, (40, 40))
+
     return img_blocks
 
 
@@ -59,6 +64,14 @@ try:
 
 except FileNotFoundError as e:
     sys.exit(f"找不到 inventory 的圖片\n{e}")
+
+try:
+    setting_button_img = pygame.image.load(f"{str(IMAGE_PATH)}/ui/setting_button.jpg")
+    setting_btn_rect = setting_button_img.get_rect()
+    setting_btn_rect.center = (config.WIDTH // 2, config.HEIGHT // 2)
+
+except FileNotFoundError as e:
+    sys.exit(f"找不到 setting_button 的圖片\n{e}")
 
 
 def update_img_pos(img_rect: pygame.Rect, new_pos: tuple = None, y_center=False, screen_center=True, is_bottom=False):

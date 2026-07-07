@@ -1,9 +1,11 @@
+import ctypes
 import os
 
 import pygame
 
 import asset_manager as assets
 import config
+import menu_manager
 import tool
 import ui_manager
 import world_generator
@@ -20,17 +22,31 @@ screen_text = "2D Minecraft - V0.0.0"
 pygame.display.set_caption(screen_text)
 
 config.img_blocks = assets.load_all_blocks()
+config.org_img_blocks = config.img_blocks.copy()
+
 config.world_data = world_generator.make_map(config.MAP_WIDTH, config.MAP_HEIGHT)
 player = Player(100, 0)
 
 ui = ui_manager.UI()
+menu_manager = menu_manager.MenuManager()
+
+try:
+    # 🎯 提示：改用 Pygame 內建方法，精準抓取「本遊戲視窗」的 Windows 控制代碼
+    wm_info = pygame.display.get_wm_info()
+    hwnd = wm_info.get("window")  # 這樣拿到的絕對是遊戲視窗自己！
+
+    if hwnd:
+        english_layout = 0x04090409
+        ctypes.windll.user32.PostMessageW(hwnd, 0x50, 0, english_layout)
+except Exception as e:
+    print(f"無法強制切換語言: {e}")
 
 while running:
-    screen.fill(tool.Colors.CYAN)
     events = pygame.event.get()
     keys = pygame.key.get_pressed()
     mouse_buttons = pygame.mouse.get_pressed()
     mouse_pos = pygame.mouse.get_pos()
+    screen.fill(tool.Colors.CYAN)
 
     for event in events:
         if event.type == pygame.VIDEORESIZE:
@@ -41,75 +57,82 @@ while running:
 
         if event.type == pygame.QUIT:
             running = False
-    if any(mouse_buttons):
-        # 計算世界座標
-        world_x = int(tool.clamp(0, config.MAP_WIDTH - 1, (mouse_pos[0] + int(config.scroll_x)) // config.BLOCK_SIZE))
-        world_y = int(tool.clamp(0, config.MAP_HEIGHT - 1, (mouse_pos[1] + int(config.scroll_y)) // config.BLOCK_SIZE))
-        if not (world_x < 0 or world_x > config.MAP_WIDTH or world_y < 0 or world_y > config.MAP_HEIGHT):
-            clicked_block = config.world_data[world_y][world_x]
+    if config.game_state == "MENU":
+        pass
+    elif config.game_state == "PLAYING":
+        if any(mouse_buttons):
+            # 計算世界座標
+            world_x = int(tool.clamp(0, config.MAP_WIDTH - 1, (mouse_pos[0] + int(config.scroll_x)) // config.BLOCK_SIZE))
+            world_y = int(tool.clamp(0, config.MAP_HEIGHT - 1, (mouse_pos[1] + int(config.scroll_y)) // config.BLOCK_SIZE))
+            if not (world_x < 0 or world_x > config.MAP_WIDTH or world_y < 0 or world_y > config.MAP_HEIGHT):
+                clicked_block = config.world_data[world_y][world_x]
 
-            if mouse_buttons[0]:
-                if clicked_block != "air":
-                    config.world_data[world_y][world_x] = "air"
+                if mouse_buttons[0]:
+                    if clicked_block != "air":
+                        config.world_data[world_y][world_x] = "air"
 
-            # 放置方塊
-            elif mouse_buttons[2] and clicked_block == "air":
-                current_item = player.hotbar[player.selected_hotbar_index]
+                # 放置方塊
+                elif mouse_buttons[2] and clicked_block == "air":
+                    current_item = player.hotbar[player.selected_hotbar_index]
 
-                if current_item is not None:
-                    new_block_rect = pygame.Rect(
-                        world_x * config.BLOCK_SIZE, world_y * config.BLOCK_SIZE, config.BLOCK_SIZE, config.BLOCK_SIZE
-                    )
-                    if not player.rect.colliderect(new_block_rect):
-                        # 成功放置！
-                        config.world_data[world_y][world_x] = current_item["type"]
+                    if current_item is not None:
+                        new_block_rect = pygame.Rect(
+                            world_x * config.BLOCK_SIZE, world_y * config.BLOCK_SIZE, config.BLOCK_SIZE, config.BLOCK_SIZE
+                        )
+                        if not player.rect.colliderect(new_block_rect):
+                            # 成功放置！
+                            config.world_data[world_y][world_x] = current_item["type"]
 
-    start_x = max(0, int(config.scroll_x) // config.BLOCK_SIZE)
-    end_x = min(config.MAP_WIDTH, (int(config.scroll_x) + config.current_width) // config.BLOCK_SIZE + 1)
+        start_x = max(0, int(config.scroll_x) // config.BLOCK_SIZE)
+        end_x = min(config.MAP_WIDTH, (int(config.scroll_x) + config.current_width) // config.BLOCK_SIZE + 1)
 
-    start_y = max(0, int(config.scroll_y) // config.BLOCK_SIZE)
-    end_y = min(config.MAP_HEIGHT, (int(config.scroll_y) + config.current_height) // config.BLOCK_SIZE + 1)
-    for y_pos in range(start_y, end_y):
-        for x_pos in range(start_x, end_x):
+        start_y = max(0, int(config.scroll_y) // config.BLOCK_SIZE)
+        end_y = min(config.MAP_HEIGHT, (int(config.scroll_y) + config.current_height) // config.BLOCK_SIZE + 1)
+        for y_pos in range(start_y, end_y):
+            for x_pos in range(start_x, end_x):
 
-            block_name = config.world_data[y_pos][x_pos]
-            if block_name != "air":
+                block_name = config.world_data[y_pos][x_pos]
+                if block_name != "air":
 
-                pixel_x = x_pos * config.BLOCK_SIZE - int(config.scroll_x)
-                pixel_y = y_pos * config.BLOCK_SIZE - int(config.scroll_y)
+                    pixel_x = x_pos * config.BLOCK_SIZE - int(config.scroll_x)
+                    pixel_y = y_pos * config.BLOCK_SIZE - int(config.scroll_y)
 
-                screen.blit(config.img_blocks[block_name], (pixel_x, pixel_y))
+                    screen.blit(config.img_blocks[block_name], (pixel_x, pixel_y))
 
-            block_rect = pygame.Rect(
-                x_pos * config.BLOCK_SIZE - config.scroll_x,
-                y_pos * config.BLOCK_SIZE - config.scroll_y,
-                config.BLOCK_SIZE,
-                config.BLOCK_SIZE,
-            )
+                block_rect = pygame.Rect(
+                    x_pos * config.BLOCK_SIZE - config.scroll_x,
+                    y_pos * config.BLOCK_SIZE - config.scroll_y,
+                    config.BLOCK_SIZE,
+                    config.BLOCK_SIZE,
+                )
 
-            if block_rect.collidepoint(mouse_pos):
-                pygame.draw.rect(screen, tool.Colors.BLACK, block_rect, max(1, config.BLOCK_SIZE // 20))
+                if block_rect.collidepoint(mouse_pos):
+                    pygame.draw.rect(screen, tool.Colors.BLACK, block_rect, max(1, config.BLOCK_SIZE // 20))
 
-    if not player.is_stuck:
-        player.handle_input(events)
-    player.update(config.world_data)
-    player.draw(screen, config.scroll_x, config.scroll_y)
+        if not player.is_stuck:
+            player.handle_input(events)
+        player.update(config.world_data)
+        player.draw(screen, config.scroll_x, config.scroll_y)
 
-    # 畫面捲動
-    target_scroll_x = player.rect.centerx - (config.current_width // 2)
-    target_scroll_y = player.rect.centery - (config.current_height // 2)
+        # 畫面捲動
+        target_scroll_x = player.rect.centerx - (config.current_width // 2)
+        target_scroll_y = player.rect.centery - (config.current_height // 2)
 
-    # 3. 加上你原本就很厲害的緩動或範圍限制 (利用你寫好的 tool.num_range)
-    max_scroll_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - config.current_width
-    max_scroll_y = (config.MAP_HEIGHT * config.BLOCK_SIZE) - config.current_height
-    config.scroll_x = tool.update_scrolling(config.scroll_x, target_scroll_x, smoth=0.1, max_val=max_scroll_x)
-    config.scroll_y = tool.update_scrolling(config.scroll_y, target_scroll_y, smoth=0.1, max_val=max_scroll_y)
+        # 3. 加上你原本就很厲害的緩動或範圍限制 (利用你寫好的 tool.num_range)
+        max_scroll_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - config.current_width
+        max_scroll_y = (config.MAP_HEIGHT * config.BLOCK_SIZE) - config.current_height
+        config.scroll_x = tool.update_scrolling(config.scroll_x, target_scroll_x, smoth=0.1, max_val=max_scroll_x)
+        config.scroll_y = tool.update_scrolling(config.scroll_y, target_scroll_y, smoth=0.5, max_val=max_scroll_y)
 
-    config.scroll_x = tool.clamp(0, max_scroll_x, config.scroll_x)
-    config.scroll_y = tool.clamp(0, max_scroll_y, config.scroll_y)
+        config.scroll_x = tool.clamp(0, max_scroll_x, config.scroll_x)
+        config.scroll_y = tool.clamp(0, max_scroll_y, config.scroll_y)
 
-    ui.update(player)
-    ui.draw(screen, player)
+        ui.update(player)
+        ui.draw(screen, player)
+
+    elif config.game_state == "OPTIONS":
+        menu_manager.update(events, mouse_pos)
+        menu_manager.draw_options(screen)
 
     pygame.display.flip()
     clock.tick(60)
