@@ -4,6 +4,7 @@ from pathlib import Path
 import pygame
 
 import config
+import tool
 
 BASE_DIR = Path(__file__).parent
 
@@ -13,11 +14,12 @@ BLOCKS_PATH = IMAGE_PATH / "2d_blocks"
 
 pygame.init()
 
+img_blocks = {}
+org_img_blocks = {}
+
 
 def load_all_blocks():
-    global bg_dirt_img
-
-    img_blocks = {}
+    global bg_dirt_img, img_blocks, org_img_blocks
 
     # 自動掃描 images 資料夾內所有 png
     for path in BLOCKS_PATH.rglob("*.png"):
@@ -25,16 +27,16 @@ def load_all_blocks():
         name = path.stem
 
         # 載入、優化並縮放圖片
-        img = pygame.image.load(str(path)).convert_alpha()
-        scaled_img = pygame.transform.scale(img, (config.BLOCK_SIZE, config.BLOCK_SIZE))
+        # 1.存原圖
+        org_img = pygame.image.load(str(path)).convert_alpha()
+        org_img_blocks[name] = org_img
 
-        # 存入字典
+        # 2. 存縮放後的圖
+        scaled_img = tool.scale_img(org_img, config.BLOCK_SIZE)
         img_blocks[name] = scaled_img
 
     bg_dirt_img = img_blocks["dirt"].copy()
-    bg_dirt_img = pygame.transform.scale(bg_dirt_img, (40, 40))
-
-    return img_blocks
+    bg_dirt_img = tool.scale_img(bg_dirt_img, 40)
 
 
 try:

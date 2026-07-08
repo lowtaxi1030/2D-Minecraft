@@ -319,3 +319,7 @@ class FloatingText:
             t_rect.right = min(config.current_width - 10, t_rect.right)
 
             surface.blit(temp_surf, t_rect)
+
+
+def scale_img(img, size):
+    return p.transform.scale(img, (size, size))

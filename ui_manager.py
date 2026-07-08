@@ -62,7 +62,7 @@ class UI:
                         item_center_x = inv_main_first_x + (col * INV_SPACING_X)
                         item_center_y = inv_main_first_y + (row * INV_SPACING_Y)
 
-                        block_img = config.img_blocks[item["type"]]
+                        block_img = assets.img_blocks[item["type"]]
                         block_img = pygame.transform.scale(block_img, (40, 40))
 
                         block_rect = block_img.get_rect()
@@ -77,7 +77,7 @@ class UI:
                     item_center_x = inv_hotbar_first_x + (i * INV_SPACING)
                     item_center_y = inv_hotbar_first_y
 
-                    block_img = config.img_blocks[item["type"]]
+                    block_img = assets.img_blocks[item["type"]]
                     block_img = pygame.transform.scale(block_img, (40, 40))
 
                     block_rect = block_img.get_rect()
@@ -96,7 +96,7 @@ class UI:
                     item_center_x = first_slot_center_x + (i * self.SLOT_SPACING)
                     item_center_y = assets.select_frame_rect.centery
 
-                    block_img = config.img_blocks[item["type"]]
+                    block_img = assets.img_blocks[item["type"]]
                     block_img = pygame.transform.scale(block_img, (40, 40))
 
                     block_rect = block_img.get_rect()

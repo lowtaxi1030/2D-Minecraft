@@ -3,6 +3,7 @@ import os
 import pygame
 
 import asset_manager as assets
+import camera
 import config
 import menu_manager
 import tool
@@ -13,23 +14,25 @@ from player import Player
 # 告訴系統將下一個建立的視窗放在螢幕正中央
 os.environ['SDL_VIDEO_CENTERED'] = '1'
 
+game_camera = camera.Camera()
+
 pygame.init()
 screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT), pygame.RESIZABLE)
-running = True
+world_surface = pygame.Surface((config.current_width, config.current_height))
 clock = pygame.time.Clock()
 # screen_text = "2D Minecraft - V0.0.0"
 pygame.display.set_caption("2D Minecraft - V0.0.0")  # 之後放screen_text
 
-config.img_blocks = assets.load_all_blocks()
+assets.load_all_blocks()
 # config.org_img_blocks = config.img_blocks.copy()
 
 config.world_data = world_generator.make_map(config.MAP_WIDTH, config.MAP_HEIGHT)
 player = Player(100, 0)
 
 ui = ui_manager.UI()
-menu_manager = menu_manager.MenuManager()
+menu = menu_manager.MenuManager()
 
-while running:
+while config.running:
     events = pygame.event.get()
     keys = pygame.key.get_pressed()
     mouse_buttons = pygame.mouse.get_pressed()
@@ -40,18 +43,29 @@ while running:
         if event.type == pygame.VIDEORESIZE:
             config.current_width = event.w
             config.current_height = event.h
-            # screen = pygame.display.set_mode((config.current_width, config.current_height), pygame.RESIZABLE)
             screen = pygame.display.set_mode((event.w, event.h), screen.get_flags())
 
         if event.type == pygame.QUIT:
-            running = False
+            config.running = False
+
+        if event.type == pygame.KEYDOWN:
+            if config.game_state == "PLAYING":
+                if event.key == pygame.K_ESCAPE:
+                    config.game_state = "PAUSE"
+
     if config.game_state == "MENU":
         pass
+
     elif config.game_state == "PLAYING":
+        surface_width = int(config.current_width / game_camera.zoom)
+        surface_height = int(config.current_height / game_camera.zoom)
+
+        world_surface = pygame.Surface((surface_width, surface_height))
+        world_surface.fill(tool.Colors.CYAN)
+
+        world_x, world_y = game_camera.screen_to_world(mouse_pos)
         if any(mouse_buttons):
             # 計算世界座標
-            world_x = int(tool.clamp(0, config.MAP_WIDTH - 1, (mouse_pos[0] + int(config.scroll_x)) // config.BLOCK_SIZE))
-            world_y = int(tool.clamp(0, config.MAP_HEIGHT - 1, (mouse_pos[1] + int(config.scroll_y)) // config.BLOCK_SIZE))
             if not (world_x < 0 or world_x > config.MAP_WIDTH or world_y < 0 or world_y > config.MAP_HEIGHT):
                 clicked_block = config.world_data[world_y][world_x]
 
@@ -65,66 +79,49 @@ while running:
 
                     if current_item is not None:
                         new_block_rect = pygame.Rect(
-                            world_x * config.BLOCK_SIZE, world_y * config.BLOCK_SIZE, config.BLOCK_SIZE, config.BLOCK_SIZE
+                            world_x * int(config.BLOCK_SIZE),
+                            world_y * int(config.BLOCK_SIZE),
+                            int(config.BLOCK_SIZE),
+                            int(config.BLOCK_SIZE),
                         )
                         if not player.rect.colliderect(new_block_rect):
                             # 成功放置！
                             config.world_data[world_y][world_x] = current_item["type"]
 
-        start_x = max(0, int(config.scroll_x) // config.BLOCK_SIZE)
-        end_x = min(config.MAP_WIDTH, (int(config.scroll_x) + config.current_width) // config.BLOCK_SIZE + 1)
-
-        start_y = max(0, int(config.scroll_y) // config.BLOCK_SIZE)
-        end_y = min(config.MAP_HEIGHT, (int(config.scroll_y) + config.current_height) // config.BLOCK_SIZE + 1)
-        for y_pos in range(start_y, end_y):
-            for x_pos in range(start_x, end_x):
-
-                block_name = config.world_data[y_pos][x_pos]
-                if block_name != "air":
-
-                    pixel_x = x_pos * config.BLOCK_SIZE - int(config.scroll_x)
-                    pixel_y = y_pos * config.BLOCK_SIZE - int(config.scroll_y)
-
-                    screen.blit(config.img_blocks[block_name], (pixel_x, pixel_y))
-
-                block_rect = pygame.Rect(
-                    x_pos * config.BLOCK_SIZE - config.scroll_x,
-                    y_pos * config.BLOCK_SIZE - config.scroll_y,
-                    config.BLOCK_SIZE,
-                    config.BLOCK_SIZE,
-                )
-
-                if block_rect.collidepoint(mouse_pos):
-                    pygame.draw.rect(screen, tool.Colors.BLACK, block_rect, max(1, config.BLOCK_SIZE // 20))
+        game_camera.draw_world(world_surface, mouse_pos)
 
         if not player.is_stuck:
             player.handle_input(events)
         player.update(config.world_data)
-        player.draw(screen, config.scroll_x, config.scroll_y)
+        player.draw(world_surface, game_camera.scroll_x, game_camera.scroll_y)
 
-        # 畫面捲動
-        target_scroll_x = player.rect.centerx - (config.current_width // 2)
-        target_scroll_y = player.rect.centery - (config.current_height // 2)
-
-        # 3. 加上你原本就很厲害的緩動或範圍限制 (利用你寫好的 tool.num_range)
-        max_scroll_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - config.current_width
-        max_scroll_y = (config.MAP_HEIGHT * config.BLOCK_SIZE) - config.current_height
-        config.scroll_x = tool.update_scrolling(config.scroll_x, target_scroll_x, smoth=0.1, max_val=max_scroll_x)
-        config.scroll_y = tool.update_scrolling(config.scroll_y, target_scroll_y, smoth=0.5, max_val=max_scroll_y)
-
-        config.scroll_x = tool.clamp(0, max_scroll_x, config.scroll_x)
-        config.scroll_y = tool.clamp(0, max_scroll_y, config.scroll_y)
+        game_camera.update(player)
+        game_camera.draw(screen, world_surface)
 
         ui.update(player)
         ui.draw(screen, player)
 
+    elif config.game_state == "PAUSE":
+        player.draw(screen, game_camera.scroll_x, game_camera.scroll_y)
+        game_camera.draw_world(screen, mouse_pos, draw_hover=False)
+
+        menu.update(events, mouse_pos)
+        menu.draw(screen)
+
     elif config.game_state == "OPTION":
-        menu_manager.update(events, mouse_pos)
-        menu_manager.draw(screen)
+        player.draw(screen, game_camera.scroll_x, game_camera.scroll_y)
+        game_camera.draw_world(screen, mouse_pos, draw_hover=False)
+
+        menu.update(events, mouse_pos)
+        menu.draw(screen)
 
     elif config.game_state == "VIDEO_OPTION":
-        menu_manager.update(events, mouse_pos)
-        menu_manager.draw(screen)
+        player.draw(screen, game_camera.scroll_x, game_camera.scroll_y)
+        game_camera.draw_world(screen, mouse_pos, draw_hover=False)
+
+        menu.update(events, mouse_pos)
+        menu.draw(screen)
+        game_camera.zoom = config.ORG_FOV / config.fov
 
     pygame.display.flip()
     clock.tick(60)

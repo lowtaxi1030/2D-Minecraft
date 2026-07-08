@@ -2,6 +2,7 @@ import pygame
 
 import config
 import tool
+import ui_obs as ui
 
 
 class Player:
@@ -12,17 +13,12 @@ class Player:
         # 2. 物理相關變數
         self.vel_x = 0
         self.vel_y = 0
-        self.jump_strength = -(config.BLOCK_SIZE / (20 / 3))
+        self.jump_strength = -(config.BLOCK_SIZE / (20/3))
         self.is_grounded = False
         self.all_modes = ["spectator", "creative", "survival"]  # , "survival"
         self.mode_index = 1
         self.mode = self.all_modes[self.mode_index]
-        self.current_speed = config.BLOCK_SIZE // 10
-
-        self.gravity = round(max(0.1, config.BLOCK_SIZE / 70), 2)
-        self.player_speed = config.BLOCK_SIZE // 10
-        self.player_run_speed = config.BLOCK_SIZE // 5
-        self.player_flying_speed = config.BLOCK_SIZE // 4
+        self.current_speed = config.PLAYER_SPEED
 
         self.is_stuck = False
         self.is_running = False
@@ -49,7 +45,6 @@ class Player:
         self.hotbar[3] = {"type": "iron_ore", "count": 5}
         self.hotbar[4] = {"type": "coal_ore", "count": 10}
         self.hotbar[5] = {"type": "deepslate", "count": 10}
-        # self.inventory[10] = {"type": "diamond_ore", "count": 10}
 
     def check_double_press(self, key):
         current_time = pygame.time.get_ticks()
@@ -75,22 +70,22 @@ class Player:
 
             # X 軸：左右控制
             if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                self.vel_x -= self.player_flying_speed  # 往左是負
+                self.vel_x -= config.PLAYER_FLYING_SPEED  # 往左是負
             if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                self.vel_x += self.player_flying_speed  # 往右是正
+                self.vel_x += config.PLAYER_FLYING_SPEED  # 往右是正
 
             # Y 軸：上下自由飛行
             if keys[pygame.K_UP] or keys[pygame.K_w]:
-                self.vel_y -= self.player_flying_speed  # 往上飛是負（對抗重力）
+                self.vel_y -= config.PLAYER_FLYING_SPEED  # 網上飛是負（對抗重力）
             if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-                self.vel_y += self.player_flying_speed  # 往下飛是正
+                self.vel_y += config.PLAYER_FLYING_SPEED  # 往下飛是正
         elif self.mode != "spectator":
             self.vel_x = 0
 
             if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                self.vel_x = -self.player_flying_speed if self.is_flying else -self.current_speed
+                self.vel_x = -config.PLAYER_FLYING_SPEED if self.is_flying else -self.current_speed
             elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                self.vel_x = self.player_flying_speed if self.is_flying else self.current_speed
+                self.vel_x = config.PLAYER_FLYING_SPEED if self.is_flying else self.current_speed
             if (keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]) and self.is_grounded:
                 if not self.is_flying:
                     self.vel_y = self.jump_strength
@@ -141,13 +136,8 @@ class Player:
                     self.selected_hotbar_index = 8
 
     def update(self, world_data):
-        """因應方塊大小縮放"""
-
-        self.rect.topleft = (self.rect.x, self.rect.y)
-        self.rect.size = (config.BLOCK_SIZE * 0.875, config.BLOCK_SIZE * 2 * 0.875)
-
         """處理重力、移動位置、以及與地圖方塊的碰撞偵測"""
-        self.current_speed = self.player_run_speed if self.is_running else self.player_speed
+        self.current_speed = config.PLAYER_RUN_SPEED if self.is_running else config.PLAYER_SPEED
 
         left_x = tool.clamp(0, config.MAP_WIDTH - 1, int(self.rect.left // config.BLOCK_SIZE))
         right_x = tool.clamp(0, config.MAP_WIDTH - 1, int((self.rect.right - 1) // config.BLOCK_SIZE))
@@ -179,12 +169,7 @@ class Player:
                 if block_name == "air" or self.mode == "spectator":
                     continue
 
-                block_rect = pygame.Rect(
-                    x_pos * config.BLOCK_SIZE,
-                    y_pos * config.BLOCK_SIZE,
-                    config.BLOCK_SIZE,
-                    config.BLOCK_SIZE,
-                )
+                block_rect = pygame.Rect(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE, config.BLOCK_SIZE, config.BLOCK_SIZE)
 
                 # 如果 X 移動後撞到了方塊
                 if self.rect.colliderect(block_rect) and self.mode != "spectator":
@@ -233,12 +218,12 @@ class Player:
                             is_ceiling_clear = world_data[head_grid_y][head_grid_x] == "air"
 
                             # 💡 關鍵：高度差要在 1.5 格內，【並且】頭頂必須是空的才能跳！
-                            if (0 < height_difference <= config.BLOCK_SIZE) * 1.5 and is_ceiling_clear:
+                            if (0 < height_difference <= config.BLOCK_SIZE * 1.5) and is_ceiling_clear:
                                 self.vel_y = self.jump_strength
                                 self.is_grounded = False
         # 應用重力
         if self.mode != "spectator" and not self.is_flying:
-            self.vel_y += self.gravity
+            self.vel_y += config.GRAVITY
 
         self.rect.y += self.vel_y
 
@@ -261,12 +246,7 @@ class Player:
                     if block_name == "air" or self.mode == "spectator":
                         continue
 
-                    block_rect = pygame.Rect(
-                        x_pos * config.BLOCK_SIZE,
-                        y_pos * config.BLOCK_SIZE,
-                        config.BLOCK_SIZE,
-                        config.BLOCK_SIZE,
-                    )
+                    block_rect = pygame.Rect(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE, config.BLOCK_SIZE, config.BLOCK_SIZE)
 
                     if self.rect.colliderect(block_rect):
                         # 🎯 修正：不要用中心點比較，直接用移動方向判斷！
@@ -285,7 +265,7 @@ class Player:
             if hit_y:
                 # 🎯 撞到了就直接完全報廢這幀剩下的碎步，絕對不會過度疊加移動
                 break
-        max_player_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - self.rect.width
+        max_player_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - 35
         self.rect.x = tool.clamp(0, max_player_x, self.rect.x)
         self.rect.y = tool.clamp(None, None, self.rect.y)
 
@@ -309,3 +289,12 @@ class Player:
             # 生存模式：照舊畫你原本完全不透明的普通方塊
             # 這裡的坐標一樣要記得扣掉你的 scroll 喔！
             pygame.draw.rect(screen, (0, 128, 255), (render_x, render_y, self.rect.width, self.rect.height))
+        ui.show_text(
+            screen,
+            f"X: {self.rect.x // config.BLOCK_SIZE}, Y: {self.rect.y // config.BLOCK_SIZE}",
+            tool.Colors.WHITE,
+            config.current_width - 150,
+            config.current_height - 30,
+            size=15,
+            alpha=160,
+        )
