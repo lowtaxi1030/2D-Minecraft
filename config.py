@@ -7,7 +7,7 @@ fov = 70
 BLOCK_SIZE = 50
 camera_zoom = 1.0
 
-MAP_WIDTH = 1200
+MAP_WIDTH = 2500
 MAP_HEIGHT = 140
 
 world_data = []
@@ -18,6 +18,7 @@ Timer_Speed = 1
 SLOT_SIZE = 70
 PADDING = 5
 
-
 game_state = "PLAYING"
 running = True
+
+show_debug_screen = False

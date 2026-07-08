@@ -2,8 +2,8 @@ import pygame
 
 import asset_manager as assets
 import config
-
-# import tool
+import tool
+import ui_obs as ui
 
 pygame.init()
 
@@ -28,7 +28,19 @@ class UI:
         assets.select_frame_rect.left = assets.hotbar_bg_rect.left - 1 + (player.selected_hotbar_index * self.SLOT_SPACING)
         assets.select_frame_rect.top = assets.hotbar_bg_rect.top - 3
 
-    def draw(self, screen: pygame.Surface, player):
+    def _draw_debug(self, screen, player, show_debug_screen):
+        """玩家按下 F3 時的畫面"""
+        ui.show_text(
+            screen,
+            f"x: {player.rect.x // config.BLOCK_SIZE}  y: {player.rect.y // config.BLOCK_SIZE}",
+            tool.Colors.WHITE,
+            10,
+            10,
+            size=18,
+            show=show_debug_screen,
+        )
+
+    def draw(self, screen: pygame.Surface, player, show_debug_screen):
         if not player.is_open_inv:
             screen.blit(assets.hotbar_bg, assets.hotbar_bg_rect)
             screen.blit(assets.select_frame, assets.select_frame_rect)
@@ -103,3 +115,4 @@ class UI:
                     block_rect.center = (item_center_x, item_center_y)
 
                     screen.blit(block_img, block_rect)
+        self._draw_debug(screen, player, show_debug_screen)

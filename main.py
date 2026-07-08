@@ -52,6 +52,8 @@ while config.running:
             if config.game_state == "PLAYING":
                 if event.key == pygame.K_ESCAPE:
                     config.game_state = "PAUSE"
+                if event.key == pygame.K_F3:
+                    config.show_debug_screen = not config.show_debug_screen
 
     if config.game_state == "MENU":
         pass
@@ -99,7 +101,7 @@ while config.running:
         game_camera.draw(screen, world_surface)
 
         ui.update(player)
-        ui.draw(screen, player)
+        ui.draw(screen, player, config.show_debug_screen)
 
     elif config.game_state == "PAUSE":
         player.draw(screen, game_camera.scroll_x, game_camera.scroll_y)
