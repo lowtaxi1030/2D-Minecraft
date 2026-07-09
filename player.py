@@ -49,7 +49,22 @@ class Player:
         self.hotbar[3] = {"type": "iron_ore", "count": 5}
         self.hotbar[4] = {"type": "coal_ore", "count": 10}
         self.hotbar[5] = {"type": "deepslate", "count": 10}
-        # self.inventory[10] = {"type": "diamond_ore", "count": 10}
+        self.hotbar[6] = {"type": "zucker", "count": 67}
+        self.hotbar[7] = {"type": "berg", "count": 67}
+        self.hotbar[8] = {"type": "rick", "count": 67}
+
+        self.inventory[0] = {"type": "diamond_ore", "count": 10}
+        self.inventory[1] = {"type": "coal_ore", "count": 10}
+        self.inventory[2] = {"type": "copper_ore", "count": 10}
+        self.inventory[3] = {"type": "gold_ore", "count": 10}
+        self.inventory[4] = {"type": "deepslate_iron_ore", "count": 10}
+        self.inventory[5] = {"type": "deepslate_coal_ore", "count": 10}
+        self.inventory[6] = {"type": "deepslate_emerald_ore", "count": 10}
+        self.inventory[7] = {"type": "deepslate_diamond_ore", "count": 10}
+        self.inventory[8] = {"type": "bee_nest_front", "count": 10}
+        self.inventory[9] = {"type": "warped_roots", "count": 10}
+        self.inventory[10] = {"type": "target_side", "count": 10}
+        self.inventory[11] = {"type": "blast_furnace_front", "count": 10}
 
     def check_double_press(self, key):
         current_time = pygame.time.get_ticks()
@@ -68,69 +83,74 @@ class Player:
 
     def handle_input(self, evnets):
         """處理鍵盤輸入（左右移動、跳躍）"""
+
         keys = pygame.key.get_pressed()
-        if self.mode == "spectator" or self.is_flying:
+        if not self.is_open_inv:
+            if self.mode == "spectator" or self.is_flying:
+                self.vel_x = 0
+                self.vel_y = 0
+
+                # X 軸：左右控制
+                if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+                    self.vel_x -= self.player_flying_speed  # 往左是負
+                if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                    self.vel_x += self.player_flying_speed  # 往右是正
+
+                # Y 軸：上下自由飛行
+                if keys[pygame.K_UP] or keys[pygame.K_w]:
+                    self.vel_y -= self.player_flying_speed  # 往上飛是負（對抗重力）
+                if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+                    self.vel_y += self.player_flying_speed  # 往下飛是正
+            elif self.mode != "spectator":
+                self.vel_x = 0
+
+                if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+                    self.vel_x = -self.player_flying_speed if self.is_flying else -self.current_speed
+                elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                    self.vel_x = self.player_flying_speed if self.is_flying else self.current_speed
+                if (keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]) and self.is_grounded:
+                    if not self.is_flying:
+                        self.vel_y = self.jump_strength
+                        self.is_grounded = False
+        else:
             self.vel_x = 0
-            self.vel_y = 0
-
-            # X 軸：左右控制
-            if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                self.vel_x -= self.player_flying_speed  # 往左是負
-            if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                self.vel_x += self.player_flying_speed  # 往右是正
-
-            # Y 軸：上下自由飛行
-            if keys[pygame.K_UP] or keys[pygame.K_w]:
-                self.vel_y -= self.player_flying_speed  # 往上飛是負（對抗重力）
-            if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-                self.vel_y += self.player_flying_speed  # 往下飛是正
-        elif self.mode != "spectator":
-            self.vel_x = 0
-
-            if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                self.vel_x = -self.player_flying_speed if self.is_flying else -self.current_speed
-            elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                self.vel_x = self.player_flying_speed if self.is_flying else self.current_speed
-            if (keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]) and self.is_grounded:
-                if not self.is_flying:
-                    self.vel_y = self.jump_strength
-                    self.is_grounded = False
 
         for event in evnets:
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_m:
-                    self.mode_index = (self.mode_index + 1) % len(self.all_modes)
-                    self.mode = self.all_modes[self.mode_index]
-                    if self.mode in ["creative", "survival"]:
-                        self.vel_x = 0
-                        self.vel_y = 0
-                    if self.mode == "survival":
-                        self.is_flying = False
+                if not self.is_open_inv:
+                    if event.key == pygame.K_m:
+                        self.mode_index = (self.mode_index + 1) % len(self.all_modes)
+                        self.mode = self.all_modes[self.mode_index]
+                        if self.mode in ["creative", "survival"]:
+                            self.vel_x = 0
+                            self.vel_y = 0
+                        if self.mode == "survival":
+                            self.is_flying = False
+
+                    if pygame.K_1 <= event.key <= pygame.K_9:
+                        self.selected_hotbar_index = event.key - pygame.K_1
+
+                    if self.mode != "spectator":
+                        if event.key == pygame.K_d:
+                            self.is_running = self.check_double_press(pygame.K_d)
+                        if event.key == pygame.K_RIGHT:
+                            self.is_running = self.check_double_press(pygame.K_RIGHT)
+                        if event.key == pygame.K_a:
+                            self.is_running = self.check_double_press(pygame.K_a)
+                        if event.key == pygame.K_LEFT:
+                            self.is_running = self.check_double_press(pygame.K_LEFT)
+                        if self.mode == "creative":
+                            if event.key == pygame.K_SPACE:
+                                if self.check_double_press(pygame.K_SPACE):
+                                    self.is_flying = not self.is_flying
+                            if event.key == pygame.K_w:
+                                if self.check_double_press(pygame.K_w):
+                                    self.is_flying = not self.is_flying
+                            if event.key == pygame.K_UP:
+                                if self.check_double_press(pygame.K_UP):
+                                    self.is_flying = not self.is_flying
                 if event.key == pygame.K_e:
                     self.is_open_inv = not self.is_open_inv
-
-                if pygame.K_1 <= event.key <= pygame.K_9:
-                    self.selected_hotbar_index = event.key - pygame.K_1
-
-                if self.mode != "spectator":
-                    if event.key == pygame.K_d:
-                        self.is_running = self.check_double_press(pygame.K_d)
-                    if event.key == pygame.K_RIGHT:
-                        self.is_running = self.check_double_press(pygame.K_RIGHT)
-                    if event.key == pygame.K_a:
-                        self.is_running = self.check_double_press(pygame.K_a)
-                    if event.key == pygame.K_LEFT:
-                        self.is_running = self.check_double_press(pygame.K_LEFT)
-                    if self.mode == "creative":
-                        if event.key == pygame.K_SPACE:
-                            if self.check_double_press(pygame.K_SPACE):
-                                self.is_flying = not self.is_flying
-                        if event.key == pygame.K_w:
-                            if self.check_double_press(pygame.K_w):
-                                self.is_flying = not self.is_flying
-                        if event.key == pygame.K_UP:
-                            if self.check_double_press(pygame.K_UP):
-                                self.is_flying = not self.is_flying
 
             if event.type == pygame.MOUSEWHEEL:
                 self.selected_hotbar_index -= event.y
@@ -291,4 +311,22 @@ class Player:
         else:
             # 生存模式：照舊畫你原本完全不透明的普通方塊
             # 這裡的坐標一樣要記得扣掉你的 scroll 喔！
-            pygame.draw.rect(screen, (0, 128, 255), (render_x, render_y, self.rect.width, self.rect.height))
+            pygame.draw.rect(
+                screen,
+                (0, 128, 255),
+                (render_x, render_y, self.rect.width, self.rect.height),
+            )
+
+    """各種判定"""
+
+    def can_break_block(self):
+        return self.mode != "spectator"
+
+    def can_place_block(self):
+        return self.mode != "spectator"
+
+    def can_pickup_item(self):
+        return self.mode != "spectator"
+
+    def should_drop_block(self):
+        return self.mode == "survival"

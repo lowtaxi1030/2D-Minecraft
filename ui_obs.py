@@ -13,7 +13,7 @@ text_cache = {}
 
 root = pathlib.Path(__file__).parent.resolve(strict=False)
 
-defult_font = p.font.Font(str(root / "Minecraft.ttf"), 24)
+# defult_font = p.font.Font(str(root / "Minecraft.ttf"), 24)
 
 
 def show_text(screen, text, text_color, x, y, size=24, center=False, screen_center=False, show=True, font_type="", alpha=255, line_gap=5):
@@ -32,7 +32,7 @@ def show_text(screen, text, text_color, x, y, size=24, center=False, screen_cent
 
         # 字體初始化 (這也很耗時，只有沒快取才做)
         if font_type == "":
-            font = p.font.Font(str(root / "Minecraft.ttf"), size)
+            font = p.font.Font(str(root / "Minecraft3.ttf"), size)
         elif font_type == "None":
             font = p.font.SysFont(None, size)
         else:

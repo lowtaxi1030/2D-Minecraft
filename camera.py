@@ -123,3 +123,13 @@ class Camera:
         self.render_rect = scaled.get_rect(center=screen.get_rect().center)
 
         screen.blit(scaled, self.render_rect)
+
+
+    def draw_option_bg(self, player, mouse_pos, screen, world_surface):
+        world_surface.fill(tool.Colors.CYAN)
+
+        self.update(player)
+        player.draw(world_surface, self.scroll_x, self.scroll_y)
+        self.draw_world(world_surface, mouse_pos, draw_hover=False)
+        self.draw(screen, world_surface)
+

@@ -9,10 +9,11 @@ import menu_manager
 import tool
 import ui_manager
 import world_generator
+import world_manager
 from player import Player
 
 # 告訴系統將下一個建立的視窗放在螢幕正中央
-os.environ['SDL_VIDEO_CENTERED'] = '1'
+os.environ["SDL_VIDEO_CENTERED"] = "1"
 
 game_camera = camera.Camera()
 
@@ -24,13 +25,13 @@ clock = pygame.time.Clock()
 pygame.display.set_caption("2D Minecraft - V0.0.0")  # 之後放screen_text
 
 assets.load_all_blocks()
-# config.org_img_blocks = config.img_blocks.copy()
 
 config.world_data = world_generator.make_map(config.MAP_WIDTH, config.MAP_HEIGHT)
 player = Player(100, 0)
 
 ui = ui_manager.UI()
 menu = menu_manager.MenuManager()
+world = world_manager.World()
 
 while config.running:
     events = pygame.event.get()
@@ -65,61 +66,37 @@ while config.running:
         world_surface = pygame.Surface((surface_width, surface_height))
         world_surface.fill(tool.Colors.CYAN)
 
-        world_x, world_y = game_camera.screen_to_world(mouse_pos)
-        if any(mouse_buttons):
-            # 計算世界座標
-            if not (world_x < 0 or world_x > config.MAP_WIDTH or world_y < 0 or world_y > config.MAP_HEIGHT):
-                clicked_block = config.world_data[world_y][world_x]
-
-                if mouse_buttons[0]:
-                    if clicked_block != "air":
-                        config.world_data[world_y][world_x] = "air"
-
-                # 放置方塊
-                elif mouse_buttons[2] and clicked_block == "air":
-                    current_item = player.hotbar[player.selected_hotbar_index]
-
-                    if current_item is not None:
-                        new_block_rect = pygame.Rect(
-                            world_x * int(config.BLOCK_SIZE),
-                            world_y * int(config.BLOCK_SIZE),
-                            int(config.BLOCK_SIZE),
-                            int(config.BLOCK_SIZE),
-                        )
-                        if not player.rect.colliderect(new_block_rect):
-                            # 成功放置！
-                            config.world_data[world_y][world_x] = current_item["type"]
+        world.update(mouse_buttons, mouse_pos, player, game_camera)
 
         game_camera.draw_world(world_surface, mouse_pos)
 
         if not player.is_stuck:
             player.handle_input(events)
+
+        # 更新
         player.update(config.world_data)
-        player.draw(world_surface, game_camera.scroll_x, game_camera.scroll_y)
-
         game_camera.update(player)
-        game_camera.draw(screen, world_surface)
-
         ui.update(player)
-        ui.draw(screen, player, config.show_debug_screen)
+
+        # 畫圖
+        player.draw(world_surface, game_camera.scroll_x, game_camera.scroll_y)
+        game_camera.draw(screen, world_surface)
+        ui.draw(screen, player)
 
     elif config.game_state == "PAUSE":
-        player.draw(screen, game_camera.scroll_x, game_camera.scroll_y)
-        game_camera.draw_world(screen, mouse_pos, draw_hover=False)
+        game_camera.draw_option_bg(player, mouse_pos, screen, world_surface)
 
         menu.update(events, mouse_pos)
         menu.draw(screen)
 
     elif config.game_state == "OPTION":
-        player.draw(screen, game_camera.scroll_x, game_camera.scroll_y)
-        game_camera.draw_world(screen, mouse_pos, draw_hover=False)
+        game_camera.draw_option_bg(player, mouse_pos, screen, world_surface)
 
         menu.update(events, mouse_pos)
         menu.draw(screen)
 
     elif config.game_state == "VIDEO_OPTION":
-        player.draw(screen, game_camera.scroll_x, game_camera.scroll_y)
-        game_camera.draw_world(screen, mouse_pos, draw_hover=False)
+        game_camera.draw_option_bg(player, mouse_pos, screen, world_surface)
 
         menu.update(events, mouse_pos)
         menu.draw(screen)
