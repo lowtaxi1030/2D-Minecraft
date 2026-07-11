@@ -136,8 +136,8 @@ class World:
         for item in picked_items:
             self.item_entities.remove(item)
 
-    def spawn_item_entity(self, item_type: str, count: int, x, y):
-        new_entity = item_entity.ItemEntity(item_type, count, x, y, spawn_reason="drop")
+    def spawn_item_entity(self, item_type: str, count: int, x, y, spawn_reason):
+        new_entity = item_entity.ItemEntity(item_type, count, x, y, spawn_reason=spawn_reason)
 
         self.item_entities.append(new_entity)
 

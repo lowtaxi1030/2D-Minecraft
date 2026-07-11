@@ -57,7 +57,7 @@ class Player:
         self.last_press_time[key] = current_time
         return is_double
 
-    def handle_input(self, evnets):
+    def handle_input(self, event):
         """處理鍵盤輸入（左右移動、跳躍）"""
 
         keys = pygame.key.get_pressed()
@@ -91,55 +91,54 @@ class Player:
         else:
             self.vel_x = 0
 
-        for event in evnets:
-            if event.type == pygame.KEYDOWN:
-                if not self.is_open_inv:
-                    if event.key == pygame.K_m:
-                        self.mode_index = (self.mode_index + 1) % len(self.all_modes)
-                        self.mode = self.all_modes[self.mode_index]
-                        if self.mode in ["creative", "survival"]:
-                            self.vel_x = 0
-                            self.vel_y = 0
-                        if self.mode == "survival":
-                            self.is_flying = False
+        if event.type == pygame.KEYDOWN:
+            if not self.is_open_inv:
+                if event.key == pygame.K_m:
+                    self.mode_index = (self.mode_index + 1) % len(self.all_modes)
+                    self.mode = self.all_modes[self.mode_index]
+                    if self.mode in ["creative", "survival"]:
+                        self.vel_x = 0
+                        self.vel_y = 0
+                    if self.mode == "survival":
+                        self.is_flying = False
 
-                    if pygame.K_1 <= event.key <= pygame.K_9:
-                        self.selected_hotbar_index = event.key - pygame.K_1
+                if pygame.K_1 <= event.key <= pygame.K_9:
+                    self.selected_hotbar_index = event.key - pygame.K_1
 
-                    if self.mode != "spectator":
-                        if event.key == pygame.K_d:
-                            self.is_running = self.check_double_press(pygame.K_d)
-                        if event.key == pygame.K_RIGHT:
-                            self.is_running = self.check_double_press(pygame.K_RIGHT)
-                        if event.key == pygame.K_a:
-                            self.is_running = self.check_double_press(pygame.K_a)
-                        if event.key == pygame.K_LEFT:
-                            self.is_running = self.check_double_press(pygame.K_LEFT)
-                        if self.mode == "creative":
-                            if event.key == pygame.K_SPACE:
-                                if self.check_double_press(pygame.K_SPACE):
-                                    self.is_flying = not self.is_flying
-                            if event.key == pygame.K_w:
-                                if self.check_double_press(pygame.K_w):
-                                    self.is_flying = not self.is_flying
-                            if event.key == pygame.K_UP:
-                                if self.check_double_press(pygame.K_UP):
-                                    self.is_flying = not self.is_flying
+                if self.mode != "spectator":
+                    if event.key == pygame.K_d:
+                        self.is_running = self.check_double_press(pygame.K_d)
+                    if event.key == pygame.K_RIGHT:
+                        self.is_running = self.check_double_press(pygame.K_RIGHT)
+                    if event.key == pygame.K_a:
+                        self.is_running = self.check_double_press(pygame.K_a)
+                    if event.key == pygame.K_LEFT:
+                        self.is_running = self.check_double_press(pygame.K_LEFT)
+                    if self.mode == "creative":
+                        if event.key == pygame.K_SPACE:
+                            if self.check_double_press(pygame.K_SPACE):
+                                self.is_flying = not self.is_flying
+                        if event.key == pygame.K_w:
+                            if self.check_double_press(pygame.K_w):
+                                self.is_flying = not self.is_flying
+                        if event.key == pygame.K_UP:
+                            if self.check_double_press(pygame.K_UP):
+                                self.is_flying = not self.is_flying
 
-                    if self.can_drop_item():
-                        if event.key == pygame.K_q:
-                            return self.drop_selected_item()
+                if self.can_drop_item():
+                    if event.key == pygame.K_q:
+                        return self.drop_selected_item()
 
-                if event.key == pygame.K_e:
-                    self.is_open_inv = not self.is_open_inv
+            if event.key == pygame.K_e:
+                self.is_open_inv = not self.is_open_inv
 
-            if event.type == pygame.MOUSEWHEEL:
-                self.selected_hotbar_index -= event.y
-                if self.selected_hotbar_index >= 9:
-                    self.selected_hotbar_index = 0
+        if event.type == pygame.MOUSEWHEEL:
+            self.selected_hotbar_index -= event.y
+            if self.selected_hotbar_index >= 9:
+                self.selected_hotbar_index = 0
 
-                if self.selected_hotbar_index <= -1:
-                    self.selected_hotbar_index = 8
+            if self.selected_hotbar_index <= -1:
+                self.selected_hotbar_index = 8
 
     def _try_auto_jump(self, world_data, block_rect):
 
@@ -307,11 +306,30 @@ class Player:
                 self.hotbar[self.selected_hotbar_index] = None
 
     def pick_item(self, item_type: str):
+        # 步驟一：先巡一遍 Hotbar，如果有相同的物品，就把指標切換過去
         for i, item in enumerate(self.hotbar):
             if item is not None and item["type"] == item_type:
                 self.selected_hotbar_index = i
+                if self.mode == "creative":
+                    self.hotbar[self.selected_hotbar_index]["count"] = 64
                 return
 
+        # 步驟二：如果 Hotbar 沒有，改去檢查 Hotbar 有沒有哪一格是空的 (None)。如果有空格，就把物品塞進那個空格，並把指標選過去。
+        for i, item in enumerate(self.hotbar):
+            if item is None:
+                self.hotbar[i] = {"type": item_type, "count": 64}
+                self.selected_hotbar_index = i
+                return
+
+        # 步驟三：如果 Hotbar 全滿且都沒有這個物品，把原本格子裡的東西跟主背包做交換
+        for i, item in enumerate(self.inventory):
+            if item is not None and item["type"] == item_type:
+                h_item = self.hotbar[self.selected_hotbar_index]
+                self.hotbar[self.selected_hotbar_index] = self.inventory[i]
+                self.inventory[i] = h_item
+                return
+
+        # 步驟四：這時才逼不得已覆蓋目前選中的這一格。
         self.hotbar[self.selected_hotbar_index] = {"type": item_type, "count": 64}
 
     """掉落物相關"""
