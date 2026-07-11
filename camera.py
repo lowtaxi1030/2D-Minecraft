@@ -39,7 +39,7 @@ class Camera:
         self.scroll_y = tool.update_scrolling(
             self.scroll_y,
             target_scroll_y,
-            smoth=0.5,
+            smoth=1,
             max_val=max_scroll_y,
         )
 

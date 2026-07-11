@@ -323,3 +323,7 @@ class FloatingText:
 
 def scale_img(img, size):
     return p.transform.scale(img, (size, size))
+
+
+def float_offset(time, speed=1, height=10, offset=-10):
+    return sin(time / 100 * speed) * height + offset

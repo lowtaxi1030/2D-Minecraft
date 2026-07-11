@@ -42,30 +42,6 @@ class Player:
 
         self.selected_hotbar_index = 0
 
-        # ---- 🧪 測試用：先手動塞一點東西進去，等等開發畫面才看得到 ----
-        self.hotbar[0] = {"type": "grass", "count": 64}
-        self.hotbar[1] = {"type": "dirt", "count": 64}
-        self.hotbar[2] = {"type": "stone", "count": 32}
-        self.hotbar[3] = {"type": "iron_ore", "count": 5}
-        self.hotbar[4] = {"type": "coal_ore", "count": 10}
-        self.hotbar[5] = {"type": "deepslate", "count": 10}
-        self.hotbar[6] = {"type": "zucker", "count": 67}
-        self.hotbar[7] = {"type": "berg", "count": 67}
-        self.hotbar[8] = {"type": "rick", "count": 67}
-
-        self.inventory[0] = {"type": "diamond_ore", "count": 10}
-        self.inventory[1] = {"type": "coal_ore", "count": 10}
-        self.inventory[2] = {"type": "copper_ore", "count": 10}
-        self.inventory[3] = {"type": "gold_ore", "count": 10}
-        self.inventory[4] = {"type": "deepslate_iron_ore", "count": 10}
-        self.inventory[5] = {"type": "deepslate_coal_ore", "count": 10}
-        self.inventory[6] = {"type": "deepslate_emerald_ore", "count": 10}
-        self.inventory[7] = {"type": "deepslate_diamond_ore", "count": 10}
-        self.inventory[8] = {"type": "bee_nest_front", "count": 10}
-        self.inventory[9] = {"type": "warped_roots", "count": 10}
-        self.inventory[10] = {"type": "target_side", "count": 10}
-        self.inventory[11] = {"type": "blast_furnace_front", "count": 10}
-
     def check_double_press(self, key):
         current_time = pygame.time.get_ticks()
         is_double = False
@@ -149,6 +125,11 @@ class Player:
                             if event.key == pygame.K_UP:
                                 if self.check_double_press(pygame.K_UP):
                                     self.is_flying = not self.is_flying
+
+                    if self.can_drop_item():
+                        if event.key == pygame.K_q:
+                            return self.drop_selected_item()
+
                 if event.key == pygame.K_e:
                     self.is_open_inv = not self.is_open_inv
 
@@ -317,7 +298,65 @@ class Player:
                 (render_x, render_y, self.rect.width, self.rect.height),
             )
 
+    """外部用函式"""
+
+    def remove_selected_item(self, count: int):
+        if self.should_consume_block():
+            self.hotbar[self.selected_hotbar_index]["count"] -= count
+            if self.hotbar[self.selected_hotbar_index]["count"] <= 0:
+                self.hotbar[self.selected_hotbar_index] = None
+
+    def pick_item(self, item_type: str):
+        for i, item in enumerate(self.hotbar):
+            if item is not None and item["type"] == item_type:
+                self.selected_hotbar_index = i
+                return
+
+        self.hotbar[self.selected_hotbar_index] = {"type": item_type, "count": 64}
+
+    """掉落物相關"""
+
+    def give_item(self, item_type: str, count: int):
+        if self._try_add_to_slots(self.hotbar, item_type, count):
+            return True
+
+        if self._try_add_to_slots(self.inventory, item_type, count):
+            return True
+
+        return False
+
+    def drop_selected_item(self):
+        current_item = self.hotbar[self.selected_hotbar_index]
+        if current_item is not None:
+            self.hotbar[self.selected_hotbar_index]["count"] -= 1
+            if self.hotbar[self.selected_hotbar_index]["count"] <= 0:
+                self.hotbar[self.selected_hotbar_index] = None
+            return None if current_item["count"] <= 0 else {"type": current_item["type"], "count": current_item["count"]}
+        else:
+            return None
+
+    def _try_add_to_slots(self, slots, item_type, count):
+
+        # 檢查有無相同方塊
+        for index, item in enumerate(slots):
+            if item is not None and item["type"] == item_type and item["count"] < 64:
+                # item = {"type": str, "count": int}
+                # ex. -> {"type": "dirt", "count": 64}
+                slots[index]["count"] += count
+                return True
+
+        # 檢查第一個空格，並新增方塊
+        for index, item in enumerate(slots):
+            if item is None:
+                slots[index] = {"type": item_type, "count": count}
+                return True
+
+        return False
+
     """各種判定"""
+
+    def will_drop_item_entity(self):
+        return self.mode == "survival"
 
     def can_break_block(self):
         return self.mode != "spectator"
@@ -328,5 +367,11 @@ class Player:
     def can_pickup_item(self):
         return self.mode != "spectator"
 
-    def should_drop_block(self):
+    def can_drop_item(self):
+        return self.mode != "spectator"
+
+    def should_consume_block(self):
         return self.mode == "survival"
+
+    def can_pick_block(self):
+        return self.mode == "creative"

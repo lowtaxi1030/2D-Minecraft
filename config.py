@@ -1,6 +1,5 @@
 WIDTH, HEIGHT = 1000, 600
 current_width, current_height = 1000, 600
-scroll_x, scroll_y = 0, 0
 
 ORG_FOV = 70
 fov = 70

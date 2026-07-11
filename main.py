@@ -66,20 +66,26 @@ while config.running:
         world_surface = pygame.Surface((surface_width, surface_height))
         world_surface.fill(tool.Colors.CYAN)
 
-        world.update(mouse_buttons, mouse_pos, player, game_camera)
-
         game_camera.draw_world(world_surface, mouse_pos)
 
         if not player.is_stuck:
             player.handle_input(events)
 
         # 更新
-        player.update(config.world_data)
+        world.update(mouse_buttons, mouse_pos, player, game_camera, config.world_data)
+        dropped_item = player.update(config.world_data)
         game_camera.update(player)
         ui.update(player)
 
+        if dropped_item is not None:
+            world.spawn_item_entity(...)
+
+        # print(player.rect.x, player.rect.y)
+        # print(game_camera.scroll_x, game_camera.scroll_y)
+
         # 畫圖
         player.draw(world_surface, game_camera.scroll_x, game_camera.scroll_y)
+        world.draw(world_surface, game_camera.scroll_x, game_camera.scroll_y, game_camera.zoom)
         game_camera.draw(screen, world_surface)
         ui.draw(screen, player)
 
