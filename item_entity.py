@@ -1,14 +1,15 @@
 import random
 from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from player import Player
+
 import pygame
 
 import asset_manager as assets
+import chunk_manager
 import config
 import tool
-
-if TYPE_CHECKING:
-    from player import Player
 
 
 class ItemEntity:
@@ -102,7 +103,7 @@ class ItemEntity:
 
     """"""
 
-    def update(self, world_data, player):
+    def update(self, player):
         self.age += 1
 
         if self.pickup_delay > 0:
@@ -125,10 +126,10 @@ class ItemEntity:
         self.is_grounded = False
 
         self.rect.x += self.vel_x
-        self._collide_x(start_x, end_x, start_y, end_y, world_data)
+        self._collide_x(start_x, end_x, start_y, end_y)
 
         self.rect.y += self.vel_y
-        self._collide_y(start_x, end_x, start_y, end_y, world_data)
+        self._collide_y(start_x, end_x, start_y, end_y)
 
     def _handle_movement(self):
         self.vel_y += self.gravity
@@ -143,7 +144,7 @@ class ItemEntity:
 
     """"""
 
-    def resolve_stuck(self, world_data, new_block_rect, player: "Player"):
+    def resolve_stuck(self, new_block_rect, player: "Player"):
         if not new_block_rect.colliderect(self.rect):
             return
 
@@ -170,7 +171,7 @@ class ItemEntity:
 
             self.rect.x += step
 
-            if not self._is_colliding(world_data, start_x, end_x, start_y, end_y):
+            if not self._is_colliding(start_x, end_x, start_y, end_y):
                 return
 
         self.rect.x = original_x
@@ -178,14 +179,14 @@ class ItemEntity:
         step *= -1
 
         for _ in range(config.BLOCK_SIZE):
-            if not self._is_colliding(world_data, start_x, end_x, start_y, end_y):
+            if not self._is_colliding(start_x, end_x, start_y, end_y):
                 return
 
         self.rect.x = original_x
 
         for _ in range(config.BLOCK_SIZE):
             self.rect.y -= 1
-            if not self._is_colliding(world_data, start_x, end_x, start_y, end_y):
+            if not self._is_colliding(start_x, end_x, start_y, end_y):
                 return
 
         self.rect.y = original_y
@@ -206,10 +207,10 @@ class ItemEntity:
         self.vel_x = direction.x * speed
         self.vel_y = direction.y * speed
 
-    def _collide_x(self, start_x, end_x, start_y, end_y, world_data):
+    def _collide_x(self, start_x, end_x, start_y, end_y):
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
-                block_name = world_data[y_pos][x_pos]
+                block_name = chunk_manager.get_block(x_pos, y_pos)
                 if block_name == "air":
                     continue
 
@@ -230,10 +231,10 @@ class ItemEntity:
                         self.rect.left = block_rect.right
                     self.vel_x = 0
 
-    def _collide_y(self, start_x, end_x, start_y, end_y, world_data):
+    def _collide_y(self, start_x, end_x, start_y, end_y):
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
-                block_name = world_data[y_pos][x_pos]
+                block_name = block_name = chunk_manager.get_block(x_pos, y_pos)
                 if block_name == "air":
                     continue
 
@@ -276,10 +277,10 @@ class ItemEntity:
 
     """判斷函式"""
 
-    def _is_colliding(self, world_data, start_x, end_x, start_y, end_y):
+    def _is_colliding(self, start_x, end_x, start_y, end_y):
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
-                block_name = world_data[y_pos][x_pos]
+                block_name = block_name = chunk_manager.get_block(x_pos, y_pos)
                 if block_name == "air":
                     continue
 

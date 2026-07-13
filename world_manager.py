@@ -1,13 +1,14 @@
 from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from player import Player
+
 import pygame
 
+import chunk_manager
 import config
 import item_entity
 from camera import Camera
-
-if TYPE_CHECKING:
-    from player import Player
 
 
 class BlockClick:
@@ -33,10 +34,9 @@ class World:
         mouse_pos: tuple[int, int],
         player: "Player",
         camera: Camera,
-        world_data,
     ):
 
-        self._handle_item_entities(world_data, player)
+        self._handle_item_entities(player)
 
         if not any(mouse_buttons) or player.is_open_inv:
             return
@@ -53,7 +53,7 @@ class World:
             self._handle_pick_block(clicked, player)
 
         elif mouse_buttons[2]:
-            self._handle_place_block(clicked, player, world_data)
+            self._handle_place_block(clicked, player)
 
     def _get_clicked_block(self, mouse_pos, camera: Camera):
         world_x, world_y = camera.screen_to_world(mouse_pos)
@@ -61,8 +61,7 @@ class World:
         if world_x < 0 or world_x >= config.MAP_WIDTH or world_y < 0 or world_y >= config.MAP_HEIGHT:
             return None
 
-        clicked_block = config.world_data[world_y][world_x]
-
+        clicked_block = chunk_manager.get_block(world_x * config.BLOCK_SIZE, world_y * config.BLOCK_SIZE)
         return BlockClick(
             world_x,
             world_y,
@@ -75,7 +74,7 @@ class World:
             if player.will_drop_item_entity():
                 self.item_entities.append(
                     item_entity.ItemEntity(
-                        {"type": config.world_data[clicked.y][clicked.x], "count": 1},
+                        {"type": clicked.block, "count": 1},
                         clicked.x * config.BLOCK_SIZE,
                         clicked.y * config.BLOCK_SIZE,
                         spawn_reason="break",
@@ -83,18 +82,18 @@ class World:
                     )
                 )
 
-            config.world_data[clicked.y][clicked.x] = "air"
+            chunk_manager.set_block(clicked.x, clicked.y, "air")
 
     def _handle_pick_block(self, clicked: BlockClick, player: "Player"):
         if clicked.block != "air":
             if player.can_pick_block():
                 player.pick_item(clicked.block)
 
-    def _handle_place_block(self, clicked: BlockClick, player: "Player", world_data):
+    def _handle_place_block(self, clicked: BlockClick, player: "Player"):
 
         if self._can_place(clicked, player):
             current_item = player.hotbar[player.selected_hotbar_index]
-            self._place_block(clicked, current_item["type"], world_data, player)
+            self._place_block(clicked, current_item["type"], player)
             player.remove_selected_item(1)
 
     def _can_place(self, clicked: BlockClick, player: "Player"):
@@ -110,8 +109,8 @@ class World:
 
         return True
 
-    def _place_block(self, clicked: BlockClick, block_type, world_data, player: "Player"):
-        config.world_data[clicked.y][clicked.x] = block_type
+    def _place_block(self, clicked: BlockClick, block_type, player: "Player"):
+        chunk_manager.set_block(clicked.x, clicked.y, block_type)
 
         new_block_rect = pygame.Rect(
             clicked.x * config.BLOCK_SIZE,
@@ -122,13 +121,13 @@ class World:
 
         for item in self.item_entities:
             if item.rect.colliderect(new_block_rect):
-                item.resolve_stuck(world_data, new_block_rect, player)
+                item.resolve_stuck(new_block_rect, player)
 
-    def _handle_item_entities(self, world_data, player: "Player"):
+    def _handle_item_entities(self, player: "Player"):
         picked_items = []
 
         for item in self.item_entities:
-            item.update(world_data, player)
+            item.update(player)
 
             item.try_attract(player)
 

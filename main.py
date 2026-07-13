@@ -4,11 +4,13 @@ import pygame
 
 import asset_manager as assets
 import camera
+import chunk_manager
 import config
 import menu_manager
 import tool
 import ui_manager
-import world_generator
+
+# import world_generator
 import world_manager
 from player import Player
 
@@ -26,8 +28,10 @@ pygame.display.set_caption("2D Minecraft - V0.0.0")  # 之後放screen_text
 
 assets.load_all_blocks()
 
-config.world_data = world_generator.make_map(config.MAP_WIDTH, config.MAP_HEIGHT)
-player = Player(100, 0)
+for i in range(-5, 6):
+    chunk_manager.get_chunk(i)
+
+player = Player(0, 20)
 
 ui = ui_manager.UI()
 menu = menu_manager.MenuManager()
@@ -70,18 +74,19 @@ while config.running:
 
         dropped_item = None
 
-        for event in events:
-            if not player.is_stuck:
-                item = player.handle_input(event, player)
+        player.handle_input(mouse_pos)
 
-                if item is not None:
-                    dropped_item = item
+        for event in events:
+            item = player.handle_event(event, keys)
+
+            if item is not None:
+                dropped_item = item
 
             ui.handle_events(event, player, mouse_pos)
 
         # 更新
-        world.update(mouse_buttons, mouse_pos, player, game_camera, config.world_data)
-        player.update(config.world_data, mouse_pos)
+        world.update(mouse_buttons, mouse_pos, player, game_camera)
+        player.update()
         game_camera.update(player)
         ui.update(player)
 

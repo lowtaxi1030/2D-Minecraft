@@ -1,5 +1,6 @@
 import pygame
 
+import chunk_manager
 import config
 import tool
 
@@ -61,39 +62,7 @@ class Player:
         self.last_press_time[key] = current_time
         return is_double
 
-    def handle_input(self, event, player):
-        """處理鍵盤輸入（左右移動、跳躍）"""
-
-        keys = pygame.key.get_pressed()
-        if not self.is_open_inv:
-            if self.mode == "spectator" or self.is_flying:
-                self.vel_x = 0
-                self.vel_y = 0
-
-                # X 軸：左右控制
-                if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                    self.vel_x -= self.player_flying_speed  # 往左是負
-                if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                    self.vel_x += self.player_flying_speed  # 往右是正
-
-                # Y 軸：上下自由飛行
-                if keys[pygame.K_UP] or keys[pygame.K_w]:
-                    self.vel_y -= self.player_flying_speed  # 往上飛是負（對抗重力）
-                if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-                    self.vel_y += self.player_flying_speed  # 往下飛是正
-            elif self.mode != "spectator":
-                self.vel_x = 0
-
-                if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                    self.vel_x = -self.player_flying_speed if self.is_flying else -self.current_speed
-                elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                    self.vel_x = self.player_flying_speed if self.is_flying else self.current_speed
-                if (keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]) and self.is_grounded:
-                    if not self.is_flying:
-                        self.vel_y = self.jump_strength
-                        self.is_grounded = False
-        else:
-            self.vel_x = 0
+    def handle_event(self, event, keys):
 
         if event.type == pygame.KEYDOWN:
             if not self.is_open_inv:
@@ -147,10 +116,46 @@ class Player:
             if self.selected_hotbar_index <= -1:
                 self.selected_hotbar_index = 8
 
-        if event.type == pygame.KEYDOWN:
-            print(event.key)
+    def handle_input(self, mouse_pos):
+        """處理鍵盤輸入（左右移動、跳躍）"""
 
-    def _try_auto_jump(self, world_data, block_rect):
+        keys = pygame.key.get_pressed()
+        if not self.is_open_inv:
+            if self.mode == "spectator" or self.is_flying:
+                self.vel_x = 0
+                self.vel_y = 0
+
+                # X 軸：左右控制
+                if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+                    self.vel_x -= self.player_flying_speed  # 往左是負
+                if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                    self.vel_x += self.player_flying_speed  # 往右是正
+
+                # Y 軸：上下自由飛行
+                if keys[pygame.K_UP] or keys[pygame.K_w]:
+                    self.vel_y -= self.player_flying_speed  # 往上飛是負（對抗重力）
+                if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+                    self.vel_y += self.player_flying_speed  # 往下飛是正
+            elif self.mode != "spectator":
+                self.vel_x = 0
+
+                if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+                    self.vel_x = -self.player_flying_speed if self.is_flying else -self.current_speed
+                elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                    self.vel_x = self.player_flying_speed if self.is_flying else self.current_speed
+                if (keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]) and self.is_grounded:
+                    if not self.is_flying:
+                        self.vel_y = self.jump_strength
+                        self.is_grounded = False
+        else:
+            self.vel_x = 0
+
+        if mouse_pos[0] < self.rect.centerx:
+            self.facing = -1
+        elif mouse_pos[0] > self.rect.centerx:
+            self.facing = 1
+
+    def _try_auto_jump(self, block_rect):
 
         if self.auto_jump and self.is_grounded and not self.is_flying:
             height_difference = self.rect.bottom - block_rect.top
@@ -161,7 +166,7 @@ class Player:
             head_grid_y = tool.clamp(0, config.MAP_HEIGHT - 1, head_grid_y)  # _get_head_grid()
             head_grid_x = tool.clamp(0, config.MAP_WIDTH - 1, head_grid_x)  #  ------------------------
 
-            is_ceiling_clear = world_data[head_grid_y][head_grid_x] == "air"
+            is_ceiling_clear = chunk_manager.get_block(head_grid_x, head_grid_y) == "air"
 
             # 💡 關鍵：高度差要在 1.5 格內，【並且】頭頂必須是空的才能跳！
             if (0 < height_difference <= config.BLOCK_SIZE * 1.5) and is_ceiling_clear:
@@ -170,7 +175,7 @@ class Player:
             else:
                 self.is_running = False
 
-    def update(self, world_data, mouse_pos):
+    def update(self):
         """處理按鍵問題"""
         if self.is_flying:
             self.is_running = False
@@ -180,55 +185,44 @@ class Player:
         """處理重力、移動位置、以及與地圖方塊的碰撞偵測"""
         self.current_speed = self.player_run_speed if self.is_running else self.player_speed
 
-        left_x = tool.clamp(0, config.MAP_WIDTH - 1, int(self.rect.left // config.BLOCK_SIZE))
-        right_x = tool.clamp(0, config.MAP_WIDTH - 1, int((self.rect.right - 1) // config.BLOCK_SIZE))
+        left_x = int(self.rect.left // config.BLOCK_SIZE)
+        right_x = int((self.rect.right - 1) // config.BLOCK_SIZE)
         top_y = tool.clamp(0, config.MAP_HEIGHT - 1, int(self.rect.top // config.BLOCK_SIZE))
         bottom_y = tool.clamp(0, config.MAP_HEIGHT - 1, int((self.rect.bottom - 1) // config.BLOCK_SIZE))
 
         self.is_stuck = (
-            config.world_data[top_y][left_x] != "air"
-            or config.world_data[bottom_y][left_x] != "air"
-            or config.world_data[top_y][right_x] != "air"
-            or config.world_data[bottom_y][right_x] != "air"
+            chunk_manager.get_block(left_x * config.BLOCK_SIZE, top_y * config.BLOCK_SIZE) != "air"
+            or chunk_manager.get_block(left_x * config.BLOCK_SIZE, bottom_y * config.BLOCK_SIZE) != "air"
+            or chunk_manager.get_block(right_x * config.BLOCK_SIZE, top_y * config.BLOCK_SIZE) != "air"
+            or chunk_manager.get_block(right_x * config.BLOCK_SIZE, bottom_y * config.BLOCK_SIZE) != "air"
         ) and self.mode != "spectator"
 
         center_grid_x = self.rect.centerx // config.BLOCK_SIZE
         center_grid_y = self.rect.centery // config.BLOCK_SIZE
 
-        start_x = max(0, center_grid_x - 2)
-        end_x = min(config.MAP_WIDTH, center_grid_x + 3)
+        start_x = center_grid_x - 2
+        end_x = center_grid_x + 3
 
         start_y = max(0, center_grid_y - 2)
         end_y = min(config.MAP_HEIGHT, center_grid_y + 3)
 
         self.rect.x += self.vel_x
 
-        self._collide_x(start_x, end_x, start_y, end_y, world_data)
+        self._collide_x(start_x, end_x, start_y, end_y)
         # 應用重力
         if self.mode != "spectator" and not self.is_flying:
             self.vel_y += self.gravity
 
-        # self.rect.y += self.vel_y
-
         # 預設玩家在空中
         self.is_grounded = False
 
-        self._collide_y(start_x, end_x, start_y, end_y, world_data)
+        self._collide_y(start_x, end_x, start_y, end_y)
 
-        max_player_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - self.rect.width
-        self.rect.x = tool.clamp(0, max_player_x, self.rect.x)
-        self.rect.y = tool.clamp(None, None, self.rect.y)
-
-        if mouse_pos[0] < self.rect.centerx:
-            self.facing = -1
-        elif mouse_pos[0] > self.rect.centerx:
-            self.facing = 1
-
-    def _collide_x(self, start_x, end_x, start_y, end_y, world_data):
+    def _collide_x(self, start_x, end_x, start_y, end_y):
         # 檢查玩家周圍的方塊
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
-                block_name = world_data[y_pos][x_pos]
+                block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
                 if block_name == "air" or self.mode == "spectator":
                     continue
 
@@ -245,14 +239,14 @@ class Player:
                     if self.vel_x > 0:
                         # 把玩家的右側擋在方塊的左側
                         self.rect.right = block_rect.left
-                        self._try_auto_jump(world_data, block_rect)
+                        self._try_auto_jump(block_rect)
                     # 往左走時撞到（速度小於 0）
                     elif self.vel_x < 0:
                         # 把玩家的左側擋在方塊的右側
                         self.rect.left = block_rect.right
-                        self._try_auto_jump(world_data, block_rect)
+                        self._try_auto_jump(block_rect)
 
-    def _collide_y(self, start_x, end_x, start_y, end_y, world_data):
+    def _collide_y(self, start_x, end_x, start_y, end_y):
         rem_y = abs(self.vel_y)  # 還剩下多少 Y 距離要走
         sign_y = 1 if self.vel_y > 0 else -1
 
@@ -265,7 +259,7 @@ class Player:
             hit_y = False
             for y_pos in range(start_y, end_y):
                 for x_pos in range(start_x, end_x):
-                    block_name = world_data[y_pos][x_pos]
+                    block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
                     if block_name == "air" or self.mode == "spectator":
                         continue
 

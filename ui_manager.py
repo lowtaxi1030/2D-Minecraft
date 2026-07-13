@@ -1,14 +1,15 @@
 from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from player import Player
+
 import pygame
 
 import asset_manager as assets
+import chunk_manager
 import config
 import tool
 import ui_obs as ui
-
-if TYPE_CHECKING:
-    from player import Player
 
 pygame.init()
 
@@ -105,7 +106,7 @@ class Inventory:
 
         self.held_item = None
 
-    def handle_events(self, event, player, mouse_pos):
+    def handle_events(self, event, player: "Player", mouse_pos):
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 self._handle_left_click(player, mouse_pos)
@@ -320,7 +321,12 @@ class DebugScreen:
         """玩家按下 F3 時的畫面"""
         ui.show_text(
             screen,
-            f"x: {player.rect.x // config.BLOCK_SIZE}  y: {player.rect.y // config.BLOCK_SIZE}",
+            [
+                f"x: {player.rect.x // config.BLOCK_SIZE}  y: {player.rect.y // config.BLOCK_SIZE}",
+                f"Chunk: {player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)}",
+                f"Standing on: {chunk_manager.get_block(player.rect.centerx, player.rect.bottom).replace("_", " ")}",
+                f"Player mode: {player.mode}"
+            ],
             tool.Colors.WHITE,
             10,
             10,

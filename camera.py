@@ -1,6 +1,13 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from player import Player
+
+
 import pygame
 
 import asset_manager as assets
+import chunk_manager
 import config
 import tool
 
@@ -18,7 +25,7 @@ class Camera:
         self.block_size = config.BLOCK_SIZE
         self.render_rect = pygame.Rect(0, 0, 0, 0)
 
-    def update(self, player):
+    def update(self, player: "Player"):
 
         view_width = config.current_width / self.zoom
         view_height = config.current_height / self.zoom
@@ -26,14 +33,13 @@ class Camera:
         target_scroll_x = player.rect.centerx - view_width / 2
         target_scroll_y = player.rect.centery - view_height / 2
 
-        max_scroll_x = config.MAP_WIDTH * self.block_size - view_width
+        # max_scroll_x = config.MAP_WIDTH * self.block_size - view_width
         max_scroll_y = config.MAP_HEIGHT * self.block_size - view_height
 
         self.scroll_x = tool.update_scrolling(
             self.scroll_x,
             target_scroll_x,
             smoth=0.1,
-            max_val=max_scroll_x,
         )
 
         self.scroll_y = tool.update_scrolling(
@@ -43,8 +49,16 @@ class Camera:
             max_val=max_scroll_y,
         )
 
-        self.scroll_x = tool.clamp(0, max_scroll_x, self.scroll_x)
+        # self.scroll_x = tool.clamp(0, max_scroll_x, self.scroll_x)
         self.scroll_y = tool.clamp(0, max_scroll_y, self.scroll_y)
+
+        self._load_visible_chunks(player)
+
+    def _load_visible_chunks(self, player: "Player"):
+        current_chunk = player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
+
+        for chunk_x in range(current_chunk - 5, current_chunk + 6):
+            chunk_manager.get_chunk(chunk_x)
 
     """小工具"""
 
@@ -67,28 +81,19 @@ class Camera:
         world_x = int((mouse_x + self.scroll_x) // config.BLOCK_SIZE)
         world_y = int((mouse_y + self.scroll_y) // config.BLOCK_SIZE)
 
-        return (
-            tool.clamp(0, config.MAP_WIDTH - 1, world_x),
-            tool.clamp(0, config.MAP_HEIGHT - 1, world_y),
-        )
+        return (world_x, world_y)
 
     def visible_range(self):
         view_width = config.current_width / self.zoom
         view_height = config.current_height / self.zoom
 
-        start_x = max(0, int(self.scroll_x // config.BLOCK_SIZE) - 2)
+        start_x = int(self.scroll_x // config.BLOCK_SIZE) - 1
 
-        end_x = min(
-            config.MAP_WIDTH,
-            int((self.scroll_x + view_width) // config.BLOCK_SIZE) + 2,
-        )
+        end_x = int((self.scroll_x + view_width) // config.BLOCK_SIZE) + 2
 
-        start_y = max(0, int(self.scroll_y // config.BLOCK_SIZE) - 2)
+        start_y = int(self.scroll_y // config.BLOCK_SIZE) - 1
 
-        end_y = min(
-            config.MAP_HEIGHT,
-            int((self.scroll_y + view_height) // config.BLOCK_SIZE) + 2,
-        )
+        end_y = int((self.scroll_y + view_height) // config.BLOCK_SIZE) + 2
 
         return start_x, end_x, start_y, end_y
 
@@ -101,7 +106,7 @@ class Camera:
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
 
-                block_name = config.world_data[y_pos][x_pos]
+                block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
 
                 pixel_x, pixel_y = self.world_to_screen(x_pos, y_pos)
 
@@ -124,7 +129,6 @@ class Camera:
 
         screen.blit(scaled, self.render_rect)
 
-
     def draw_option_bg(self, player, mouse_pos, screen, world_surface):
         world_surface.fill(tool.Colors.CYAN)
 
@@ -132,4 +136,3 @@ class Camera:
         player.draw(world_surface, self.scroll_x, self.scroll_y)
         self.draw_world(world_surface, mouse_pos, draw_hover=False)
         self.draw(screen, world_surface)
-
