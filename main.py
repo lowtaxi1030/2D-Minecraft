@@ -68,20 +68,25 @@ while config.running:
 
         game_camera.draw_world(world_surface, mouse_pos)
 
+        dropped_item = None
+
         for event in events:
             if not player.is_stuck:
-                player.handle_input(event)
+                item = player.handle_input(event, player)
+
+                if item is not None:
+                    dropped_item = item
 
             ui.handle_events(event, player, mouse_pos)
 
         # 更新
         world.update(mouse_buttons, mouse_pos, player, game_camera, config.world_data)
-        dropped_item = player.update(config.world_data)
+        player.update(config.world_data, mouse_pos)
         game_camera.update(player)
         ui.update(player)
 
         if dropped_item is not None:
-            world.spawn_item_entity(dropped_item["type"], dropped_item["type"], player.rect.centerx, player.rect.centery, "drop")
+            world.spawn_item_entity(dropped_item, player.rect.centerx, player.rect.top, "drop", player)
 
         # print(player.rect.x, player.rect.y)
         # print(game_camera.scroll_x, game_camera.scroll_y)

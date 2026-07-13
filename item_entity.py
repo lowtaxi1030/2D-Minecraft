@@ -1,27 +1,32 @@
+import random
+from typing import TYPE_CHECKING
+
 import pygame
 
 import asset_manager as assets
 import config
 import tool
-from player import Player
+
+if TYPE_CHECKING:
+    from player import Player
 
 
 class ItemEntity:
-    def __init__(self, item_type: str, count: int, x, y, spawn_reason: str):
+    def __init__(self, item: dict[str, int], x, y, spawn_reason: str, player):
         """
-        直接傳入方塊的左上角座標，至中由本身自行處理
-        spawn_reason 可以是：
-        "drop"    --玩家按 Q 丟出   <<<目前只有這個
-        "break"   --挖方塊掉落      <<<還有這個
-        "death"   --玩家死亡掉落
-        "mob"     --生物掉落
-        "chest"   --箱子噴出
-        "command" --指令生成
+        直接傳入方塊的左上角座標，至中由本身自行處理\n
+        spawn_reason 可以是：\n
+        "drop"    --玩家按 Q 丟出   <<<目前只有這個\n
+        "break"   --挖方塊掉落      <<<還有這個\n
+        "death"   --玩家死亡掉落\n
+        "mob"     --生物掉落\n
+        "chest"   --箱子噴出\n
+        "command" --指令生成\n
         """
-        self.type = spawn_reason
+        self.spawn_reason = spawn_reason
 
-        self.item_type = item_type
-        self.count = count
+        self.item_type = item["type"]
+        self.count = item["count"]
 
         self.age = 0
 
@@ -36,21 +41,77 @@ class ItemEntity:
         self.gravity = 1
         self.is_grounded = True
 
-        self.image = pygame.transform.scale(assets.img_blocks[item_type], (self.size, self.size))
+        self.image = pygame.transform.scale(assets.img_blocks[self.item_type], (self.size, self.size))
 
-        self.pickup_delay = 10  # 幾 tick 後才能撿
+        self.pickup_delay = 30  # 幾 tick 後才能撿
         self.is_attracting = False
         self.MAX_SPEED = 6
 
         self.ACCELERATION = 0.35
 
+        self.air_friction = 0.98
+        self.ground_friction = 0.6
+
+        self._init_spawn_reason(player)
+
+    def _init_spawn_reason(self, player):
+        match self.spawn_reason:
+            case "drop":
+                self._init_drop(player)
+
+            case "break":
+                self._init_break()
+
+            case "death":
+                self._init_death()
+
+            case "mob":
+                self._init_mob()
+
+            case "chest":
+                self._init_chest()
+
+            case "command":
+                self._init_command()
+
+    """各種初始化函式"""
+
+    def _init_drop(self, player: "Player"):
+        self.pickup_delay = 60
+
+        self.vel_x = player.facing * 15
+        self.vel_y = -4
+
+    def _init_break(self):
+        speed = random.randint(5, 10)
+        self.vel_x = random.choice([speed, -speed])
+        self.vel_y = -8
+        self.pickup_delay = 10
+
+    def _init_death(self):
+        pass
+
+    def _init_mob(self):
+        pass
+
+    def _init_chest(self):
+        pass
+
+    def _init_command(self):
+        pass
+
+    """"""
+
     def update(self, world_data, player):
         self.age += 1
+
+        if self.pickup_delay > 0:
+            self.pickup_delay -= 1
 
         if self.is_attracting:
             self._apply_attraction(player)
         else:
-            self.vel_y += self.gravity  # 之後這裡改成 _handle_movement()
+            self._handle_movement()
 
         center_grid_x = self.rect.centerx // config.BLOCK_SIZE
         center_grid_y = self.rect.centery // config.BLOCK_SIZE
@@ -70,24 +131,19 @@ class ItemEntity:
         self._collide_y(start_x, end_x, start_y, end_y, world_data)
 
     def _handle_movement(self):
-        pass
-        """
-        可以寫：
-        if spawn_reason == "drop":
-            # 往玩家面前丟
-            self.vel_x = ...
-            self.vel_y = ...
+        self.vel_y += self.gravity
 
-        elif spawn_reason == "break":
-            # 挖方塊時四散
-            self.vel_x = random...
-            self.vel_y = ...
+        if self.vel_x != 0:
+            if self.is_grounded:
+                self.vel_x *= self.ground_friction
+            else:
+                self.vel_x *= self.air_friction
 
-        elif spawn_reason == "death":
-            # 死亡大量噴裝
-        """
 
-    def resolve_stuck(self, world_data, new_block_rect, player: Player):
+
+    """"""
+
+    def resolve_stuck(self, world_data, new_block_rect, player: "Player"):
         if not new_block_rect.colliderect(self.rect):
             return
 
@@ -134,7 +190,7 @@ class ItemEntity:
 
         self.rect.y = original_y
 
-    def _apply_attraction(self, player: Player):
+    def _apply_attraction(self, player: "Player"):
         player_pos = pygame.math.Vector2(player.rect.center)
         self_pos = pygame.math.Vector2(self.rect.center)
         direction = player_pos - self_pos
@@ -208,11 +264,15 @@ class ItemEntity:
 
     """外部用函式"""
 
-    def try_attract(self, player: Player):
+    def try_attract(self, player: "Player"):
+        if self.pickup_delay > 0:
+            self.is_attracting = False
+            return
+
         player_vec = pygame.math.Vector2((player.rect.centerx, player.rect.bottom))
         self_vec = pygame.math.Vector2(self.rect.center)
 
-        self.is_attracting = player.can_pickup_item() and player_vec.distance_to(self_vec) < config.BLOCK_SIZE * 3
+        self.is_attracting = player.can_pickup_item() and player_vec.distance_to(self_vec) < config.BLOCK_SIZE * 2
 
     """判斷函式"""
 

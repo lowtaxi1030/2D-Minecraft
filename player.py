@@ -12,14 +12,15 @@ class Player:
         # 2. 物理相關變數
         self.vel_x = 0
         self.vel_y = 0
-        self.jump_strength = -(config.BLOCK_SIZE / (20 / 3))
+        self.jump_strength = -(config.BLOCK_SIZE / 4.5)
         self.is_grounded = False
         self.all_modes = ["spectator", "creative", "survival"]  # , "survival"
         self.mode_index = 1
         self.mode = self.all_modes[self.mode_index]
         self.current_speed = config.BLOCK_SIZE // 10
+        self.jump_buffer = 0
 
-        self.gravity = round(max(0.1, config.BLOCK_SIZE / 70), 2)
+        self.gravity = round(max(0.1, config.BLOCK_SIZE / 55), 2)
         self.player_speed = config.BLOCK_SIZE // 10
         self.player_run_speed = config.BLOCK_SIZE // 5
         self.player_flying_speed = config.BLOCK_SIZE // 4
@@ -39,8 +40,11 @@ class Player:
         # 如果格子是空的，就直接用 None 表示
         self.hotbar = [None] * 9  # 熱鍵列，長度為9
         self.inventory = [None] * 27  # 主背包長度為9X3=27
+        self.MAX_STACK = 64
 
         self.selected_hotbar_index = 0
+
+        self.facing = 1  # 向右
 
     def check_double_press(self, key):
         current_time = pygame.time.get_ticks()
@@ -57,7 +61,7 @@ class Player:
         self.last_press_time[key] = current_time
         return is_double
 
-    def handle_input(self, event):
+    def handle_input(self, event, player):
         """處理鍵盤輸入（左右移動、跳躍）"""
 
         keys = pygame.key.get_pressed()
@@ -126,7 +130,10 @@ class Player:
                                 self.is_flying = not self.is_flying
 
                 if self.can_drop_item():
-                    if event.key == pygame.K_q:
+                    if keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]:
+                        if event.key == pygame.K_q:
+                            return self.drop_selected_item(drop_all=True)
+                    elif event.key == pygame.K_q:
                         return self.drop_selected_item()
 
             if event.key == pygame.K_e:
@@ -139,6 +146,9 @@ class Player:
 
             if self.selected_hotbar_index <= -1:
                 self.selected_hotbar_index = 8
+
+        if event.type == pygame.KEYDOWN:
+            print(event.key)
 
     def _try_auto_jump(self, world_data, block_rect):
 
@@ -160,7 +170,7 @@ class Player:
             else:
                 self.is_running = False
 
-    def update(self, world_data):
+    def update(self, world_data, mouse_pos):
         """處理按鍵問題"""
         if self.is_flying:
             self.is_running = False
@@ -193,6 +203,28 @@ class Player:
 
         self.rect.x += self.vel_x
 
+        self._collide_x(start_x, end_x, start_y, end_y, world_data)
+        # 應用重力
+        if self.mode != "spectator" and not self.is_flying:
+            self.vel_y += self.gravity
+
+        # self.rect.y += self.vel_y
+
+        # 預設玩家在空中
+        self.is_grounded = False
+
+        self._collide_y(start_x, end_x, start_y, end_y, world_data)
+
+        max_player_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - self.rect.width
+        self.rect.x = tool.clamp(0, max_player_x, self.rect.x)
+        self.rect.y = tool.clamp(None, None, self.rect.y)
+
+        if mouse_pos[0] < self.rect.centerx:
+            self.facing = -1
+        elif mouse_pos[0] > self.rect.centerx:
+            self.facing = 1
+
+    def _collide_x(self, start_x, end_x, start_y, end_y, world_data):
         # 檢查玩家周圍的方塊
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
@@ -219,15 +251,8 @@ class Player:
                         # 把玩家的左側擋在方塊的右側
                         self.rect.left = block_rect.right
                         self._try_auto_jump(world_data, block_rect)
-        # 應用重力
-        if self.mode != "spectator" and not self.is_flying:
-            self.vel_y += self.gravity
 
-        self.rect.y += self.vel_y
-
-        # 預設玩家在空中
-        self.is_grounded = False
-
+    def _collide_y(self, start_x, end_x, start_y, end_y, world_data):
         rem_y = abs(self.vel_y)  # 還剩下多少 Y 距離要走
         sign_y = 1 if self.vel_y > 0 else -1
 
@@ -268,9 +293,6 @@ class Player:
             if hit_y:
                 # 🎯 撞到了就直接完全報廢這幀剩下的碎步，絕對不會過度疊加移動
                 break
-        max_player_x = (config.MAP_WIDTH * config.BLOCK_SIZE) - self.rect.width
-        self.rect.x = tool.clamp(0, max_player_x, self.rect.x)
-        self.rect.y = tool.clamp(None, None, self.rect.y)
 
     def draw(self, screen: pygame.Surface, scroll_x, scroll_y):
         """將玩家畫在畫面上 (記得扣除鏡頭捲動位移)"""
@@ -311,13 +333,13 @@ class Player:
             if item is not None and item["type"] == item_type:
                 self.selected_hotbar_index = i
                 if self.mode == "creative":
-                    self.hotbar[self.selected_hotbar_index]["count"] = 64
+                    self.hotbar[self.selected_hotbar_index]["count"] = self.MAX_STACK
                 return
 
         # 步驟二：如果 Hotbar 沒有，改去檢查 Hotbar 有沒有哪一格是空的 (None)。如果有空格，就把物品塞進那個空格，並把指標選過去。
         for i, item in enumerate(self.hotbar):
             if item is None:
-                self.hotbar[i] = {"type": item_type, "count": 64}
+                self.hotbar[i] = {"type": item_type, "count": self.MAX_STACK}
                 self.selected_hotbar_index = i
                 return
 
@@ -330,46 +352,67 @@ class Player:
                 return
 
         # 步驟四：這時才逼不得已覆蓋目前選中的這一格。
-        self.hotbar[self.selected_hotbar_index] = {"type": item_type, "count": 64}
+        self.hotbar[self.selected_hotbar_index] = {"type": item_type, "count": self.MAX_STACK}
 
     """掉落物相關"""
 
     def give_item(self, item_type: str, count: int):
-        if self._try_add_to_slots(self.hotbar, item_type, count):
-            return True
+        count = self._try_merge_slots(self.hotbar, item_type, count)
+        count = self._try_merge_slots(self.inventory, item_type, count)
 
-        if self._try_add_to_slots(self.inventory, item_type, count):
-            return True
+        count = self._try_find_empty_slot(self.hotbar, item_type, count)
+        count = self._try_find_empty_slot(self.inventory, item_type, count)
 
-        return False
+        return count == 0
 
-    def drop_selected_item(self):
+    def drop_selected_item(self, drop_all=False):
         current_item = self.hotbar[self.selected_hotbar_index]
         if current_item is not None:
-            self.hotbar[self.selected_hotbar_index]["count"] -= 1
-            if self.hotbar[self.selected_hotbar_index]["count"] <= 0:
+            dropped_item = {
+                "type": current_item["type"],
+                "count": current_item["count"] if drop_all else 1,
+            }
+
+            if drop_all:
                 self.hotbar[self.selected_hotbar_index] = None
-            return None if current_item["count"] <= 0 else {"type": current_item["type"], "count": current_item["count"]}
+            else:
+                current_item["count"] -= 1
+                if current_item["count"] == 0:
+                    self.hotbar[self.selected_hotbar_index] = None
+
+            return dropped_item
         else:
             return None
 
-    def _try_add_to_slots(self, slots, item_type, count):
+    def _try_merge_slots(self, slots, item_type, count):
+        for _, item in enumerate(slots):
+            if item is not None and item["type"] == item_type and item["count"] < self.MAX_STACK:
+                can_place_num = self.MAX_STACK - item["count"]
+                put_num = min(count, can_place_num)
+                item["count"] += put_num
+                count -= put_num
 
-        # 檢查有無相同方塊
-        for index, item in enumerate(slots):
-            if item is not None and item["type"] == item_type and item["count"] < 64:
-                # item = {"type": str, "count": int}
-                # ex. -> {"type": "dirt", "count": 64}
-                slots[index]["count"] += count
-                return True
+                if count == 0:
+                    return count
 
-        # 檢查第一個空格，並新增方塊
+        return count
+
+    def _try_find_empty_slot(self, slots, item_type, count):
+        if count <= 0:
+            return 0
+
         for index, item in enumerate(slots):
             if item is None:
-                slots[index] = {"type": item_type, "count": count}
-                return True
+                put_num = min(count, self.MAX_STACK)
 
-        return False
+                slots[index] = {"type": item_type, "count": put_num}
+
+                count -= put_num
+
+                if count == 0:
+                    return 0
+
+        return count
 
     """各種判定"""
 

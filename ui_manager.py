@@ -1,10 +1,14 @@
+from typing import TYPE_CHECKING
+
 import pygame
 
 import asset_manager as assets
 import config
 import tool
 import ui_obs as ui
-from player import Player
+
+if TYPE_CHECKING:
+    from player import Player
 
 pygame.init()
 
@@ -24,7 +28,7 @@ class UI:
         self.inventory.update()
         self.debug.update()
 
-    def draw(self, screen, player: Player):
+    def draw(self, screen, player: "Player"):
 
         if player.is_open_inv:
             self.inventory.draw(screen, player)
@@ -61,13 +65,13 @@ class Hotbar:
         self.INV_SPACING_X = 63
         self.INV_SPACING_Y = 63
 
-    def update(self, player: Player):
+    def update(self, player: "Player"):
         assets.update_img_pos(assets.hotbar_bg_rect, screen_center=True, is_bottom=True)
 
         assets.select_frame_rect.left = assets.hotbar_bg_rect.left - 1 + (player.selected_hotbar_index * self.SLOT_SPACING)
         assets.select_frame_rect.top = assets.hotbar_bg_rect.top - 3
 
-    def draw(self, screen: pygame.Surface, player: Player):
+    def draw(self, screen: pygame.Surface, player: "Player"):
         # 畫圖片
         screen.blit(assets.hotbar_bg, assets.hotbar_bg_rect)
         screen.blit(assets.select_frame, assets.select_frame_rect)
@@ -107,17 +111,98 @@ class Inventory:
                 self._handle_left_click(player, mouse_pos)
 
             if event.button == 3:
-                self._handle_right_click(player)
+                self._handle_right_click(player, mouse_pos)
 
-    def _handle_left_click(self, player, mouse_pos):
+    def _handle_left_click(self, player: "Player", mouse_pos):
+
         area, index = self._get_clicked_slot_info(mouse_pos)
         if area is None:
             return
 
         self._handle_slot_left_click(player, area, index)
 
-    def _handle_right_click(self, player):
-        pass
+    def _handle_right_click(self, player: "Player", mouse_pos):
+
+        area, index = self._get_clicked_slot_info(mouse_pos)
+        if area is None:
+            return
+
+        self._handle_slot_right_click(player, area, index)
+
+    def _handle_slot_left_click(self, player: "Player", area, index):
+
+        if not player.is_open_inv:
+            return
+
+        slot_item = self._get_slot(player, area, index)
+
+        if self.held_item is None:
+            self.held_item = slot_item
+            slot_item = None
+
+            self._set_slot(player, area, index, slot_item)
+
+        elif slot_item is None:
+            self._set_slot(player, area, index, self.held_item)
+
+            self.held_item = None
+
+        elif slot_item["type"] == self.held_item["type"]:
+            slot_item, self.held_item = self._try_merge_stack(slot_item, self.held_item)
+
+            self._set_slot(player, area, index, slot_item)
+
+        else:
+            slot_item, self.held_item = self.held_item, slot_item
+
+            self._set_slot(player, area, index, slot_item)
+
+    def _handle_slot_right_click(self, player: "Player", area, index):
+
+        if not player.is_open_inv:
+            return
+
+        slot_item = self._get_slot(player, area, index)
+
+        if self.held_item is None:
+            if slot_item is None:
+                return
+
+            held_count = (slot_item["count"] + 1) // 2
+
+            self.held_item = {
+                "type": slot_item["type"],
+                "count": held_count,
+            }
+
+            slot_item["count"] -= held_count
+
+            if slot_item["count"] == 0:
+                self._set_slot(player, area, index, None)
+        elif slot_item is None:
+            self.held_item["count"] -= 1
+
+            self._set_slot(player, area, index, {"type": self.held_item["type"], "count": 1})
+
+            if self.held_item["count"] == 0:
+                self.held_item = None
+
+        elif slot_item["type"] == self.held_item["type"]:
+            if slot_item["count"] < 64:
+                self.held_item["count"] -= 1
+
+                new_count = slot_item["count"] + 1
+
+                self._set_slot(player, area, index, {"type": self.held_item["type"], "count": new_count})
+
+            if self.held_item["count"] == 0:
+                self.held_item = None
+
+        # 原版 Minecraft 甚麼都不做
+        else:
+            pass
+
+    """好用工具"""
 
     def _get_clicked_slot(self, mouse_pos, start_x, start_y):
         col = (mouse_pos[0] - start_x) // self.INV_SPACING_X
@@ -142,7 +227,7 @@ class Inventory:
 
         return None, None
 
-    def _get_slot(self, player: Player, area, index):
+    def _get_slot(self, player: "Player", area, index):
         if area == "hotbar":
             return player.hotbar[index]
         if area == "inventory":
@@ -154,42 +239,27 @@ class Inventory:
         elif area == "inventory":
             player.inventory[index] = item
 
-    def _handle_slot_left_click(self, player, area, index):
+    def _try_merge_stack(self, dst_item, src_item):
         """
-        滑鼠沒拿東西
-            ↓
-        拿起整疊
-
-        ----------------
-
-        滑鼠拿東西
-            ↓
-        格子空
-            ↓
-        放下整疊
-
-        ----------------
-
-        滑鼠拿東西
-            ↓
-        同種類
-            ↓
-        合併
-
-        ----------------
-
-        滑鼠拿東西
-            ↓
-        不同種類
-            ↓
-        交換
+        dst_item: 目標格
+        src_item: 來源(通常是滑鼠)
         """
 
-        slot_item = self._get_slot(player, area, index)
+        if dst_item["type"] != src_item["type"]:
+            return dst_item, src_item
 
-        slot_item, self.held_item = self.held_item, slot_item
+        total = dst_item["count"] + src_item["count"]
 
-        self._set_slot(player, area, index, slot_item)
+        if total <= 64:
+            dst_item["count"] = total
+            src_item = None
+        else:
+            src_item["count"] = total - 64
+            dst_item["count"] = 64
+
+        return dst_item, src_item
+
+    """"""
 
     def update(self):
         assets.update_img_pos(assets.inv_rect, y_center=True, screen_center=True)
@@ -200,7 +270,7 @@ class Inventory:
         self.inv_main_first_x = self.inv_hotbar_first_x
         self.inv_main_first_y = assets.inv_rect.top + 287
 
-    def draw(self, screen, player: Player):
+    def draw(self, screen, player: "Player"):
         self._draw_background(screen)
         self._draw_inventory_items(player, screen)
         self._draw_hotbar_items(player, screen)
@@ -246,7 +316,7 @@ class DebugScreen:
     def update(self):
         pass
 
-    def _draw_pos(self, screen, player: Player):
+    def _draw_pos(self, screen, player: "Player"):
         """玩家按下 F3 時的畫面"""
         ui.show_text(
             screen,
