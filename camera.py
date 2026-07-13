@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from player import Player
-
+import json
 
 import pygame
 
@@ -55,10 +55,22 @@ class Camera:
         self._load_visible_chunks(player)
 
     def _load_visible_chunks(self, player: "Player"):
+        # 第一步：生成玩家附近的 chunk
         current_chunk = player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
 
         for chunk_x in range(current_chunk - 5, current_chunk + 6):
             chunk_manager.get_chunk(chunk_x)
+
+        # 第二步：刪掉離玩家太遠的 chunk
+        max_distance = 8
+
+        chunk_indexes = list(config.chunks.keys())
+        for index in chunk_indexes:
+            if abs(index - current_chunk) > max_distance:
+                file_path = config.BASE_DIR / f"saves/chunk_{index}.json"
+                with open(file_path, 'w') as f:
+                    json.dump(config.chunks[index], f)
+                del config.chunks[index]
 
     """小工具"""
 

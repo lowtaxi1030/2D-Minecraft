@@ -1,4 +1,7 @@
 import random
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent
 
 WIDTH, HEIGHT = 1000, 600
 current_width, current_height = 1000, 600

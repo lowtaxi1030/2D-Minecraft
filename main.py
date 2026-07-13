@@ -37,12 +37,16 @@ ui = ui_manager.UI()
 menu = menu_manager.MenuManager()
 world = world_manager.World()
 
+last_chunk = None
+
 while config.running:
     events = pygame.event.get()
     keys = pygame.key.get_pressed()
     mouse_buttons = pygame.mouse.get_pressed()
     mouse_pos = pygame.mouse.get_pos()
     screen.fill(tool.Colors.CYAN)
+
+    fps = clock.get_fps()
 
     for event in events:
         if event.type == pygame.VIDEORESIZE:
@@ -64,6 +68,8 @@ while config.running:
         pass
 
     elif config.game_state == "PLAYING":
+        current_chunk = player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
+
         surface_width = int(config.current_width / game_camera.zoom)
         surface_height = int(config.current_height / game_camera.zoom)
 
@@ -100,7 +106,11 @@ while config.running:
         player.draw(world_surface, game_camera.scroll_x, game_camera.scroll_y)
         world.draw(world_surface, game_camera.scroll_x, game_camera.scroll_y, game_camera.zoom)
         game_camera.draw(screen, world_surface)
-        ui.draw(screen, player)
+        ui.draw(screen, player, fps)
+
+        if current_chunk != last_chunk:
+            game_camera._load_visible_chunks(player)
+            last_chunk = current_chunk
 
     elif config.game_state == "PAUSE":
         game_camera.draw_option_bg(player, mouse_pos, screen, world_surface)

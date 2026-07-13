@@ -58,8 +58,8 @@ class World:
     def _get_clicked_block(self, mouse_pos, camera: Camera):
         world_x, world_y = camera.screen_to_world(mouse_pos)
 
-        if world_x < 0 or world_x >= config.MAP_WIDTH or world_y < 0 or world_y >= config.MAP_HEIGHT:
-            return None
+        # if world_x < 0 or world_x >= config.MAP_WIDTH or world_y < 0 or world_y >= config.MAP_HEIGHT:
+        #     return None
 
         clicked_block = chunk_manager.get_block(world_x * config.BLOCK_SIZE, world_y * config.BLOCK_SIZE)
         return BlockClick(

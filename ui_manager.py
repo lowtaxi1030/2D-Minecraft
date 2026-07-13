@@ -12,6 +12,7 @@ import tool
 import ui_obs as ui
 
 pygame.init()
+clock = pygame.time.Clock()
 
 
 class UI:
@@ -29,14 +30,14 @@ class UI:
         self.inventory.update()
         self.debug.update()
 
-    def draw(self, screen, player: "Player"):
+    def draw(self, screen, player: "Player", fps):
 
         if player.is_open_inv:
             self.inventory.draw(screen, player)
         else:
             self.hotbar.draw(screen, player)
 
-        self.debug.draw(screen, player)
+        self.debug.draw(screen, player, fps)
 
 
 def draw_item(screen, item, center_x, center_y):
@@ -317,7 +318,7 @@ class DebugScreen:
     def update(self):
         pass
 
-    def _draw_pos(self, screen, player: "Player"):
+    def _draw_debug(self, screen, player: "Player", fps):
         """玩家按下 F3 時的畫面"""
         ui.show_text(
             screen,
@@ -325,7 +326,8 @@ class DebugScreen:
                 f"x: {player.rect.x // config.BLOCK_SIZE}  y: {player.rect.y // config.BLOCK_SIZE}",
                 f"Chunk: {player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)}",
                 f"Standing on: {chunk_manager.get_block(player.rect.centerx, player.rect.bottom).replace("_", " ")}",
-                f"Player mode: {player.mode}"
+                f"Player mode: {player.mode}",
+                f"FPS: {int(fps)}"
             ],
             tool.Colors.WHITE,
             10,
@@ -333,7 +335,7 @@ class DebugScreen:
             size=18,
         )
 
-    def draw(self, screen, player):
+    def draw(self, screen, player, fps):
         if not config.show_debug_screen:
             return
-        self._draw_pos(screen, player)
+        self._draw_debug(screen, player, fps)

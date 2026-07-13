@@ -1,4 +1,6 @@
+import json
 import math
+import os
 import random
 
 import opensimplex
@@ -6,23 +8,13 @@ import opensimplex
 import config
 import tool
 
-# a = {
-#     0: [
-#         ["air", "air", "air"],
-#         ["air", "air", "air"],
-#         ["air", "air", "air"],
-#     ],
-#     1: [
-#         ["air", "air", "air"],
-#         ["air", "air", "air"],
-#         ["air", "air", "air"],
-#     ],
-# }
+if not os.path.exists("saves"):
+    os.makedirs("saves")
 
 
 def get_block(x_pos, y_pos):
     chunk_i = x_pos // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
-    chunk = config.chunks[chunk_i]
+    chunk = get_chunk(chunk_i)
     chunk_x = x_pos // config.BLOCK_SIZE % config.CHUNK_WIDTH
     chunk_y = tool.clamp(0, config.MAP_HEIGHT - 1, y_pos // config.BLOCK_SIZE)
 
@@ -46,12 +38,23 @@ def set_block(world_x, world_y, block_type):
 
 
 def get_chunk(chunk_x):
+    if chunk_x in config.chunks:
+        return config.chunks[chunk_x]
+
+    file_path = config.BASE_DIR / f"saves/chunk_{chunk_x}.json"
+    if os.path.exists(file_path):
+        with open(file_path) as f:
+            # json.load 會把檔案裡的文字直接還原成 Python 的二維陣列
+            loaded_chunk = json.load(f)
+
+        # 讀出來之後，塞進記憶體字典裡
+        config.chunks[chunk_x] = loaded_chunk
+        return loaded_chunk  # 讀檔成功，直接回傳！後面的噪音生成就不會被觸發了
+
     if chunk_x not in config.chunks:
-        config.chunks[chunk_x] = make_map(config.CHUNK_WIDTH, config.MAP_HEIGHT, chunk_x)  # 建立、回傳
+        config.chunks[chunk_x] = make_map(config.CHUNK_WIDTH, config.MAP_HEIGHT, chunk_x)
 
         return config.chunks[chunk_x]
-    else:
-        pass  # 直接回傳
 
 
 def make_map(map_width, map_height, current_chunk_i):

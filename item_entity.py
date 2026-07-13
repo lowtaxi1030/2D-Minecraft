@@ -117,8 +117,8 @@ class ItemEntity:
         center_grid_x = self.rect.centerx // config.BLOCK_SIZE
         center_grid_y = self.rect.centery // config.BLOCK_SIZE
 
-        start_x = max(0, center_grid_x - 3)
-        end_x = min(config.MAP_WIDTH, center_grid_x + 4)
+        start_x = center_grid_x - 3
+        end_x = center_grid_x + 4
 
         start_y = max(0, center_grid_y - 3)
         end_y = min(config.MAP_HEIGHT, center_grid_y + 4)
@@ -144,15 +144,15 @@ class ItemEntity:
 
     """"""
 
-    def resolve_stuck(self, new_block_rect, player: "Player"):
+    def resolve_stuck(self, new_block_rect: pygame.Rect, player: "Player"):
         if not new_block_rect.colliderect(self.rect):
             return
 
         center_grid_x = self.rect.centerx // config.BLOCK_SIZE
         center_grid_y = self.rect.centery // config.BLOCK_SIZE
 
-        start_x = max(0, center_grid_x - 3)
-        end_x = min(config.MAP_WIDTH, center_grid_x + 4)
+        start_x = center_grid_x - 3
+        end_x = center_grid_x + 4
 
         start_y = max(0, center_grid_y - 3)
         end_y = min(config.MAP_HEIGHT, center_grid_y + 4)
@@ -210,7 +210,7 @@ class ItemEntity:
     def _collide_x(self, start_x, end_x, start_y, end_y):
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
-                block_name = chunk_manager.get_block(x_pos, y_pos)
+                block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
                 if block_name == "air":
                     continue
 
@@ -234,7 +234,7 @@ class ItemEntity:
     def _collide_y(self, start_x, end_x, start_y, end_y):
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
-                block_name = block_name = chunk_manager.get_block(x_pos, y_pos)
+                block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
                 if block_name == "air":
                     continue
 
@@ -280,7 +280,7 @@ class ItemEntity:
     def _is_colliding(self, start_x, end_x, start_y, end_y):
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
-                block_name = block_name = chunk_manager.get_block(x_pos, y_pos)
+                block_name = block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
                 if block_name == "air":
                     continue
 
