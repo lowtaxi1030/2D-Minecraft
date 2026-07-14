@@ -67,8 +67,8 @@ def get_chunk(chunk_x) -> Chunk:
     loaded_chunk = save.load_chunk(chunk_x)
 
     if loaded_chunk is not None:
-        config.chunks[chunk_x] = loaded_chunk
-        return loaded_chunk
+        config.chunks[chunk_x] = Chunk(chunk_x, loaded_chunk)
+        return config.chunks[chunk_x]
 
     # 3. 沒有存檔就生成
     chunk = Chunk(
