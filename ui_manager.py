@@ -334,6 +334,16 @@ class DebugScreen:
             10,
             size=18,
         )
+        ui.show_text(
+            screen,
+            [
+                f"file name: {config.CURRENT_WORLD}"
+            ],
+            tool.Colors.WHITE,
+            config.current_width - 300,
+            10,
+            size=18,
+        )
 
     def draw(self, screen, player, fps):
         if not config.show_debug_screen:

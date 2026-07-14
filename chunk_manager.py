@@ -1,4 +1,3 @@
-import json
 import math
 import os
 import random
@@ -6,19 +5,38 @@ import random
 import opensimplex
 
 import config
+import save_manager
 import tool
 
-if not os.path.exists("saves"):
-    os.makedirs("saves")
+save = save_manager.SaveManager()
+
+world_dir = config.BASE_DIR / "saves" / config.CURRENT_WORLD / "chunks"
+info_dir = config.BASE_DIR / "saves" / config.CURRENT_WORLD
+
+if not os.path.exists(world_dir):
+    os.makedirs(world_dir, exist_ok=True)
+if not os.path.exists(info_dir):
+    os.makedirs(info_dir, exist_ok=True)
+
+
+class Chunk:
+    def __init__(self, chunk_x: int, blocks):
+        self.chunk_x = chunk_x
+        self.blocks = blocks
+        self.is_dirty = False
 
 
 def get_block(x_pos, y_pos):
-    chunk_i = x_pos // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
-    chunk = get_chunk(chunk_i)
-    chunk_x = x_pos // config.BLOCK_SIZE % config.CHUNK_WIDTH
-    chunk_y = tool.clamp(0, config.MAP_HEIGHT - 1, y_pos // config.BLOCK_SIZE)
+    world_grid_x = x_pos // config.BLOCK_SIZE
 
-    return chunk[chunk_y][chunk_x]
+    chunk_index = world_grid_x // config.CHUNK_WIDTH
+
+    local_x = world_grid_x % config.CHUNK_WIDTH
+    local_y = y_pos // config.BLOCK_SIZE
+
+    chunk = get_chunk(chunk_index)
+
+    return chunk.blocks[local_y][local_x]
 
 
 def set_block(world_x, world_y, block_type):
@@ -34,27 +52,32 @@ def set_block(world_x, world_y, block_type):
     chunk_y = world_y  # Y 軸是固定的垂直高度，不需要取餘數
 
     # 4. 寫入方塊（記得照你 make_map 的順序先 Y 後 X）
-    config.chunks[chunk_i][chunk_y][chunk_x] = block_type
+    chunk = get_chunk(chunk_i)
+
+    chunk.blocks[chunk_y][chunk_x] = block_type
+    chunk.is_dirty = True
 
 
-def get_chunk(chunk_x):
+def get_chunk(chunk_x) -> Chunk:
+    # 1. 已經載入
     if chunk_x in config.chunks:
         return config.chunks[chunk_x]
 
-    file_path = config.BASE_DIR / f"saves/chunk_{chunk_x}.json"
-    if os.path.exists(file_path):
-        with open(file_path) as f:
-            # json.load 會把檔案裡的文字直接還原成 Python 的二維陣列
-            loaded_chunk = json.load(f)
+    # 2. 嘗試讀取存檔
+    loaded_chunk = save.load_chunk(chunk_x)
 
-        # 讀出來之後，塞進記憶體字典裡
+    if loaded_chunk is not None:
         config.chunks[chunk_x] = loaded_chunk
-        return loaded_chunk  # 讀檔成功，直接回傳！後面的噪音生成就不會被觸發了
+        return loaded_chunk
 
-    if chunk_x not in config.chunks:
-        config.chunks[chunk_x] = make_map(config.CHUNK_WIDTH, config.MAP_HEIGHT, chunk_x)
+    # 3. 沒有存檔就生成
+    chunk = Chunk(
+        chunk_x,
+        make_map(config.CHUNK_WIDTH, config.MAP_HEIGHT, chunk_x)
+    )
 
-        return config.chunks[chunk_x]
+    config.chunks[chunk_x] = chunk
+    return chunk
 
 
 def make_map(map_width, map_height, current_chunk_i):

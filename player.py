@@ -8,7 +8,7 @@ import tool
 class Player:
     def __init__(self, x, y):
         # 1. 初始化玩家的形狀與位置 (先用 Rect 方塊代替)
-        self.rect = pygame.Rect(x, y, config.BLOCK_SIZE * 0.875, config.BLOCK_SIZE * 2 * 0.875)
+        self.rect = pygame.Rect(x * config.BLOCK_SIZE, y * config.BLOCK_SIZE, config.BLOCK_SIZE * 0.875, config.BLOCK_SIZE * 2 * 0.875)
 
         # 2. 物理相關變數
         self.vel_x = 0

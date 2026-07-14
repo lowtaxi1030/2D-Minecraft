@@ -4,15 +4,19 @@ import pygame
 
 import asset_manager as assets
 import camera
-import chunk_manager
+
+# import chunk_manager
 import config
 import menu_manager
+import save_manager
 import tool
 import ui_manager
 
 # import world_generator
 import world_manager
 from player import Player
+
+save = save_manager.SaveManager()
 
 # 告訴系統將下一個建立的視窗放在螢幕正中央
 os.environ["SDL_VIDEO_CENTERED"] = "1"
@@ -28,16 +32,14 @@ pygame.display.set_caption("2D Minecraft - V0.0.0")  # 之後放screen_text
 
 assets.load_all_blocks()
 
-for i in range(-5, 6):
-    chunk_manager.get_chunk(i)
-
 player = Player(0, 20)
-
 ui = ui_manager.UI()
 menu = menu_manager.MenuManager()
 world = world_manager.World()
 
 last_chunk = None
+
+save.load_world(player)
 
 while config.running:
     events = pygame.event.get()
@@ -135,3 +137,5 @@ while config.running:
     clock.tick(60)
 
 pygame.quit()
+
+save.save_world(player)

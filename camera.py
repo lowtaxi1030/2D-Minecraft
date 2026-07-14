@@ -11,6 +11,8 @@ import chunk_manager
 import config
 import tool
 
+world_dir = config.BASE_DIR / "saves" / config.CURRENT_WORLD / "chunks"
+
 
 class Camera:
     def __init__(self):
@@ -67,9 +69,23 @@ class Camera:
         chunk_indexes = list(config.chunks.keys())
         for index in chunk_indexes:
             if abs(index - current_chunk) > max_distance:
-                file_path = config.BASE_DIR / f"saves/chunk_{index}.json"
-                with open(file_path, 'w') as f:
-                    json.dump(config.chunks[index], f)
+                file_path = world_dir / f"chunk_{index}.json"
+                chunk = config.chunks[index]
+                if chunk.is_dirty:
+                    with open(file_path, 'w') as f:
+                        chunk = config.chunks[index]
+                        json.dump(chunk.blocks, f)
+                        """
+                        之後可能會變成：
+                        json.dump(
+                            {
+                            "blocks": chunk.blocks,
+                            "biome": chunk.biome,
+                            "version": chunk.version,
+                            },
+                            f,
+                        )
+                        """
                 del config.chunks[index]
 
     """小工具"""
