@@ -155,6 +155,8 @@ def _generate_veins(chunk_data, map_width, map_height):
         {"name": "copper_ore", "min_y": 15, "max_y": 65, "veins_range": (1, 3), "size_range": (4, 8), "target_stones": ["stone"]},
         {"name": "gold_ore", "min_y": 20, "max_y": 73, "veins_range": (1, 3), "size_range": (1, 6), "target_stones": ["stone"]},
         {"name": "diamond_ore", "min_y": 40, "max_y": 73, "veins_range": (1, 1), "size_range": (1, 6), "target_stones": ["stone"]},
+        {"name": "redstone_ore", "min_y": 25, "max_y": 58, "veins_range": (2, 5), "size_range": (1, 6), "target_stones": ["stone"]},
+        {"name": "lapis_ore", "min_y": 40, "max_y": 58, "veins_range": (3, 7), "size_range": (2, 8), "target_stones": ["stone"]},
         {
             "name": "deepslate_iron_ore",
             "min_y": 60,
@@ -185,6 +187,22 @@ def _generate_veins(chunk_data, map_width, map_height):
             "max_y": 135,
             "veins_range": (1, 3),
             "size_range": (1, 6),
+            "target_stones": ["deepslate"],
+        },
+        {
+            "name": "deepslate_redstone_ore",
+            "min_y": 60,
+            "max_y": 119,
+            "veins_range": (2, 5),
+            "size_range": (1, 6),
+            "target_stones": ["deepslate"],
+        },
+        {
+            "name": "deepslate_lapis_ore",
+            "min_y": 60,
+            "max_y": 119,
+            "veins_range": (3, 7),
+            "size_range": (2, 8),
             "target_stones": ["deepslate"],
         },
     ]
