@@ -38,7 +38,6 @@ def make_map(map_width, map_height):
         world_data.append(row)
 
     world_data = _generate_veins(world_data, map_width, map_height)
-    world_data = _generate_veins(world_data, map_width, map_height)
 
     return world_data
 
@@ -75,10 +74,9 @@ def _make_terrain(map_width):
 
 def _generate_veins(world_data, map_width, map_height):
 
-    map_width_mutiplyer = config.MAP_WIDTH // 100
     map_height_mutiplyer = config.MAP_HEIGHT // 80
 
-    final_mut = (map_width_mutiplyer + map_height_mutiplyer) // 2
+    final_mut = map_height_mutiplyer
 
     # 🛠️ 在這裡集中管理所有礦物的生成規則，要新增礦物只要在這邊加一行就好！
     ore_rules = [
@@ -88,6 +86,8 @@ def _generate_veins(world_data, map_width, map_height):
         {"name": "copper_ore", "min_y": 20, "max_y": 58, "veins_range": (3, 8), "size_range": (4, 8), "target_stones": ["stone"]},
         {"name": "gold_ore", "min_y": 20, "max_y": 58, "veins_range": (3, 7), "size_range": (4, 8), "target_stones": ["stone"]},
         {"name": "diamond_ore", "min_y": 40, "max_y": 58, "veins_range": (1, 3), "size_range": (1, 6), "target_stones": ["stone"]},
+        {"name": "redstone_ore", "min_y": 25, "max_y": 58, "veins_range": (2, 5), "size_range": (1, 6), "target_stones": ["stone"]},
+        {"name": "lapis_ore", "min_y": 40, "max_y": 58, "veins_range": (3, 7), "size_range": (2, 8), "target_stones": ["stone"]},
         {
             "name": "deepslate_iron_ore",
             "min_y": 60,
@@ -118,6 +118,22 @@ def _generate_veins(world_data, map_width, map_height):
             "max_y": 119,
             "veins_range": (3, 8),
             "size_range": (1, 6),
+            "target_stones": ["deepslate"],
+        },
+        {
+            "name": "deepslate_redstone_ore",
+            "min_y": 60,
+            "max_y": 119,
+            "veins_range": (2, 5),
+            "size_range": (1, 6),
+            "target_stones": ["deepslate"],
+        },
+        {
+            "name": "deepslate_lapis_ore",
+            "min_y": 60,
+            "max_y": 119,
+            "veins_range": (3, 7),
+            "size_range": (2, 8),
             "target_stones": ["deepslate"],
         },
     ]

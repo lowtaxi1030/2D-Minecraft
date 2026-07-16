@@ -119,9 +119,9 @@ class Camera:
 
         end_x = int((self.scroll_x + view_width) // config.BLOCK_SIZE) + 2
 
-        start_y = int(self.scroll_y // config.BLOCK_SIZE) - 1
+        start_y = tool.clamp(0, config.MAP_HEIGHT, int(self.scroll_y // config.BLOCK_SIZE) - 1)
 
-        end_y = int((self.scroll_y + view_height) // config.BLOCK_SIZE) + 2
+        end_y = tool.clamp(0, config.MAP_HEIGHT, int((self.scroll_y + view_height) // config.BLOCK_SIZE) + 2)
 
         return start_x, end_x, start_y, end_y
 

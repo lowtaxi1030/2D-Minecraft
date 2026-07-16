@@ -1,4 +1,5 @@
 import pathlib
+from collections import OrderedDict
 
 import pygame as p
 
@@ -9,79 +10,117 @@ from tool import Colors
 Color = tuple[int, int, int]
 AlphaColor = tuple[int, int, int, int]
 
-text_cache = {}
+text_cache = OrderedDict()
+font_cache = {}
 
 root = pathlib.Path(__file__).parent.resolve(strict=False)
 
-# defult_font = p.font.Font(str(root / "Minecraft.ttf"), 24)
 
+def show_text(
+    screen,
+    text,
+    text_color,
+    x,
+    y,
+    size=24,
+    center=False,
+    screen_center=False,
+    show=True,
+    font_type="",
+    alpha=255,
+    line_gap=5,
+    use_cache=True,
+):
+    # ---------- Font Cache ----------
+    font_key = (font_type, size)
 
-def show_text(screen, text, text_color, x, y, size=24, center=False, screen_center=False, show=True, font_type="", alpha=255, line_gap=5):
-    # 1. 產生唯一的快取 Key (包含 alpha 也要放進去，因為 alpha 不同圖片就不同)
-    # 如果 text 是清單，轉成字串來當 key
-    text_str = "".join(text) if isinstance(text, list) else text
-    key = (text_str, text_color, size, font_type, alpha)
-
-    # 2. 檢查快取：如果這組文字已經畫過了，直接拿出來 blit
-    if key in text_cache:
-        surfaces, relative_rects = text_cache[key]
-    else:
-        # --- 以下內容只有在「第一次畫這段字」時才會執行 ---
-        surfaces = []
-        relative_rects = []
-
-        # 字體初始化 (這也很耗時，只有沒快取才做)
+    if font_key not in font_cache:
         if font_type == "":
-            font = p.font.Font(str(root / "Minecraft3.ttf"), size)
+            font_cache[font_key] = p.font.Font(
+                str(root / "Minecraft3.ttf"),
+                size,
+            )
         elif font_type == "None":
-            font = p.font.SysFont(None, size)
+            font_cache[font_key] = p.font.SysFont(None, size)
         else:
-            font = p.font.SysFont(font_type, size)
+            font_cache[font_key] = p.font.SysFont(font_type, size)
 
-        text_list = [text] if isinstance(text, str) else text
+    font = font_cache[font_key]
 
-        temp_y = 0
-        for t in text_list:
-            # 渲染並處理透明度
-            t_surf = font.render(t, True, text_color)
-            final_surf = p.Surface(t_surf.get_size(), p.SRCALPHA).convert_alpha()  # 記得加 convert_alpha
-            final_surf.blit(t_surf, (0, 0))
+    # ---------- 統一轉成 list ----------
+    text_list = [text] if isinstance(text, str) else text
+
+    surfaces = []
+    relative_rects = []
+
+    temp_y = 0
+
+    # ---------- 每一行各自快取 ----------
+    for line in text_list:
+
+        cache_key = (
+            line,
+            text_color,
+            size,
+            font_type,
+            alpha,
+        )
+
+        if use_cache and cache_key in text_cache:
+            surf = text_cache[cache_key]
+
+        else:
+            surf = font.render(line, True, text_color)
+
             if alpha < 255:
-                final_surf.set_alpha(alpha)
+                surf.set_alpha(alpha)
 
-            # 儲存 Surface
-            surfaces.append(final_surf)
+            if use_cache:
+                text_cache[cache_key] = surf
 
-            # 儲存相對位置 (以 y=0 為起點，方便後續根據傳入的 y 移動)
-            t_rect = final_surf.get_rect()
-            t_rect.top = temp_y
-            relative_rects.append(t_rect)
+                if len(text_cache) > 300:
+                    text_cache.popitem(last=False)
 
-            temp_y = t_rect.bottom + line_gap
+        surfaces.append(surf)
 
-        # 存入快取：把這一組 Surface 和它們的相對位置存起來
-        text_cache[key] = (surfaces, relative_rects)
+        rect = surf.get_rect()
+        rect.top = temp_y
+        relative_rects.append(rect)
 
-    # 3. 繪製邏輯 (這一部分每一幀都會跑，但現在只剩 blit，非常快)
+        temp_y += rect.height + line_gap
+
+    # ---------- Draw ----------
     first_rect = None
-    total_text_height = relative_rects[-1].bottom if relative_rects else 0
+
+    total_height = (
+        relative_rects[-1].bottom
+        if relative_rects
+        else 0
+    )
+
     for i, surf in enumerate(surfaces):
-        # 複製一份矩形來做位置偏移計算
+
         draw_rect = relative_rects[i].copy()
 
-        # 根據外部傳入的 x, y 進行偏移
         if center:
-            line_center_offset_y = relative_rects[i].top + (draw_rect.height / 2) - (total_text_height / 2)
-            draw_rect.center = (x, y + line_center_offset_y)
+            offset = (
+                relative_rects[i].top
+                + draw_rect.height / 2
+                - total_height / 2
+            )
+            draw_rect.center = (x, y + offset)
+
         else:
             draw_rect.top = y + relative_rects[i].top
+
             if screen_center:
-                draw_rect.centerx = screen.get_rect().w // 2
+                draw_rect.centerx = screen.get_rect().centerx
             else:
                 draw_rect.x = x
 
         if i == 0:
             first_rect = draw_rect
+
         if show:
             screen.blit(surf, draw_rect)
 

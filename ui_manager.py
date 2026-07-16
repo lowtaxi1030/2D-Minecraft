@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from camera import Camera
     from player import Player
 
 import pygame
@@ -25,19 +26,19 @@ class UI:
     def handle_events(self, event, player, mouse_pos):
         self.inventory.handle_events(event, player, mouse_pos)
 
-    def update(self, player):
+    def update(self, player, fps, mouse_pos, camera):
         self.hotbar.update(player)
         self.inventory.update()
-        self.debug.update()
+        self.debug.update(player, fps, mouse_pos, camera)
 
-    def draw(self, screen, player: "Player", fps):
+    def draw(self, screen, player: "Player", fps, mouse_pos, camera):
 
         if player.is_open_inv:
             self.inventory.draw(screen, player)
         else:
             self.hotbar.draw(screen, player)
 
-        self.debug.draw(screen, player, fps)
+        self.debug.draw(screen, player, fps, mouse_pos, camera)
 
 
 def draw_item(screen, item, center_x, center_y):
@@ -314,38 +315,102 @@ class Inventory:
 
 
 class DebugScreen:
+    def __init__(self):
+        self.debug_frame = 0
+        self.left_lines = []
+        self.right_lines = []
 
-    def update(self):
-        pass
+    def update(self, player: "Player", fps, mouse_pos: tuple[int, int], camera: "Camera"):
+        self.debug_frame += 1
 
-    def _draw_debug(self, screen, player: "Player", fps):
+        if self.debug_frame >= 12:
+            self.debug_frame = 0
+
+            world_mouse_x = (mouse_pos[0] + int(camera.scroll_x)) // config.BLOCK_SIZE
+            world_mouse_y = (mouse_pos[1] + int(camera.scroll_y)) // config.BLOCK_SIZE
+
+            player_block_x = player.rect.centerx // config.BLOCK_SIZE
+            player_block_y = player.rect.centery // config.BLOCK_SIZE
+
+            current_chunk = player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
+            local_x = player_block_x % config.CHUNK_WIDTH
+
+            standing_block = (
+                "None"
+                if player.is_flying
+                else chunk_manager.get_block(
+                    player.rect.centerx,
+                    tool.clamp(
+                        0,
+                        config.MAP_HEIGHT * config.BLOCK_SIZE - 1,
+                        player.rect.bottom,
+                    ),
+                ).replace("_", " ")
+            )
+
+            mouse_block = chunk_manager.get_block(
+                world_mouse_x * config.BLOCK_SIZE,
+                world_mouse_y * config.BLOCK_SIZE,
+            ).replace("_", " ")
+
+            self.left_lines = [
+                "=== Player ===",
+                f"Pos : ({player_block_x}, {player_block_y})",
+                f"Vel : ({player.vel_x:.2f}, {player.vel_y:.2f})",
+                f"Grounded : {player.is_grounded}",
+                f"Flying : {player.is_flying}",
+                f"Mode : {player.mode}",
+                f"Facing : {'Right' if player.facing == 1 else 'Left'}",
+                "",
+                "=== Block ===",
+                f"Mouse Pos : ({world_mouse_x}, {world_mouse_y})",
+                f"Mouse : {mouse_block}",
+                f"Standing : {standing_block}",
+                "",
+                "=== Performance ===",
+                f"FPS : {fps:.0f}",
+                f"Loaded Chunks : {len(config.chunks)}",
+                # f"Entities : {len(world.entities)}",
+                f"Dirty Chunks : {sum(chunk.is_dirty for chunk in config.chunks.values())}",
+            ]
+
+            self.right_lines = [
+                "=== World ===",
+                f"World : {config.CURRENT_WORLD}",
+                f"Seed : {config.WORLD_SEED}",
+                f"Chunk : {current_chunk}",
+                f"Chunk X : {player_block_x}",
+                f"Local X : {local_x}",
+                "",
+                "=== Camera ===",
+                f"Scroll : ({camera.scroll_x:.1f}, {camera.scroll_y:.1f})",
+                f"Zoom : {camera.zoom:.2f}",
+                "",
+            ]
+
+    def _draw_debug(self, screen):
         """玩家按下 F3 時的畫面"""
+
         ui.show_text(
             screen,
-            [
-                f"x: {player.rect.x // config.BLOCK_SIZE}  y: {player.rect.y // config.BLOCK_SIZE}",
-                f"Chunk: {player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)}",
-                f"Standing on: {chunk_manager.get_block(player.rect.centerx, player.rect.bottom).replace("_", " ")}",
-                f"Player mode: {player.mode}",
-                f"FPS: {int(fps)}"
-            ],
+            self.left_lines,
             tool.Colors.WHITE,
             10,
             10,
             size=18,
+            use_cache=False,
         )
         ui.show_text(
             screen,
-            [
-                f"file name: {config.CURRENT_WORLD}"
-            ],
+            self.right_lines,
             tool.Colors.WHITE,
             config.current_width - 300,
             10,
             size=18,
+            use_cache=False,
         )
 
-    def draw(self, screen, player, fps):
+    def draw(self, screen, player, fps, mouse_pos, camera):
         if not config.show_debug_screen:
             return
-        self._draw_debug(screen, player, fps)
+        self._draw_debug(screen)

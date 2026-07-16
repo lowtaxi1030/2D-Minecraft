@@ -11,7 +11,6 @@ fov = 70
 BLOCK_SIZE = 50
 camera_zoom = 1.0
 
-MAP_WIDTH = 2500
 CHUNK_WIDTH = 16
 MAP_HEIGHT = 140
 
@@ -25,7 +24,7 @@ chunks = {
 """
 height_map = []
 
-CURRENT_WORLD = "creative_test"  # 可以隨意換成 "my_survival", "creative_test" ，或其他任何合法名字
+CURRENT_WORLD = "123"  # 可以隨意換成 "my_survival", "creative_test" ，或其他任何合法名字
 WORLD_SEED = random.randint(0, 999999)
 
 Timer_Speed = 1
@@ -37,3 +36,5 @@ game_state = "PLAYING"
 running = True
 
 show_debug_screen = False
+
+pause_background = None

@@ -160,11 +160,11 @@ class Player:
         if self.auto_jump and self.is_grounded and not self.is_flying:
             height_difference = self.rect.bottom - block_rect.top
 
-            head_grid_x = int(self.rect.centerx // config.BLOCK_SIZE)  #  ----之後這段可以做成----
+            head_grid_x = int(self.rect.centerx // config.BLOCK_SIZE)  #       ----之後這段可以做成----
             head_grid_y = int((self.rect.top - config.BLOCK_SIZE) // config.BLOCK_SIZE)
 
             head_grid_y = tool.clamp(0, config.MAP_HEIGHT - 1, head_grid_y)  # _get_head_grid()
-            head_grid_x = tool.clamp(0, config.MAP_WIDTH - 1, head_grid_x)  #  ------------------------
+            head_grid_x = head_grid_x  #                                       ------------------------
 
             is_ceiling_clear = chunk_manager.get_block(head_grid_x, head_grid_y) == "air"
 

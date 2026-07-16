@@ -50,22 +50,6 @@ while config.running:
 
     fps = clock.get_fps()
 
-    for event in events:
-        if event.type == pygame.VIDEORESIZE:
-            config.current_width = event.w
-            config.current_height = event.h
-            screen = pygame.display.set_mode((event.w, event.h), screen.get_flags())
-
-        if event.type == pygame.QUIT:
-            config.running = False
-
-        if event.type == pygame.KEYDOWN:
-            if config.game_state == "PLAYING":
-                if event.key == pygame.K_ESCAPE:
-                    config.game_state = "PAUSE"
-                if event.key == pygame.K_F3:
-                    config.show_debug_screen = not config.show_debug_screen
-
     if config.game_state == "MENU":
         pass
 
@@ -96,7 +80,7 @@ while config.running:
         world.update(mouse_buttons, mouse_pos, player, game_camera)
         player.update()
         game_camera.update(player)
-        ui.update(player)
+        ui.update(player, fps, mouse_pos, game_camera)
 
         if dropped_item is not None:
             world.spawn_item_entity(dropped_item, player.rect.centerx, player.rect.top, "drop", player)
@@ -108,30 +92,47 @@ while config.running:
         player.draw(world_surface, game_camera.scroll_x, game_camera.scroll_y)
         world.draw(world_surface, game_camera.scroll_x, game_camera.scroll_y, game_camera.zoom)
         game_camera.draw(screen, world_surface)
-        ui.draw(screen, player, fps)
+        ui.draw(screen, player, fps, mouse_pos, game_camera)
 
         if current_chunk != last_chunk:
             game_camera._load_visible_chunks(player)
             last_chunk = current_chunk
 
     elif config.game_state == "PAUSE":
-        game_camera.draw_option_bg(player, mouse_pos, screen, world_surface)
+        screen.blit(config.pause_background, (0, 0))
 
         menu.update(events, mouse_pos)
         menu.draw(screen)
 
     elif config.game_state == "OPTION":
-        game_camera.draw_option_bg(player, mouse_pos, screen, world_surface)
+        screen.blit(config.pause_background, (0, 0))
 
         menu.update(events, mouse_pos)
         menu.draw(screen)
 
     elif config.game_state == "VIDEO_OPTION":
-        game_camera.draw_option_bg(player, mouse_pos, screen, world_surface)
+        screen.blit(config.pause_background, (0, 0))
 
         menu.update(events, mouse_pos)
         menu.draw(screen)
         game_camera.zoom = config.ORG_FOV / config.fov
+
+    for event in events:
+        if event.type == pygame.VIDEORESIZE:
+            config.current_width = event.w
+            config.current_height = event.h
+            screen = pygame.display.set_mode((event.w, event.h), screen.get_flags())
+
+        if event.type == pygame.QUIT:
+            config.running = False
+
+        if event.type == pygame.KEYDOWN:
+            if config.game_state == "PLAYING":
+                if event.key == pygame.K_ESCAPE:
+                    config.pause_background = screen.copy()
+                    config.game_state = "PAUSE"
+                if event.key == pygame.K_F3:
+                    config.show_debug_screen = not config.show_debug_screen
 
     pygame.display.flip()
     clock.tick(60)
