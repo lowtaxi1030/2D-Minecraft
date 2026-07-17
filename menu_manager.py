@@ -1,16 +1,20 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from asset_manager import AssetManager
+
 import pygame
 
-import asset_manager as assets
 import config
 import tool
 import ui_obs as ui
 
 
 class MenuManager:
-    def __init__(self):
-        self.pause_menu = PauseMenu()
-        self.option_menu = OptionMenu()
-        self.video_menu = VideoMenu()
+    def __init__(self, assets: "AssetManager"):
+        self.pause_menu = PauseMenu(assets)
+        self.option_menu = OptionMenu(assets)
+        self.video_menu = VideoMenu(assets)
 
     def update(self, events, mouse_pos):
         if config.game_state == "PAUSE":
@@ -24,7 +28,7 @@ class MenuManager:
         # 1. 🎯 鋪滿暗色泥土背景（Minecraft 經典風格）
         # for y_pos in range(config.current_height // 40 + 2):
         #     for x_pos in range(config.current_width // 40 + 2):
-        #         screen.blit(assets.bg_dirt_img, (x_pos * 40, y_pos * 40))
+        #         screen.blit(self.assets.bg_dirt_img, (x_pos * 40, y_pos * 40))
 
         tool.screen_vague(20)
 
@@ -40,6 +44,7 @@ class BaseMenu:
     """
     之後Menu的class太多時再用，不然要一直修改
     """
+
     def __init__(self):
         self.btn_w, self.btn_h = 350, 40  # 按鈕標準尺寸
         self.center_x = config.current_width // 2
@@ -57,7 +62,9 @@ class BaseMenu:
 
 
 class PauseMenu:
-    def __init__(self):
+    def __init__(self, assets: "AssetManager"):
+        self.assets = assets
+
         self.btn_w, self.btn_h = 350, 40  # 按鈕標準尺寸
         self.center_x = config.current_width // 2
         self.start_y = 50  # 從上方 150 像素開始畫按鈕
@@ -66,7 +73,7 @@ class PauseMenu:
 
         self.back_btn = ui.ImageTextButton(
             name="back_to_game",
-            image=assets.setting_button_img,
+            image=self.assets.setting_button_img,
             pos=(self.center_x, self.start_y + self.spacing_y),
             text="Back to Game",
             text_color=tool.Colors.WHITE,
@@ -75,7 +82,7 @@ class PauseMenu:
 
         self.option_btn = ui.ImageTextButton(
             name="options",
-            image=assets.setting_button_img,
+            image=self.assets.setting_button_img,
             pos=(self.center_x, self.start_y + self.spacing_y * 2),
             text="Options...",
             text_color=tool.Colors.WHITE,
@@ -84,7 +91,7 @@ class PauseMenu:
 
         self.quit_btn = ui.ImageTextButton(
             name="save_and_quit",
-            image=assets.setting_button_img,
+            image=self.assets.setting_button_img,
             pos=(self.center_x, self.start_y + self.spacing_y * 3),
             text="Save and Quit",
             text_color=tool.Colors.WHITE,
@@ -127,7 +134,9 @@ class PauseMenu:
 
 
 class OptionMenu:
-    def __init__(self):
+    def __init__(self, assets: "AssetManager"):
+        self.assets = assets
+
         self.btn_w, self.btn_h = 350, 40  # 按鈕標準尺寸
         self.center_x = config.current_width // 2
         self.start_y = 150  # 從上方 150 像素開始畫按鈕
@@ -136,7 +145,7 @@ class OptionMenu:
 
         self.video_button = ui.ImageTextButton(
             name="video_option",
-            image=assets.setting_button_img,
+            image=self.assets.setting_button_img,
             text="Video Settings",
             text_color=tool.Colors.WHITE,
             pos=(self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2)),
@@ -145,7 +154,7 @@ class OptionMenu:
 
         self.audio_button = ui.ImageTextButton(
             name="audio_option",
-            image=assets.setting_button_img,
+            image=self.assets.setting_button_img,
             text="Audio Settings",
             text_color=tool.Colors.WHITE,
             pos=(self.center_x + (self.btn_w // 2) + self.spacing_x, self.start_y + (self.btn_h // 2)),
@@ -154,7 +163,7 @@ class OptionMenu:
 
         self.lang_button = ui.ImageTextButton(
             name="lang_option",
-            image=assets.setting_button_img,
+            image=self.assets.setting_button_img,
             text="Lang Settings",
             text_color=tool.Colors.WHITE,
             pos=(self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + self.spacing_y + (self.btn_h // 2)),
@@ -163,7 +172,7 @@ class OptionMenu:
 
         self.done_button = ui.ImageTextButton(
             name="done",
-            image=assets.setting_button_img,  # 傳入你的 Minecraft 灰色按鈕圖
+            image=self.assets.setting_button_img,  # 傳入你的 Minecraft 灰色按鈕圖
             text="Done",
             text_color=tool.Colors.WHITE,
             pos=(self.center_x, config.current_height - 60),
@@ -211,11 +220,13 @@ class OptionMenu:
 
 
 class VideoMenu:
-    def __init__(self):
+    def __init__(self, assets: "AssetManager"):
+        self.assets = assets
+
         self.fov_value = 70  # 預設 FOV 值（Minecraft 通常是 70）
         self.fov_min = 30  # 最小值
         self.fov_max = 110  # 最大值（例如 Quake Pro 可以是 110）
-        self.fov_width = assets.FOV_bg_rect.width
+        self.fov_width = self.assets.FOV_bg_rect.width
         self.is_dragging_fov = False  # 標記目前滑鼠是不是正在「按住拖曳拉桿」
 
         self.btn_w, self.btn_h = 350, 40  # 按鈕標準尺寸
@@ -226,19 +237,19 @@ class VideoMenu:
 
         self.fov_base = ui.ImageButton(
             name="FOV_base",  # 視野廣角
-            image=assets.FOV_bg_img,
+            image=self.assets.FOV_bg_img,
             pos=(self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2)),
         )
 
         self.fov_lever = ui.ImageButton(
             name="FOV_lever",
-            image=assets.FOV_lever_img,
+            image=self.assets.FOV_lever_img,
             pos=(0, 0),  # 在update裡做
         )
 
         self.back_btn = ui.ImageTextButton(
             name="back",
-            image=assets.setting_button_img,
+            image=self.assets.setting_button_img,
             text="Back",
             text_color=tool.Colors.WHITE,
             pos=(self.center_x, config.current_height - 60),

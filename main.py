@@ -2,7 +2,7 @@ import os
 
 import pygame
 
-import asset_manager as assets
+import asset_manager
 import camera
 
 # import chunk_manager
@@ -21,8 +21,6 @@ save = save_manager.SaveManager()
 # 告訴系統將下一個建立的視窗放在螢幕正中央
 os.environ["SDL_VIDEO_CENTERED"] = "1"
 
-game_camera = camera.Camera()
-
 pygame.init()
 screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT), pygame.RESIZABLE)
 world_surface = pygame.Surface((config.current_width, config.current_height))
@@ -30,12 +28,16 @@ clock = pygame.time.Clock()
 # screen_text = "2D Minecraft - V0.0.0"
 pygame.display.set_caption("2D Minecraft - V0.0.0")  # 之後放screen_text
 
-assets.load_all_blocks()
+asset = asset_manager.AssetManager()
+
+game_camera = camera.Camera(asset)
+
+asset.load()
 
 player = Player(0, 20)
-ui = ui_manager.UI()
-menu = menu_manager.MenuManager()
-world = world_manager.World()
+ui = ui_manager.UI(asset)
+menu = menu_manager.MenuManager(asset)
+world = world_manager.World(asset)
 
 last_chunk = None
 

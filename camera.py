@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from asset_manager import AssetManager
     from player import Player
 import json
 
 import pygame
 
-import asset_manager as assets
 import chunk_manager
 import config
 import tool
@@ -15,7 +15,9 @@ world_dir = config.BASE_DIR / "saves" / config.CURRENT_WORLD / "chunks"
 
 
 class Camera:
-    def __init__(self):
+    def __init__(self, assets: "AssetManager"):
+        self.assets = assets
+
         # 世界座標中的左上角
         self.scroll_x = 0
         self.scroll_y = 0
@@ -139,7 +141,7 @@ class Camera:
                 pixel_x, pixel_y = self.world_to_screen(x_pos, y_pos)
 
                 if block_name != "air":
-                    screen.blit(assets.img_blocks[block_name], (pixel_x, pixel_y))
+                    screen.blit(self.assets.img_blocks[block_name], (pixel_x, pixel_y))
 
                 if (world_x, world_y) == (x_pos, y_pos) and draw_hover:
                     block_rect = pygame.Rect(

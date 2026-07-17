@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from asset_manager import AssetManager
     from player import Player
 
 import pygame
@@ -25,7 +26,9 @@ class BlockClick:
 
 
 class World:
-    def __init__(self):
+    def __init__(self, assets: "AssetManager"):
+        self.assets = assets
+
         self.item_entities = []
 
     def update(
@@ -79,6 +82,7 @@ class World:
                         clicked.y * config.BLOCK_SIZE,
                         spawn_reason="break",
                         player=player,
+                        img=self.assets.img_blocks[clicked.block],
                     )
                 )
 
@@ -132,7 +136,7 @@ class World:
             item.try_attract(player)
 
             # 處理碰到玩家
-            if player.rect.colliderect(item.rect) and player.can_pickup_item() and item.pickup_delay == 0:
+            if player.rect.colliderect(item.rect) and player.can_pickup_item(item.item_type) and item.pickup_delay == 0:
                 if player.give_item(item.item_type, item.count):
                     picked_items.append(item)
 
@@ -140,7 +144,7 @@ class World:
             self.item_entities.remove(item)
 
     def spawn_item_entity(self, item, x, y, spawn_reason, player):
-        new_entity = item_entity.ItemEntity(item, x, y, spawn_reason, player)
+        new_entity = item_entity.ItemEntity(item, x, y, spawn_reason, player, self.assets.img_blocks[item["type"]])
 
         self.item_entities.append(new_entity)
 

@@ -6,14 +6,13 @@ if TYPE_CHECKING:
 
 import pygame
 
-import asset_manager as assets
 import chunk_manager
 import config
 import tool
 
 
 class ItemEntity:
-    def __init__(self, item: dict[str, int], x, y, spawn_reason: str, player):
+    def __init__(self, item: dict[str, int], x, y, spawn_reason: str, player: "Player", img: pygame.Surface):
         """
         直接傳入方塊的左上角座標，至中由本身自行處理\n
         spawn_reason 可以是：\n
@@ -42,7 +41,7 @@ class ItemEntity:
         self.gravity = 1
         self.is_grounded = True
 
-        self.image = pygame.transform.scale(assets.img_blocks[self.item_type], (self.size, self.size))
+        self.image = pygame.transform.scale(img, (self.size, self.size))
 
         self.pickup_delay = 30  # 幾 tick 後才能撿
         self.is_attracting = False
@@ -139,8 +138,6 @@ class ItemEntity:
                 self.vel_x *= self.ground_friction
             else:
                 self.vel_x *= self.air_friction
-
-
 
     """"""
 
@@ -273,7 +270,7 @@ class ItemEntity:
         player_vec = pygame.math.Vector2((player.rect.centerx, player.rect.bottom))
         self_vec = pygame.math.Vector2(self.rect.center)
 
-        self.is_attracting = player.can_pickup_item() and player_vec.distance_to(self_vec) < config.BLOCK_SIZE * 2
+        self.is_attracting = player.can_pickup_item(self.item_type) and player_vec.distance_to(self_vec) < config.BLOCK_SIZE * 2
 
     """判斷函式"""
 

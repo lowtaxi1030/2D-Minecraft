@@ -24,7 +24,7 @@ chunks = {
 """
 height_map = []
 
-CURRENT_WORLD = "spawn_test"  # 可以隨意換成 "my_survival", "creative_test" ，或其他任何合法名字
+CURRENT_WORLD = "spawn_test"  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
 
 Timer_Speed = 1
@@ -38,3 +38,6 @@ running = True
 show_debug_screen = False
 
 pause_background = None
+
+water_frame = 0
+water_timer = 0

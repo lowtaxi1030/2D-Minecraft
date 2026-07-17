@@ -71,10 +71,7 @@ def get_chunk(chunk_x) -> Chunk:
         return config.chunks[chunk_x]
 
     # 3. 沒有存檔就生成
-    chunk = Chunk(
-        chunk_x,
-        make_map(config.CHUNK_WIDTH, config.MAP_HEIGHT, chunk_x)
-    )
+    chunk = Chunk(chunk_x, make_map(config.CHUNK_WIDTH, config.MAP_HEIGHT, chunk_x))
 
     config.chunks[chunk_x] = chunk
     return chunk
@@ -110,8 +107,9 @@ def make_map(map_width, map_height, current_chunk_i):
             row.append(block)
         chunk_data.append(row)
 
+    chunk_data = _generate_caves(current_chunk_i, chunk_data, height_map)
     chunk_data = _generate_veins(chunk_data, map_width, map_height)
-    # chunk_data = _generate_veins(chunk_data, map_width, map_height)
+    chunk_data = _generate_trees("oak", current_chunk_i, chunk_data, height_map)
 
     return chunk_data
 
@@ -145,6 +143,68 @@ def _make_terrain(chunk_x):
     return config.height_map
 
 
+def _generate_caves(chunk_x, chunk_data, height_map):
+    """random walk: faild"""
+    # start_x = random.randint(0, map_width - 1)
+    # start_y = random.randint(40, map_height - 20)
+
+    # length = random.randint(15, 80)
+
+    # angle = random.uniform(0, math.pi * 2)
+
+    # radius = random.randint(2, 5)
+
+    # for _ in range(length):
+    #     start_x += math.cos(angle)
+    #     start_y += math.sin(angle)
+    #     for x in range(int(start_x - radius), int(start_x + radius)):
+    #         for y in range(int(start_y - radius), int(start_y + radius)):
+    #             if tool.in_range(0, map_height, y) and tool.in_range(0, map_width, x):
+    #                 chunk_data[y][x] = "air"
+    #     angle += random.uniform(-0.3, 0.3)
+    #     radius += random.uniform(-0.2, 0.2)
+    #     radius = tool.clamp(1, 5, radius)
+    # return chunk_data
+    """nois"""
+    for local_x in range(config.CHUNK_WIDTH):
+        world_x = chunk_x * config.CHUNK_WIDTH + local_x
+
+        # buffer_noise = opensimplex.noise2(world_x / 50.0, 100)
+        entrance_noise = opensimplex.noise2(world_x / 150, 300)
+
+        dynamic_buffer = 8
+
+        if entrance_noise > 0.65:
+            dynamic_buffer = 1
+
+        # 取得這一行的高度限制（之前 _make_terrain 算出來的）
+        surface_height = height_map[local_x]
+
+        for y in range(config.MAP_HEIGHT):
+            # 1. 只有在地底（高度大於地表表面）才需要挖洞窟
+            if y > (surface_height + dynamic_buffer) and chunk_data[y][local_x] != "bedrock":
+
+                # 2. 算 2D 洞窟噪音 (這裡除以 15.0 作為縮放，你可以自由調整)
+                cave_noise = opensimplex.noise2(world_x / 15.0, y / 30.0)
+
+                size_noise = opensimplex.noise2(world_x / 80, y / 80)
+                threshold = 0.4 + size_noise * 0.15
+
+                room_noise = opensimplex.noise2(world_x / 70, y / 70)
+                tunnel_noise = opensimplex.noise2(world_x / 7, y / 7)
+
+                lake_noise = opensimplex.noise2(world_x / 120, y / 120)
+
+                # 3. 如果噪音大於閥值，這裡就是洞窟！
+                if cave_noise > threshold or room_noise > 0.72 or tunnel_noise > 0.75:
+                    if lake_noise > 0.82 and y > 80:
+                        chunk_data[y][local_x] = "water"
+                    else:
+                        chunk_data[y][local_x] = "air"
+
+    return chunk_data
+
+
 def _generate_veins(chunk_data, map_width, map_height):
 
     # 🛠️ 在這裡集中管理所有礦物的生成規則，要新增礦物只要在這邊加一行就好！
@@ -155,8 +215,8 @@ def _generate_veins(chunk_data, map_width, map_height):
         {"name": "copper_ore", "min_y": 15, "max_y": 65, "veins_range": (1, 3), "size_range": (4, 8), "target_stones": ["stone"]},
         {"name": "gold_ore", "min_y": 20, "max_y": 73, "veins_range": (1, 3), "size_range": (1, 6), "target_stones": ["stone"]},
         {"name": "diamond_ore", "min_y": 40, "max_y": 73, "veins_range": (1, 1), "size_range": (1, 6), "target_stones": ["stone"]},
-        {"name": "redstone_ore", "min_y": 25, "max_y": 58, "veins_range": (2, 5), "size_range": (1, 6), "target_stones": ["stone"]},
-        {"name": "lapis_ore", "min_y": 40, "max_y": 58, "veins_range": (3, 7), "size_range": (2, 8), "target_stones": ["stone"]},
+        {"name": "redstone_ore", "min_y": 25, "max_y": 58, "veins_range": (2, 4), "size_range": (1, 6), "target_stones": ["stone"]},
+        {"name": "lapis_ore", "min_y": 40, "max_y": 58, "veins_range": (1, 4), "size_range": (2, 8), "target_stones": ["stone"]},
         {
             "name": "deepslate_iron_ore",
             "min_y": 60,
@@ -263,3 +323,69 @@ def _veins_spawn(chunk_data, vein_size, center_y, center_x, map_width, map_heigh
             # 把這格加入「被感染清單」，下次也可能從這格突觸
             infected_blocks.add((next_x, next_y))
             blocks_placed += 1
+
+
+def _generate_trees(tree_type: str, chunk_x, chunk_data, height_map):
+    for local_x in range(config.CHUNK_WIDTH):
+        surface_height = height_map[local_x]
+        tree_bottom_y = surface_height - 1
+
+        if chunk_data[surface_height][local_x] == "grass":
+            if random.random() < 0.08:
+                # 這裡不需要回傳，因為我們直接原地修改傳進去的陣列
+                _plant_tree(tree_type, local_x, tree_bottom_y, chunk_x, chunk_data)
+
+    return chunk_data
+
+
+def _plant_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data):
+    # 1. 決定樹幹高度
+    tree_height = 4
+    if tree_type == "oak":
+        tree_height = random.randint(4, 6)
+
+    # 2. 畫樹幹 (直接寫入當前的 chunk_data，安全且快速)
+    for y in range(bottom_y, bottom_y - tree_height, -1):
+        if 0 <= y < config.MAP_HEIGHT:
+            chunk_data[y][plant_local_x] = f"{tree_type}_log"
+
+    # 3. 畫樹冠
+    top_y = bottom_y - tree_height + 1
+
+    # 下半部 5 x 2 樹葉
+    for ly in range(top_y - 1, top_y + 1):
+        for lx_offset in range(-2, 3):
+            # 算出樹葉在世界上的 X 座標
+            leaf_world_x = (chunk_x * config.CHUNK_WIDTH + plant_local_x) + lx_offset
+            _set_leaves_safe(tree_type, leaf_world_x, ly, chunk_x, chunk_data)
+
+    # 上半部 3 x 2 樹葉
+    for ly in range(top_y - 3, top_y - 1):
+        for lx_offset in range(-1, 2):
+            leaf_world_x = (chunk_x * config.CHUNK_WIDTH + plant_local_x) + lx_offset
+            _set_leaves_safe(tree_type, leaf_world_x, ly, chunk_x, chunk_data)
+
+
+def _set_leaves_safe(tree_type, leaf_world_x, y, current_chunk_x, current_chunk_data):
+    """最關鍵的安全樹葉寫入器"""
+    if not (0 <= y < config.MAP_HEIGHT):
+        return
+
+    # 算出這個葉子落在哪個 chunk 索引，以及它的本地 X
+    target_chunk_x = leaf_world_x // config.CHUNK_WIDTH
+    local_x = leaf_world_x % config.CHUNK_WIDTH
+
+    # 情況 A：如果樹葉落在當前正在生成的這個 Chunk
+    if target_chunk_x == current_chunk_x:
+        if current_chunk_data[y][local_x] == "air":
+            current_chunk_data[y][local_x] = f"{tree_type}_leaves"
+
+    # 情況 B：如果樹葉飄到旁邊的 Chunk 了
+    else:
+        # 關鍵：只有當隔壁 Chunk 已經在記憶體中時，我們才寫入
+        # 絕對不呼叫 get_chunk() 避免無限遞迴！
+        if target_chunk_x in config.chunks:
+            neighbor_chunk = config.chunks[target_chunk_x]
+            if neighbor_chunk.blocks[y][local_x] == "air":
+                neighbor_chunk.blocks[y][local_x] = f"{tree_type}_leaves"
+                neighbor_chunk.is_dirty = True

@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from asset_manager import AssetManager
     from camera import Camera
     from player import Player
 
 import pygame
 
-import asset_manager as assets
 import chunk_manager
 import config
 import tool
@@ -17,11 +17,11 @@ clock = pygame.time.Clock()
 
 
 class UI:
-    def __init__(self):
+    def __init__(self, assets: "AssetManager"):
 
-        self.hotbar = Hotbar()
-        self.inventory = Inventory()
-        self.debug = DebugScreen()
+        self.hotbar = Hotbar(assets)
+        self.inventory = Inventory(assets)
+        self.debug = DebugScreen(assets)
 
     def handle_events(self, event, player, mouse_pos):
         self.inventory.handle_events(event, player, mouse_pos)
@@ -41,7 +41,7 @@ class UI:
         self.debug.draw(screen, player, fps, mouse_pos, camera)
 
 
-def draw_item(screen, item, center_x, center_y):
+def draw_item(screen, assets, item, center_x, center_y):
     block_img = assets.img_blocks[item["type"]]
     block_img = pygame.transform.scale(block_img, (48, 48))
     block_rect = block_img.get_rect()
@@ -58,50 +58,54 @@ def draw_item(screen, item, center_x, center_y):
 
 
 class Hotbar:
-    def __init__(self):
+    def __init__(self, assets: "AssetManager"):
+        self.assets = assets
+
         self.SLOT_SPACING = 64
-        self.inv_hotbar_first_x = assets.inv_rect.left + 56
-        self.inv_hotbar_first_y = assets.inv_rect.bottom - 55
+        self.inv_hotbar_first_x = self.assets.inv_rect.left + 56
+        self.inv_hotbar_first_y = self.assets.inv_rect.bottom - 55
         self.INV_SPACING = 63
         self.inv_main_first_x = self.inv_hotbar_first_x
-        self.inv_main_first_y = assets.inv_rect.top + 323  # 調整這個
+        self.inv_main_first_y = self.assets.inv_rect.top + 323  # 調整這個
         self.INV_SPACING_X = 63
         self.INV_SPACING_Y = 63
 
     def update(self, player: "Player"):
-        assets.update_img_pos(assets.hotbar_bg_rect, screen_center=True, is_bottom=True)
+        self.assets.update_img_pos(self.assets.hotbar_bg_rect, screen_center=True, is_bottom=True)
 
-        assets.select_frame_rect.left = assets.hotbar_bg_rect.left - 1 + (player.selected_hotbar_index * self.SLOT_SPACING)
-        assets.select_frame_rect.top = assets.hotbar_bg_rect.top - 3
+        self.assets.select_frame_rect.left = self.assets.hotbar_bg_rect.left - 1 + (player.selected_hotbar_index * self.SLOT_SPACING)
+        self.assets.select_frame_rect.top = self.assets.hotbar_bg_rect.top - 3
 
     def draw(self, screen: pygame.Surface, player: "Player"):
         # 畫圖片
-        screen.blit(assets.hotbar_bg, assets.hotbar_bg_rect)
-        screen.blit(assets.select_frame, assets.select_frame_rect)
+        screen.blit(self.assets.hotbar_bg, self.assets.hotbar_bg_rect)
+        screen.blit(self.assets.select_frame, self.assets.select_frame_rect)
 
         # 畫方塊和數量
-        self.block_start_x = assets.select_frame_rect.centerx
-        self.block_start_y = assets.select_frame_rect.centery
-        first_slot_center_x = assets.hotbar_bg_rect.left + 36
+        self.block_start_x = self.assets.select_frame_rect.centerx
+        self.block_start_y = self.assets.select_frame_rect.centery
+        first_slot_center_x = self.assets.hotbar_bg_rect.left + 36
         for i in range(9):
             item = player.hotbar[i]
             if item is not None:
                 item_center_x = first_slot_center_x + (i * self.SLOT_SPACING)
-                item_center_y = assets.select_frame_rect.centery
-                draw_item(screen, item, item_center_x, item_center_y)
+                item_center_y = self.assets.select_frame_rect.centery
+                draw_item(screen, self.assets, item, item_center_x, item_center_y)
 
 
 class Inventory:
-    def __init__(self):
+    def __init__(self, assets: "AssetManager"):
+        self.assets = assets
+
         self.SLOT_SPACING = 64
 
-        self.inv_hotbar_first_x = assets.inv_rect.left + 20
-        self.inv_hotbar_first_y = assets.inv_rect.bottom - 91
+        self.inv_hotbar_first_x = self.assets.inv_rect.left + 20
+        self.inv_hotbar_first_y = self.assets.inv_rect.bottom - 91
 
         self.INV_SPACING = 63
 
         self.inv_main_first_x = self.inv_hotbar_first_x
-        self.inv_main_first_y = assets.inv_rect.top + 287  # 調整這個
+        self.inv_main_first_y = self.assets.inv_rect.top + 287  # 調整這個
 
         self.INV_SPACING_X = 63
         self.INV_SPACING_Y = 63
@@ -265,13 +269,13 @@ class Inventory:
     """"""
 
     def update(self):
-        assets.update_img_pos(assets.inv_rect, y_center=True, screen_center=True)
+        self.assets.update_img_pos(self.assets.inv_rect, y_center=True, screen_center=True)
 
-        self.inv_hotbar_first_x = assets.inv_rect.left + 20
-        self.inv_hotbar_first_y = assets.inv_rect.bottom - 91
+        self.inv_hotbar_first_x = self.assets.inv_rect.left + 20
+        self.inv_hotbar_first_y = self.assets.inv_rect.bottom - 91
 
         self.inv_main_first_x = self.inv_hotbar_first_x
-        self.inv_main_first_y = assets.inv_rect.top + 287
+        self.inv_main_first_y = self.assets.inv_rect.top + 287
 
     def draw(self, screen, player: "Player"):
         self._draw_background(screen)
@@ -281,7 +285,7 @@ class Inventory:
         self._draw_held_item(screen)
 
     def _draw_background(self, screen):
-        screen.blit(assets.inventory_img, assets.inv_rect)
+        screen.blit(self.assets.inventory_img, self.assets.inv_rect)
 
     def _draw_inventory_items(self, player, screen):
         """繪製 3x9 主背包"""
@@ -294,7 +298,7 @@ class Inventory:
                     # 運用剛才調好的邏輯，動態算出 27 格每一格的中心點
                     item_center_x = self.inv_main_first_x + col * self.INV_SPACING_X + config.SLOT_SIZE // 2
                     item_center_y = self.inv_main_first_y + row * self.INV_SPACING_Y + config.SLOT_SIZE // 2
-                    draw_item(screen, item, item_center_x, item_center_y)
+                    draw_item(screen, self.assets, item, item_center_x, item_center_y)
 
     def _draw_hotbar_items(self, player, screen):
         for i in range(9):
@@ -303,7 +307,7 @@ class Inventory:
                 # 利用新的微調變數算出位置
                 item_center_x = self.inv_hotbar_first_x + i * self.INV_SPACING_X + config.SLOT_SIZE // 2
                 item_center_y = self.inv_hotbar_first_y + config.SLOT_SIZE // 2
-                draw_item(screen, item, item_center_x, item_center_y)
+                draw_item(screen, self.assets, item, item_center_x, item_center_y)
 
     def _draw_held_item(self, screen):
         if self.held_item is None:
@@ -311,11 +315,13 @@ class Inventory:
 
         mouse_x, mouse_y = pygame.mouse.get_pos()
 
-        draw_item(screen, self.held_item, mouse_x, mouse_y)
+        draw_item(screen, self.assets, self.held_item, mouse_x, mouse_y)
 
 
 class DebugScreen:
-    def __init__(self):
+    def __init__(self, assets: "AssetManager"):
+        # self.assets = assets
+
         self.debug_frame = 0
         self.left_lines = []
         self.right_lines = []

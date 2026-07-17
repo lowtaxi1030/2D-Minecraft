@@ -419,8 +419,26 @@ class Player:
     def can_place_block(self):
         return self.mode != "spectator"
 
-    def can_pickup_item(self):
-        return self.mode != "spectator"
+    def can_pickup_item(self, item_type: str) -> bool:
+        """判斷玩家是否能撿起指定類型的物品"""
+        if self.mode == "spectator":
+            return False
+
+        # 1. 檢查快捷列 (hotbar)
+        for item in self.hotbar:
+            if item is None:
+                return True  # 有空位，直接可以撿
+            if item["type"] == item_type and item["count"] < 64:
+                return True  # 有同類型且未滿 64，可以疊加
+
+        # 2. 檢查背包 (inventory)
+        for item in self.inventory:
+            if item is None:
+                return True  # 有空位，直接可以撿
+            if item["type"] == item_type and item["count"] < 64:
+                return True  # 有同類型且未滿 64，可以疊加
+
+        return False
 
     def can_drop_item(self):
         return self.mode != "spectator"
