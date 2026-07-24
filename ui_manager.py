@@ -124,6 +124,9 @@ class Inventory:
 
         area, index = self._get_clicked_slot_info(mouse_pos)
         if area is None:
+            if not self.assets.inv_rect.collidepoint(mouse_pos):
+                if self.held_item is not None:
+                    pass  # 生成掉落物
             return
 
         self._handle_slot_left_click(player, area, index)
@@ -387,6 +390,7 @@ class DebugScreen:
                 f"Chunk : {current_chunk}",
                 f"Chunk X : {player_block_x}",
                 f"Local X : {local_x}",
+                f"Biome : {chunk_manager.get_chunk(player_block_x // config.CHUNK_WIDTH).biome_name}",
                 "",
                 "=== Camera ===",
                 f"Scroll : ({camera.scroll_x:.1f}, {camera.scroll_y:.1f})",

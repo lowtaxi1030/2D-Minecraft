@@ -15,12 +15,19 @@ class MenuManager:
         self.pause_menu = PauseMenu(assets)
         self.option_menu = OptionMenu(assets)
         self.video_menu = VideoMenu(assets)
+        self.controls_menu = ControlsMenu(assets)
 
     def update(self, events, mouse_pos):
         if config.game_state == "PAUSE":
             self.pause_menu.update(events, mouse_pos)
         elif config.game_state == "OPTION":
             self.option_menu.update(events, mouse_pos)
+        elif config.game_state == "CONTROLS_OPTION":
+            self.controls_menu.update(events, mouse_pos)
+        elif config.game_state == "AUDIO_OPTION":
+            pass
+        elif config.game_state == "LANG_OPTION":
+            pass
         elif config.game_state == "VIDEO_OPTION":
             self.video_menu.update(events, mouse_pos)
 
@@ -36,6 +43,8 @@ class MenuManager:
             self.pause_menu.draw(screen)
         if config.game_state == "OPTION":
             self.option_menu.draw(screen)
+        elif config.game_state == "CONTROLS_OPTION":
+            self.controls_menu.draw(screen)
         elif config.game_state == "VIDEO_OPTION":
             self.video_menu.draw(screen)
 
@@ -152,12 +161,21 @@ class OptionMenu:
             hover_text_color=tool.Colors.MC_YELLOW,
         )
 
+        self.controls_button = ui.ImageTextButton(
+            name="controls_option",
+            image=self.assets.setting_button_img,
+            text="Controls Settings",
+            text_color=tool.Colors.WHITE,
+            pos=(self.center_x + (self.btn_w // 2) + self.spacing_x, self.start_y + (self.btn_h // 2)),
+            hover_text_color=tool.Colors.MC_YELLOW,
+        )
+
         self.audio_button = ui.ImageTextButton(
             name="audio_option",
             image=self.assets.setting_button_img,
             text="Audio Settings",
             text_color=tool.Colors.WHITE,
-            pos=(self.center_x + (self.btn_w // 2) + self.spacing_x, self.start_y + (self.btn_h // 2)),
+            pos=(self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + self.spacing_y + (self.btn_h // 2)),
             hover_text_color=tool.Colors.MC_YELLOW,
         )
 
@@ -166,7 +184,10 @@ class OptionMenu:
             image=self.assets.setting_button_img,
             text="Lang Settings",
             text_color=tool.Colors.WHITE,
-            pos=(self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + self.spacing_y + (self.btn_h // 2)),
+            pos=(
+                self.center_x - (self.btn_w // 2) + self.spacing_x,
+                self.start_y + self.spacing_y + (self.btn_h // 2),
+            ),
             hover_text_color=tool.Colors.MC_YELLOW,
         )
 
@@ -179,13 +200,17 @@ class OptionMenu:
             hover_text_color=tool.Colors.MC_YELLOW,
         )
 
-        self.all_uis = [self.video_button, self.audio_button, self.lang_button, self.done_button]
+        self.all_uis = [self.video_button, self.controls_button, self.audio_button, self.lang_button, self.done_button]
 
     def layout(self):
         self.video_button.rect.center = (self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2))
-        self.audio_button.rect.center = (self.center_x + (self.btn_w // 2) + self.spacing_x, self.start_y + (self.btn_h // 2))
-        self.lang_button.rect.center = (
+        self.controls_button.rect.center = (self.center_x + (self.btn_w // 2) + self.spacing_x, self.start_y + (self.btn_h // 2))
+        self.audio_button.rect.center = (
             self.center_x - (self.btn_w // 2) - self.spacing_x,
+            self.start_y + self.spacing_y + (self.btn_h // 2),
+        )
+        self.lang_button.rect.center = (
+            self.center_x + (self.btn_w // 2) + self.spacing_x,
             self.start_y + self.spacing_y + (self.btn_h // 2),
         )
         self.done_button.rect.center = (self.center_x, config.current_height - 60)  # 👈 確保 Done 大按鈕也完美黏在底部
@@ -203,6 +228,9 @@ class OptionMenu:
         if self.video_button.is_clicked:
             config.game_state = "VIDEO_OPTION"
 
+        if self.controls_button.is_clicked:
+            config.game_state = "CONTROLS_OPTION"
+
         self._handle_event(events, mouse_pos)
         self.layout()
 
@@ -219,13 +247,55 @@ class OptionMenu:
             ob.draw(screen)
 
 
+class ControlsMenu:
+    def __init__(self, assets: "AssetManager"):
+        self.assets = assets
+
+        self.btn_w, self.btn_h = 350, 40  # 按鈕標準尺寸
+        self.switch_base_w, self.switch_base_h = self.assets.swich_base_rect.size  # 開關底座尺寸
+        self.center_x = config.current_width // 2
+        self.start_y = 150  # 從上方 150 像素開始畫按鈕
+        self.spacing_x = 60  # 左右按鈕的間距
+        self.spacing_y = 60  # 上下按鈕的間距
+
+        self.modes = ["survival", "creative", "spectator"]  # , "adventure" 之後再用
+        self.mode_index = 0  # 預設是生存模式
+
+        self.alto_jump = ui.ImageButton(
+            name="alto_jump",  # 視野廣角
+            image=self.assets.swich_base_img,
+            pos=(self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2)),
+        )
+        self.mode_switch = ui.ImageButton(
+            name="mode_switch",  # 視野廣角
+            image=self.assets.setting_button_img,
+            pos=(self.center_x + (self.btn_w // 2) + self.spacing_x, self.start_y + (self.btn_h // 2)),
+        )
+        self.all_uis = [self.alto_jump, self.mode_switch]
+
+    def layout(self):
+        self.center_x = config.current_width // 2
+
+        self.alto_jump.rect.center = (self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2))
+        self.mode_switch.rect.center = (self.center_x + (self.btn_w // 2) + self.spacing_x, self.start_y + (self.btn_h // 2))
+
+    def update(self, events, mouse_pos):
+        self.layout()
+
+    def draw(self, screen):
+        ui.show_text(screen, "Controls", tool.Colors.WHITE, 0, 50, 40, screen_center=True)
+
+        for ob in self.all_uis:
+            ob.draw(screen)
+
+
 class VideoMenu:
     def __init__(self, assets: "AssetManager"):
         self.assets = assets
 
         self.fov_value = 70  # 預設 FOV 值（Minecraft 通常是 70）
         self.fov_min = 30  # 最小值
-        self.fov_max = 110  # 最大值（例如 Quake Pro 可以是 110）
+        self.fov_max = 200  # 最大值（例如 Quake Pro 可以是 110）
         self.fov_width = self.assets.FOV_bg_rect.width
         self.is_dragging_fov = False  # 標記目前滑鼠是不是正在「按住拖曳拉桿」
 
@@ -237,13 +307,13 @@ class VideoMenu:
 
         self.fov_base = ui.ImageButton(
             name="FOV_base",  # 視野廣角
-            image=self.assets.FOV_bg_img,
+            image=self.assets.fov_bg_img,
             pos=(self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2)),
         )
 
         self.fov_lever = ui.ImageButton(
             name="FOV_lever",
-            image=self.assets.FOV_lever_img,
+            image=self.assets.lever_img,
             pos=(0, 0),  # 在update裡做
         )
 

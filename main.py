@@ -28,13 +28,11 @@ clock = pygame.time.Clock()
 # screen_text = "2D Minecraft - V0.0.0"
 pygame.display.set_caption("2D Minecraft - V0.0.0")  # 之後放screen_text
 
+player = Player(0, 20)
+
 asset = asset_manager.AssetManager()
-
-game_camera = camera.Camera(asset)
-
 asset.load()
 
-player = Player(0, 20)
 ui = ui_manager.UI(asset)
 menu = menu_manager.MenuManager(asset)
 world = world_manager.World(asset)
@@ -42,6 +40,8 @@ world = world_manager.World(asset)
 last_chunk = None
 
 save.load_world(player)
+
+game_camera = camera.Camera(asset, player)
 
 while config.running:
     events = pygame.event.get()
@@ -68,7 +68,7 @@ while config.running:
 
         dropped_item = None
 
-        player.handle_input(mouse_pos)
+        player.handle_input()
 
         for event in events:
             item = player.handle_event(event, keys)
@@ -79,10 +79,11 @@ while config.running:
             ui.handle_events(event, player, mouse_pos)
 
         # 更新
-        world.update(mouse_buttons, mouse_pos, player, game_camera)
-        player.update()
         game_camera.update(player)
+        world.update(mouse_buttons, mouse_pos, player, game_camera)
+        player.update(mouse_pos, game_camera.scroll_x)
         ui.update(player, fps, mouse_pos, game_camera)
+        asset.update()
 
         if dropped_item is not None:
             world.spawn_item_entity(dropped_item, player.rect.centerx, player.rect.top, "drop", player)
@@ -118,6 +119,12 @@ while config.running:
         menu.update(events, mouse_pos)
         menu.draw(screen)
         game_camera.zoom = config.ORG_FOV / config.fov
+
+    elif config.game_state == "CONTROLS_OPTION":
+        screen.blit(config.pause_background, (0, 0))
+
+        menu.update(events, mouse_pos)
+        menu.draw(screen)
 
     for event in events:
         if event.type == pygame.VIDEORESIZE:

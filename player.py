@@ -15,14 +15,15 @@ class Player:
         self.vel_y = 0
         self.jump_strength = -(config.BLOCK_SIZE / 4.5)
         self.is_grounded = False
-        self.all_modes = ["spectator", "creative", "survival"]  # , "survival"
-        self.mode_index = 1
+        self.all_modes = ["survival", "creative", "spectator"]  # , "adventure" 之後再用
+        self.mode_index = 0
         self.mode = self.all_modes[self.mode_index]
         self.current_speed = config.BLOCK_SIZE // 10
         self.jump_buffer = 0
 
         self.gravity = round(max(0.1, config.BLOCK_SIZE / 55), 2)
         self.player_speed = config.BLOCK_SIZE // 10
+        self.cheat_speed = 30
         self.player_run_speed = config.BLOCK_SIZE // 5
         self.player_flying_speed = config.BLOCK_SIZE // 4
 
@@ -116,7 +117,7 @@ class Player:
             if self.selected_hotbar_index <= -1:
                 self.selected_hotbar_index = 8
 
-    def handle_input(self, mouse_pos):
+    def handle_input(self):
         """處理鍵盤輸入（左右移動、跳躍）"""
 
         keys = pygame.key.get_pressed()
@@ -127,9 +128,9 @@ class Player:
 
                 # X 軸：左右控制
                 if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                    self.vel_x -= self.player_flying_speed  # 往左是負
+                    self.vel_x -= self.player_flying_speed  # self.cheat_speed  # 往左是負
                 if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                    self.vel_x += self.player_flying_speed  # 往右是正
+                    self.vel_x += self.player_flying_speed  # self.cheat_speed  # 往右是正
 
                 # Y 軸：上下自由飛行
                 if keys[pygame.K_UP] or keys[pygame.K_w]:
@@ -149,11 +150,6 @@ class Player:
                         self.is_grounded = False
         else:
             self.vel_x = 0
-
-        if mouse_pos[0] < self.rect.centerx:
-            self.facing = -1
-        elif mouse_pos[0] > self.rect.centerx:
-            self.facing = 1
 
     def _try_auto_jump(self, block_rect):
 
@@ -175,15 +171,15 @@ class Player:
             else:
                 self.is_running = False
 
-    def update(self):
-        """處理按鍵問題"""
+    def update(self, mouse_pos, scroll_x):
+        # 處理按鍵問題
         if self.is_flying:
             self.is_running = False
 
         # self.is_running &= not self.is_flying  # (另一種寫法，可以嘗試)
 
         """處理重力、移動位置、以及與地圖方塊的碰撞偵測"""
-        self.current_speed = self.player_run_speed if self.is_running else self.player_speed
+        self.current_speed = self.player_run_speed if self.is_running else self.player_speed  # self.cheat_speed
 
         left_x = int(self.rect.left // config.BLOCK_SIZE)
         right_x = int((self.rect.right - 1) // config.BLOCK_SIZE)
@@ -217,6 +213,11 @@ class Player:
         self.is_grounded = False
 
         self._collide_y(start_x, end_x, start_y, end_y)
+
+        if mouse_pos[0] < self.rect.centerx - scroll_x:
+            self.facing = -1
+        elif mouse_pos[0] > self.rect.centerx - scroll_x:
+            self.facing = 1
 
     def _collide_x(self, start_x, end_x, start_y, end_y):
         # 檢查玩家周圍的方塊
@@ -321,32 +322,64 @@ class Player:
             if self.hotbar[self.selected_hotbar_index]["count"] <= 0:
                 self.hotbar[self.selected_hotbar_index] = None
 
-    def pick_item(self, item_type: str):
+    def pick_item(self, item_type: str | None):
+        if item_type == "air":
+            return
+
+        # print("目前手上", self.selected_hotbar_index, self.hotbar[self.selected_hotbar_index])
+
         # 步驟一：先巡一遍 Hotbar，如果有相同的物品，就把指標切換過去
         for i, item in enumerate(self.hotbar):
             if item is not None and item["type"] == item_type:
                 self.selected_hotbar_index = i
-                if self.mode == "creative":
-                    self.hotbar[self.selected_hotbar_index]["count"] = self.MAX_STACK
                 return
 
-        # 步驟二：如果 Hotbar 沒有，改去檢查 Hotbar 有沒有哪一格是空的 (None)。如果有空格，就把物品塞進那個空格，並把指標選過去。
-        for i, item in enumerate(self.hotbar):
-            if item is None:
-                self.hotbar[i] = {"type": item_type, "count": self.MAX_STACK}
-                self.selected_hotbar_index = i
-                return
-
-        # 步驟三：如果 Hotbar 全滿且都沒有這個物品，把原本格子裡的東西跟主背包做交換
+        # 步驟二：如果 Hotbar 沒有這個物品，到主背包裡找
         for i, item in enumerate(self.inventory):
             if item is not None and item["type"] == item_type:
-                h_item = self.hotbar[self.selected_hotbar_index]
-                self.hotbar[self.selected_hotbar_index] = self.inventory[i]
-                self.inventory[i] = h_item
+
+                # 嘗試把手上的東西放進背包空位
+                if self._move_hand_item_to_inventory():
+                    # 情況 A：成功把手上物品移入背包（或本來就是空手）
+                    print("拿出", self.inventory[i])
+                    self.hotbar[self.selected_hotbar_index] = self.inventory[i]
+                    self.inventory[i] = None
+                else:
+                    # 情況 B：背包滿了！直接將手上物品與背包內的 A 做「等價交換」！
+                    # print(f"背包已滿，直接交換手上的 {self.hotbar[self.selected_hotbar_index]['type']} 與背包中的 {item_type}")
+                    temp = self.hotbar[self.selected_hotbar_index]
+                    self.hotbar[self.selected_hotbar_index] = self.inventory[i]
+                    self.inventory[i] = temp
+
+                return
+
+        # 步驟三：尋找空格
+        for i, item in enumerate(self.hotbar):
+            if item is None:
+                self.selected_hotbar_index = i
+                self.hotbar[self.selected_hotbar_index] = {"type": item_type, "count": 1}
                 return
 
         # 步驟四：這時才逼不得已覆蓋目前選中的這一格。
-        self.hotbar[self.selected_hotbar_index] = {"type": item_type, "count": self.MAX_STACK}
+        self.hotbar[self.selected_hotbar_index] = {"type": item_type, "count": 1}
+
+    def _move_hand_item_to_inventory(self):
+        hand = self.hotbar[self.selected_hotbar_index]
+
+        if hand is None:
+            return True
+
+        # print("搬運", hand)
+
+        for i, item in enumerate(self.inventory):
+            if item is None:
+                self.inventory[i] = hand
+                self.hotbar[self.selected_hotbar_index] = None
+                # print("放到 inventory", i)
+                return True
+
+        # self.hotbar[self.selected_hotbar_index] = None
+        return False
 
     """掉落物相關"""
 

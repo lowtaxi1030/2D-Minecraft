@@ -24,7 +24,7 @@ chunks = {
 """
 height_map = []
 
-CURRENT_WORLD = "spawn_test"  # 可以隨意換成任何合法名字
+CURRENT_WORLD = "test"  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
 
 Timer_Speed = 1

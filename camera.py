@@ -15,11 +15,11 @@ world_dir = config.BASE_DIR / "saves" / config.CURRENT_WORLD / "chunks"
 
 
 class Camera:
-    def __init__(self, assets: "AssetManager"):
+    def __init__(self, assets: "AssetManager", player: "Player"):
         self.assets = assets
 
         # 世界座標中的左上角
-        self.scroll_x = 0
+        self.scroll_x = player.rect.centerx
         self.scroll_y = 0
 
         # 縮放倍率
@@ -141,7 +141,7 @@ class Camera:
                 pixel_x, pixel_y = self.world_to_screen(x_pos, y_pos)
 
                 if block_name != "air":
-                    screen.blit(self.assets.img_blocks[block_name], (pixel_x, pixel_y))
+                    screen.blit(self.assets.block(block_name), (pixel_x, pixel_y))
 
                 if (world_x, world_y) == (x_pos, y_pos) and draw_hover:
                     block_rect = pygame.Rect(

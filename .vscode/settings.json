@@ -38,5 +38,8 @@
         "source.organizeImports.ruff": "explicit",
         "source.fixAll.ruff": "explicit"
     },
-    "python.REPL.enableREPLSmartSend": false
+    "python.REPL.enableREPLSmartSend": false,
+    "github.copilot.enable": {
+        "*": true
+    }
 }

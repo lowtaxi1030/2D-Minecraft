@@ -53,17 +53,17 @@ class AssetManager:
             name = path.stem
 
             # 載入、優化並縮放圖片
+
             if name in LEAVES_COLORS:
-                org_img = self._load_and_tint_leaves(str(path), LEAVES_COLORS[name])
-
-            elif name.endswith("_still"):
-                print(name)
-                self.animations[name] = self._load_animation(str(path))
-
-                org_img = self.animations[name].image
+                org_img = self._load_and_tint_imgs(str(path), LEAVES_COLORS[name])
 
             else:
                 org_img = pygame.image.load(str(path)).convert_alpha()
+
+            if name.endswith("_still"):
+                self.animations[name] = self._load_animation(str(path), tint_color=(30, 120, 240) if name == "water_still" else None)
+
+                org_img = self.animations[name].image
             self.org_img_blocks[name] = org_img
 
             # 2. 存縮放後的圖
@@ -73,9 +73,14 @@ class AssetManager:
         self.bg_dirt = self.img_blocks["dirt"].copy()
         self.bg_dirt = tool.scale_img(self.bg_dirt, 40)
 
-    def _load_animation(self, path: str):
+    def _load_animation(self, path: str, tint_color: tuple[int, ...] = None):
         frames = []
         sheet = pygame.image.load(path).convert_alpha()
+
+        if tint_color is not None:
+            color_surf = pygame.Surface(sheet.get_size(), pygame.SRCALPHA)
+            color_surf.fill(tint_color)
+            sheet.blit(color_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
         frame_size = sheet.get_width()  # 256
         frame_count = sheet.get_height() // frame_size
@@ -124,13 +129,17 @@ class AssetManager:
             self.setting_btn_rect = self.setting_button_img.get_rect()
             self.setting_btn_rect.center = (config.WIDTH // 2, config.HEIGHT // 2)
 
-            self.FOV_bg_img = pygame.image.load(f"{str(IMAGE_PATH)}/ui/FOV.png")
-            self.FOV_bg_img = pygame.transform.scale_by(self.FOV_bg_img, 0.45)
-            self.FOV_bg_rect = self.FOV_bg_img.get_rect()
+            self.fov_bg_img = pygame.image.load(f"{str(IMAGE_PATH)}/ui/FOV.png")
+            self.fov_bg_img = pygame.transform.scale_by(self.fov_bg_img, 0.45)
+            self.FOV_bg_rect = self.fov_bg_img.get_rect()
 
-            self.FOV_lever_img = pygame.image.load(f"{str(IMAGE_PATH)}/ui/FOV_lever.png")
-            self.FOV_lever_img = pygame.transform.scale_by(self.FOV_lever_img, 0.5)
-            self.FOV_lever_rect = self.FOV_lever_img.get_rect()
+            self.lever_img = pygame.image.load(f"{str(IMAGE_PATH)}/ui/lever.png")
+            self.lever_img = pygame.transform.scale_by(self.lever_img, 0.5)
+            self.lever_rect = self.lever_img.get_rect()
+
+            self.swich_base_img = pygame.image.load(f"{str(IMAGE_PATH)}/ui/switch_base.png")
+            self.swich_base_img = pygame.transform.scale_by(self.swich_base_img, 0.5)
+            self.swich_base_rect = self.swich_base_img.get_rect()
 
         except FileNotFoundError as e:
             sys.exit(f"找不到 setting_button 或 FOV 或 FOV_lever 的圖片\n{e}")
@@ -139,7 +148,7 @@ class AssetManager:
         for animation in self.animations.values():
             animation.update()
 
-    def _load_and_tint_leaves(self, image_path: str, tint_color: tuple[int, int, int]):
+    def _load_and_tint_imgs(self, image_path: str, tint_color: tuple[int, int, int]):
         # 1. 載入原始灰階圖片，並確保格式支援透明度
         raw_img = pygame.image.load(image_path).convert_alpha()
 
