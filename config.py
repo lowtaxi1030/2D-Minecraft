@@ -12,7 +12,7 @@ BLOCK_SIZE = 50
 camera_zoom = 1.0
 
 CHUNK_WIDTH = 16
-MAP_HEIGHT = 140
+MAP_HEIGHT = 180
 
 chunks = {}
 """ 樣式

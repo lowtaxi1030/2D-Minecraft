@@ -70,7 +70,7 @@ BIOMES = {
         "name": "stone_mountain",
         "surface": "stone",
         "dirt": "stone",
-        "tree": "spruce",
+        "tree": None,
         "tree_rate": 0.02,
         "height": 35,
         "chunk_size": (3, 7),
@@ -113,25 +113,6 @@ BIOMES = {
     #     "height": 45,
     #     "chunk_size": (3, 7),
     # },
-}
-
-TREES = {
-    "oak": {
-        "height": (4, 6),
-        "shape": "oak",
-    },
-    "birch": {
-        "height": (5, 7),
-        "shape": "birch",
-    },
-    "spruce": {
-        "height": (7, 10),
-        "shape": "spruce",
-    },
-    "jungle": {
-        "height": (9, 15),
-        "shape": "jungle",
-    },
 }
 
 
@@ -183,7 +164,7 @@ def get_chunk(chunk_x) -> Chunk:
 
     # 2. 嘗試讀取存檔
     loaded_chunk = save.load_chunk(chunk_x)
-    rng = random.Random(config.WORLD_SEED)
+    rng = random.Random(config.WORLD_SEED + chunk_x * 1000003)
 
     if loaded_chunk is not None:
         biome_name = _generate_biome(chunk_x, rng)
@@ -270,7 +251,7 @@ def _make_terrain(chunk_x):
     # 💡 提示：設定一個隨機種子，讓每次地形都不一樣
     opensimplex.seed(config.WORLD_SEED)
 
-    baseline = 25  # 地平線基準面
+    baseline = config.MAP_HEIGHT - 115  # 地平線基準面
 
     for local_x in range(config.CHUNK_WIDTH):
         world_x = chunk_x * config.CHUNK_WIDTH + local_x
@@ -308,7 +289,7 @@ def _make_base_terrain(map_width, map_height, chunk_x, biome_name, height_map, r
             world_x = chunk_x * config.CHUNK_WIDTH + x
 
             offset = opensimplex.noise2(world_x / 80, 500) * 5
-            stone_limit = int(config.MAP_HEIGHT * 0.4 + offset)
+            stone_limit = int(config.MAP_HEIGHT - 70 + offset)
 
             if y < target_y:
                 block = "air"
@@ -522,58 +503,58 @@ def _generate_veins(chunk_data, map_width, map_height, rng: random.Random):
     # 🛠️ 在這裡集中管理所有礦物的生成規則，要新增礦物只要在這邊加一行就好！
     ore_rules = [
         # {"name": 礦物名稱, "min_y": 最高高度, "max_y": 最低高度, "veins_range": 群落數範圍, "size_range": 每坨大小, "target_stones": 能替換的石頭}
-        {"name": "iron_ore", "min_y": 15, "max_y": 73, "veins_range": (1, 3), "size_range": (5, 18), "target_stones": ["stone"]},
-        {"name": "coal_ore", "min_y": 15, "max_y": 73, "veins_range": (1, 3), "size_range": (5, 25), "target_stones": ["stone"]},
-        {"name": "copper_ore", "min_y": 15, "max_y": 65, "veins_range": (1, 3), "size_range": (4, 8), "target_stones": ["stone"]},
-        {"name": "gold_ore", "min_y": 20, "max_y": 73, "veins_range": (1, 3), "size_range": (1, 6), "target_stones": ["stone"]},
-        {"name": "diamond_ore", "min_y": 40, "max_y": 73, "veins_range": (1, 1), "size_range": (1, 6), "target_stones": ["stone"]},
-        {"name": "redstone_ore", "min_y": 25, "max_y": 58, "veins_range": (2, 4), "size_range": (1, 6), "target_stones": ["stone"]},
-        {"name": "lapis_ore", "min_y": 40, "max_y": 58, "veins_range": (1, 4), "size_range": (2, 8), "target_stones": ["stone"]},
+        {"name": "copper_ore", "min_y": 60, "max_y": 115, "veins_range": (0, 3), "size_range": (4, 8), "target_stones": ["stone"]},
+        {"name": "coal_ore", "min_y": 60, "max_y": 115, "veins_range": (0, 3), "size_range": (5, 25), "target_stones": ["stone"]},
+        {"name": "iron_ore", "min_y": 80, "max_y": 115, "veins_range": (0, 3), "size_range": (5, 18), "target_stones": ["stone"]},
+        {"name": "gold_ore", "min_y": 70, "max_y": 115, "veins_range": (0, 3), "size_range": (1, 6), "target_stones": ["stone"]},
+        {"name": "diamond_ore", "min_y": 90, "max_y": 115, "veins_range": (0, 1), "size_range": (1, 6), "target_stones": ["stone"]},
+        {"name": "redstone_ore", "min_y": 90, "max_y": 115, "veins_range": (1, 4), "size_range": (1, 6), "target_stones": ["stone"]},
+        {"name": "lapis_ore", "min_y": 80, "max_y": 115, "veins_range": (0, 4), "size_range": (2, 8), "target_stones": ["stone"]},
         {
             "name": "deepslate_iron_ore",
-            "min_y": 60,
-            "max_y": 135,
-            "veins_range": (1, 3),
+            "min_y": 115,
+            "max_y": 179,
+            "veins_range": (0, 3),
             "size_range": (5, 18),
             "target_stones": ["deepslate"],
         },
         {
             "name": "deepslate_coal_ore",
-            "min_y": 60,
-            "max_y": 135,
-            "veins_range": (1, 3),
+            "min_y": 115,
+            "max_y": 179,
+            "veins_range": (0, 3),
             "size_range": (5, 20),
             "target_stones": ["deepslate"],
         },
         {
             "name": "deepslate_emerald_ore",
-            "min_y": 80,
-            "max_y": 135,
-            "veins_range": (1, 3),
+            "min_y": 115,
+            "max_y": 179,
+            "veins_range": (0, 3),
             "size_range": (1, 1),
             "target_stones": ["deepslate"],
         },
         {
             "name": "deepslate_diamond_ore",
-            "min_y": 60,
-            "max_y": 135,
-            "veins_range": (1, 3),
+            "min_y": 115,
+            "max_y": 179,
+            "veins_range": (0, 3),
             "size_range": (1, 6),
             "target_stones": ["deepslate"],
         },
         {
             "name": "deepslate_redstone_ore",
-            "min_y": 60,
-            "max_y": 119,
-            "veins_range": (2, 5),
+            "min_y": 115,
+            "max_y": 179,
+            "veins_range": (1, 5),
             "size_range": (1, 6),
             "target_stones": ["deepslate"],
         },
         {
             "name": "deepslate_lapis_ore",
-            "min_y": 60,
-            "max_y": 119,
-            "veins_range": (3, 7),
+            "min_y": 115,
+            "max_y": 179,
+            "veins_range": (2, 7),
             "size_range": (2, 8),
             "target_stones": ["deepslate"],
         },
@@ -647,11 +628,70 @@ def _veins_spawn(chunk_data, vein_size, center_y, center_x, map_width, map_heigh
 """
 
 TREE_PATTERNS = {
-    "oak": {"height": (6, 8), "leaves": [[3, 3, 5, 5]]},  # [4, 6, 7, 9, 8, 7, 7, 2]  阿姆斯特朗炮，之後做
-    "birch": {"height": (6, 8), "leaves": [[1, 3, 3, 5, 5]]},
-    "spruce": {"height": (12, 15), "leaves": [[1, 3, 1, 3, 5, 3, 5, 3, 5], [1, 3, 3, 3]]},
-    "jungle": {"height": (10, 16), "leaves": [[3, 3, 5, 5]]},
+    "oak": {"height": (6, 8), "leaves": [[3, 3, 5, 5]], "fast_leaf_rate": 0.8},  # [4, 6, 7, 9, 8, 7, 7, 2]  阿姆斯特朗炮，之後做
+    "birch": {"height": (6, 8), "leaves": [[1, 3, 3, 5, 5]], "fast_leaf_rate": 0.8},
+    "spruce": {"height": (12, 15), "leaves": [[1, 3, 1, 3, 5, 3, 5, 3, 5], [1, 3, 3, 3]], "fast_leaf_rate": 0.8},
+    "jungle": {"height": (10, 16), "leaves": [[3, 3, 5, 5]], "fast_leaf_rate": 0.8},
 }
+
+
+def _generate_trees(chunk_x, biome_name, chunk_data, height_map, rng: random.Random):
+    tree_spawn_CD = 7
+    placed_tree_x = []
+
+    tree_count = rng.randint(1, 3)  # 每個 chunk 最多生成 1~3 棵樹
+
+    biome = BIOMES[biome_name]
+
+    for _ in range(tree_count):
+        for _ in range(10):
+            plant_local_x = rng.randint(0, config.CHUNK_WIDTH - 1)
+            plant_world_x = chunk_x * config.CHUNK_WIDTH + plant_local_x
+
+            if not _can_place_tree(plant_world_x, placed_tree_x, tree_spawn_CD):
+                continue
+
+            surface_y = height_map[plant_local_x]
+
+            if chunk_data[surface_y][plant_local_x] != biome["surface"]:
+                continue
+
+            bottom_y = surface_y - 1
+
+            placed_tree_x.append(plant_world_x)
+            _draw_tree(biome["tree"], plant_local_x, bottom_y, chunk_x, chunk_data, rng)
+            break
+
+    # for local_x in range(config.CHUNK_WIDTH):
+    #     world_x = chunk_x * config.CHUNK_WIDTH + local_x
+
+    #     biome = BIOMES[biome_name]
+
+    #     if biome["tree"] is None:
+    #         continue
+
+    #     surface_height = height_map[local_x]
+    #     tree_bottom_y = surface_height - 1
+
+    #     if chunk_data[surface_height][local_x] == "grass":
+    #         if rng.random() < biome["tree_rate"] and world_x - last_world_x >= tree_spawn_CD:
+    #             # 這裡不需要回傳，因為我們直接原地修改傳進去的陣列
+    #             _draw_tree(biome["tree"], local_x, tree_bottom_y, chunk_x, chunk_data, rng)
+    #             last_world_x = world_x
+
+    return chunk_data
+
+
+def _can_place_tree(plant_world_x, placed_tree_x, tree_spawn_CD):
+
+    # 距離檢查
+    for x in placed_tree_x:
+        if abs(plant_world_x - x) < tree_spawn_CD:
+            return False
+
+    # 空間檢查
+
+    return True
 
 
 def _draw_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data, rng: random.Random):
@@ -662,6 +702,8 @@ def _draw_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data, rng: ran
     pattern = TREE_PATTERNS[tree_type]
     min_height, max_height = pattern["height"]
     tree_height = rng.randint(min_height, max_height)
+
+    fast_leaf_rate = pattern["fast_leaf_rate"]
 
     # 畫樹幹
     for y in range(bottom_y, bottom_y - tree_height, -1):
@@ -674,128 +716,12 @@ def _draw_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data, rng: ran
 
     for i, width in enumerate(leaves_pattern):
         leaf_y = top_y + i
-        _place_leaf_rectangle(tree_type, plant_local_x, leaf_y, width, 1, chunk_x, chunk_data)
+        _place_leaf_rectangle(tree_type, plant_local_x, leaf_y, width, 1, chunk_x, chunk_data, rng, fast_leaf_rate)
 
 
-# def _draw_oak(plant_local_x, bottom_y, chunk_x, chunk_data, rng: random.Random):
-#     # 1. 決定樹幹高度
-#     tree_height = rng.randint(4, 6)
-#     # 2. 畫樹幹 (直接寫入當前的 chunk_data，安全且快速)
-#     for y in range(bottom_y, bottom_y - tree_height, -1):
-#         if 0 <= y < config.MAP_HEIGHT:
-#             chunk_data[y][plant_local_x] = "oak_log"
-
-#     # 3. 畫樹冠
-#     top_y = bottom_y - tree_height + 1
-
-#     # 下半部 5 x 2 樹葉
-#     _place_leaf_rectangle("oak", plant_local_x, top_y - 1, 5, 2, chunk_x, chunk_data)
-
-#     # 上半部 3 x 2 樹葉
-#     _place_leaf_rectangle("oak", plant_local_x, top_y - 3, 3, 2, chunk_x, chunk_data)
-
-
-# def _draw_birch(plant_local_x, bottom_y, chunk_x, chunk_data):
-#     # 1. 決定樹幹高度
-#     tree_height = random.randint(6, 8)
-#     # 2. 畫樹幹 (直接寫入當前的 chunk_data，安全且快速)
-#     for y in range(bottom_y, bottom_y - tree_height, -1):
-#         if 0 <= y < config.MAP_HEIGHT:
-#             chunk_data[y][plant_local_x] = "birch_log"
-#     top_y = bottom_y - tree_height + 1
-#     _place_leaf_circle("birch", plant_local_x, top_y, 2, chunk_x, chunk_data)
-#     _place_leaf_rectangle("birch", plant_local_x, top_y - 2, 3, 1, chunk_x, chunk_data)
-
-
-# def _draw_spruce(plant_local_x, bottom_y, chunk_x, chunk_data):
-#     # 1. 決定樹幹高度
-#     tree_height = random.randint(12, 15)
-#     # 2. 畫樹幹 (直接寫入當前的 chunk_data，安全且快速)
-#     for y in range(bottom_y, bottom_y - tree_height, -1):
-#         if 0 <= y < config.MAP_HEIGHT:
-#             chunk_data[y][plant_local_x] = "spruce_log"
-#     layers = [
-#         1,
-#         3,
-#         1,
-#         3,
-#         5,
-#         3,
-#         5,
-#         3,
-#         5,
-#     ]
-#     top_y = bottom_y - tree_height + 1
-#     for i, width in enumerate(layers):
-#         layer_y = top_y + i
-#         _place_leaf_rectangle("spruce", plant_local_x, layer_y, width, 1, chunk_x, chunk_data)
-
-
-# def _draw_jungle(plant_local_x, bottom_y, chunk_x, chunk_data):
-#     # 1. 決定樹幹高度
-#     tree_height = random.randint(5, 9)
-#     # 2. 畫樹幹 (直接寫入當前的 chunk_data，安全且快速)
-#     for y in range(bottom_y, bottom_y - tree_height, -1):
-#         if 0 <= y < config.MAP_HEIGHT:
-#             chunk_data[y][plant_local_x] = "jungle_log"
-#     top_y = bottom_y - tree_height + 1
-#     # 下半部 5 x 2 樹葉
-#     _place_leaf_rectangle("jungle", plant_local_x, top_y - 1, 5, 2, chunk_x, chunk_data)
-
-#     # 上半部 3 x 2 樹葉
-#     _place_leaf_rectangle("jungle", plant_local_x, top_y - 3, 3, 2, chunk_x, chunk_data)
-
-
-def _draw_chunk(chunk_x, chunk_data):
-    for local_x in range(config.CHUNK_WIDTH):
-        for y in range(config.MAP_HEIGHT):
-            block_type = chunk_data[y][local_x]
-            if block_type != "air":
-                if local_x < 0 or local_x >= config.CHUNK_WIDTH:
-                    continue
-
-                chunk_data[y][local_x] = "oak_log"
-
-
-# TREE_DRAWERS = {
-#     "oak": _draw_oak,
-#     "birch": _draw_birch,
-#     "spruce": _draw_spruce,
-#     "jungle": _draw_jungle,
-# }
-
-
-def _generate_trees(chunk_x, biome_name, chunk_data, height_map, rng: random.Random):
-
-    for local_x in range(config.CHUNK_WIDTH):
-
-        biome = BIOMES[biome_name]
-
-        if biome["tree"] is None:
-            continue
-
-        surface_height = height_map[local_x]
-        tree_bottom_y = surface_height - 1
-
-        if chunk_data[surface_height][local_x] == "grass":
-            if rng.random() < biome["tree_rate"]:
-                # 這裡不需要回傳，因為我們直接原地修改傳進去的陣列
-                _make_tree(biome["tree"], local_x, tree_bottom_y, chunk_x, chunk_data, rng)
-
-    return chunk_data
-
-
-def _make_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data, rng: random.Random):
-    if tree_type not in TREE_PATTERNS.keys():
-        print(f"Unknown tree type: {tree_type}")
-        return
-
-    # 呼叫對應的樹生成函數
-    # TREE_DRAWERS[tree_type](plant_local_x, bottom_y, chunk_x, chunk_data)
-    _draw_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data, rng)
-
-
-def _place_leaf_rectangle(tree_type, center_x, center_y, width, height, chunk_x, chunk_data, fill=True):
+def _place_leaf_rectangle(
+    tree_type, center_x, center_y, width, height, chunk_x, chunk_data, rng: random.Random, fill=True, fast_leaf_rate=0.8
+):
     top = center_y - height // 2
 
     left = -(width // 2)
@@ -804,57 +730,11 @@ def _place_leaf_rectangle(tree_type, center_x, center_y, width, height, chunk_x,
     for ly in range(top, top + height):
         for lx_offset in range(left, right + 1) if width > 1 else [0]:
             leaf_world_x = (chunk_x * config.CHUNK_WIDTH + center_x) + lx_offset
-            _set_leaves_safe(tree_type, leaf_world_x, ly, chunk_x, chunk_data)
+            is_fast_leaf = rng.random() < fast_leaf_rate
+            _set_leaves_safe(tree_type, leaf_world_x, ly, chunk_x, chunk_data, is_fast_leaf=is_fast_leaf)
 
 
-def _place_leaf_circle(tree_type, center_x, center_y, radius, chunk_x, chunk_data):
-    for ly in range(center_y - radius, center_y + radius + 1):
-        dy = ly - center_y
-        for dx in range(-radius, radius + 1):
-            if dx**2 + dy**2 <= radius**2:
-                leaf_world_x = (chunk_x * config.CHUNK_WIDTH + center_x) + dx
-                _set_leaves_safe(tree_type, leaf_world_x, ly, chunk_x, chunk_data)
-
-
-def _place_leaf_diamond(tree_type, center_x, center_y, radius, chunk_x, chunk_data):
-    for ly in range(center_y - radius, center_y + radius + 1):
-        for lx_offset in range(-radius, radius + 1):
-            leaf_world_x = (chunk_x * config.CHUNK_WIDTH + center_x) + lx_offset
-            if abs(lx_offset) + abs(ly - center_y) <= radius:
-                _set_leaves_safe(tree_type, leaf_world_x, ly, chunk_x, chunk_data)
-
-
-def _place_leaf_triangle(tree_type, center_x, center_y, height, chunk_x, chunk_data):
-    # width = level * 2 + 1
-    for ly in range(center_y - height + 1, center_y + 1):
-        row_height = center_y - ly
-        for lx_offset in range(-row_height, row_height + 1):
-            leaf_world_x = (chunk_x * config.CHUNK_WIDTH + center_x) + lx_offset
-            _set_leaves_safe(tree_type, leaf_world_x, ly, chunk_x, chunk_data)
-
-
-def _place_leaf_cross(tree_type, center_x, center_y, radius, chunk_x, chunk_data):
-    for ly in range(center_y - radius, center_y + radius + 1):
-        dy = ly - center_y
-        for dx in range(-radius, radius + 1):
-            if abs(dx) == 0 or abs(dy) == 0:
-                leaf_world_x = (chunk_x * config.CHUNK_WIDTH + center_x) + dx
-                _set_leaves_safe(tree_type, leaf_world_x, ly, chunk_x, chunk_data)
-
-
-def _place_leaf_ellipse(tree_type, center_x, center_y, width, height, chunk_x, chunk_data):
-    a = width / 2
-    b = height / 2
-
-    for ly in range(center_y - int(b), center_y + int(b) + 1):
-        dy = ly - center_y
-        for dx in range(-int(a), int(a) + 1):
-            leaf_world_x = (chunk_x * config.CHUNK_WIDTH + center_x) + dx
-            if ((dx**2) / (a**2)) + ((dy**2) / (b**2)) <= 1:
-                _set_leaves_safe(tree_type, leaf_world_x, ly, chunk_x, chunk_data)
-
-
-def _set_leaves_safe(tree_type, leaf_world_x, y, current_chunk_x, current_chunk_data):
+def _set_leaves_safe(tree_type, leaf_world_x, y, current_chunk_x, current_chunk_data, is_fast_leaf=True):
     """最關鍵的安全樹葉寫入器"""
     if not (0 <= y < config.MAP_HEIGHT):
         return
@@ -863,10 +743,13 @@ def _set_leaves_safe(tree_type, leaf_world_x, y, current_chunk_x, current_chunk_
     target_chunk_x = leaf_world_x // config.CHUNK_WIDTH
     local_x = leaf_world_x % config.CHUNK_WIDTH
 
+    leaf = f"{tree_type}_leaves_fast" if is_fast_leaf else f"{tree_type}_leaves"
+
     # 情況 A：如果樹葉落在當前正在生成的這個 Chunk
     if target_chunk_x == current_chunk_x:
-        if current_chunk_data[y][local_x] == "air" or current_chunk_data[y][local_x] == f"{tree_type}_log":
-            current_chunk_data[y][local_x] = f"{tree_type}_leaves"
+        block = current_chunk_data[y][local_x]
+        if block in ("air", f"{tree_type}_log"):
+            current_chunk_data[y][local_x] = leaf
 
     # 情況 B：如果樹葉飄到旁邊的 Chunk 了
     else:
@@ -874,6 +757,7 @@ def _set_leaves_safe(tree_type, leaf_world_x, y, current_chunk_x, current_chunk_
         # 絕對不呼叫 get_chunk() 避免無限遞迴！
         if target_chunk_x in config.chunks:
             neighbor_chunk = config.chunks[target_chunk_x]
-            if neighbor_chunk.blocks[y][local_x] == "air" or neighbor_chunk.blocks[y][local_x] == f"{tree_type}_log":
-                neighbor_chunk.blocks[y][local_x] = f"{tree_type}_leaves"
+            block = neighbor_chunk.blocks[y][local_x]
+            if block in ("air", f"{tree_type}_log"):
+                neighbor_chunk.blocks[y][local_x] = leaf
                 neighbor_chunk.is_dirty = True

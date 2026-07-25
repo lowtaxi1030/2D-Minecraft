@@ -57,6 +57,9 @@ class AssetManager:
             if name in LEAVES_COLORS:
                 org_img = self._load_and_tint_imgs(str(path), LEAVES_COLORS[name])
 
+            elif name[:-5] in LEAVES_COLORS:
+                org_img = self._load_and_tint_imgs(str(path), LEAVES_COLORS[name[:-5]])
+
             else:
                 org_img = pygame.image.load(str(path)).convert_alpha()
 
