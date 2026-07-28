@@ -6,7 +6,6 @@ class FluidManager:
         self.chunks = chunks
 
         self.active_fluids = set()
-        self.next_active = set()
 
         self.fluid_update_interval = 300  # 水流每次更新時間
         self.last_fluid_update_time = 0
@@ -15,14 +14,11 @@ class FluidManager:
 
     def add_fluid(self, world_x: int, world_y: int):
         """當玩家放置水，或是地圖生成水源時呼叫此方法"""
-        self.next_active.add((world_x, world_y))
+        self.active_fluids.add((world_x, world_y))
 
     def wake_water(self, x: int, y: int):
-        # print(f"wake ({x},{y})")
         for nx, ny in self._neighbors(x, y):
-            # print("add active:", (nx, ny))
             self.add_fluid(nx, ny)
-            # print("  wake ->", nx, ny)
 
         self.active_fluids.add((x, y))
 
@@ -34,20 +30,14 @@ class FluidManager:
     def update_fluids(self):
         """重要：如果左右已經有水，而且它的水位比我還要高，就更新它。"""
 
-        # print("before =", self.active_fluids)
-        current_active = self.active_fluids | self.next_active
-
-        self.next_active = set()
+        # print(self.active_fluids)
+        next_active = set()
 
         # 遍歷所有活躍水
-        for x, y in list(current_active):
+        for x, y in list(self.active_fluids):
 
             # Step1: 取得目前水的等級
             level = self._get_water_level(x, y)
-
-            # print(f"\n=== 更新 ({x}, {y}) ===")
-            # print("block =", self._get_block(x, y))
-            # print("level =", level)
 
             if level is None:
                 continue
@@ -58,19 +48,19 @@ class FluidManager:
 
             if below == "air":
                 self._set_block(x, y + 1, "water_flow")
-                self.next_active.add((x, y + 1))
+                next_active.add((x, y + 1))
                 continue
 
             if below_level is not None and below_level > level:
                 self._set_block(x, y + 1, "water_flow")  # 用強水位覆蓋掉地下的弱水
-                self.next_active.add((x, y + 1))
+                next_active.add((x, y + 1))
                 # 注意：這裡不要 continue！讓它繼續往下走 Step 3，向左右擴散開來！
 
             # Step3: 判斷能不能左右流
             new_level = level + 1
 
             # 只有當水位還沒達到最大值時，才能繼續向左右擴散
-            if new_level <= self.MAX_WATER_LEVEL and self._has_support(x, y):
+            if new_level <= self.MAX_WATER_LEVEL:
                 for dx in (-1, 1):
                     nx = x + dx
                     side_block = self._get_block(nx, y)
@@ -79,7 +69,7 @@ class FluidManager:
                     # 情況 A：旁邊是空氣才能流過去
                     if self._is_air(side_block) and not self.is_water(below):  #  and self._is_solid(side_below)
                         self._set_water(nx, y, new_level, dx)
-                        self.next_active.add((nx, y))
+                        next_active.add((nx, y))
 
                     # 情況 B：旁邊已經有水，且水位比我弱（數字大）-> 直接覆蓋！
                     # (這裡不需要管 side_below，因為旁邊本來就有水了)
@@ -87,10 +77,10 @@ class FluidManager:
                         side_level = self._get_water_level(nx, y)
                         if side_level is not None and side_level > new_level:
                             self._set_water(nx, y, new_level, dx)
-                            self.next_active.add((nx, y))
+                            next_active.add((nx, y))
 
             if level is not None:
-                self.next_active.add((x, y))
+                next_active.add((x, y))
 
             # # Strp4: 檢查哪些水已經沒有來源
             # if not self._has_support(x, y):
@@ -110,10 +100,8 @@ class FluidManager:
             #     self.wake_water(x, y)
             #     continue
 
-        # print("after =", self.next_active)
-        # print("active before assign =", self.active_fluids)
-        self.active_fluids = self.next_active
-        # print("active after assign =", self.active_fluids)
+        # print("next =", next_active)
+        self.active_fluids = next_active
 
     # 內部 Helper：
     def _get_water_level(self, world_x: int, world_y: int):
@@ -202,18 +190,15 @@ class FluidManager:
             return True
 
         above = self._get_water_level(x, y - 1)
-        left = self._get_water_level(x - 1, y)
-        right = self._get_water_level(x + 1, y)
-
-        # print(f"above={above}, left={left}, right={right}, self={self_level}")
-
         if above is not None and above <= self_level:
             return True
 
         # 左右必須是比自己強一級的水
+        left = self._get_water_level(x - 1, y)
         if left is not None and left + 1 == self_level:
             return True
 
+        right = self._get_water_level(x + 1, y)
         if right is not None and right + 1 == self_level:
             return True
 
