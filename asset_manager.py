@@ -16,25 +16,22 @@ BLOCKS_PATH = IMAGE_PATH / "2d_blocks"
 
 pygame.init()
 
-img_blocks = {}
-org_img_blocks = {}
-
-LEAVES_COLORS = {
-    "oak_leaves": (96, 163, 62),  # 經典溫帶草綠色
-    "spruce_leaves": (46, 115, 77),  # 針葉林深藍綠色
-    "birch_leaves": (128, 180, 151),  # 樺木偏粉綠、嫩綠色
-    "jungle_leaves": (48, 179, 61),  # 雨林鮮綠色
-    "desert_leaves": (174, 164, 114),  # 沙漠枯黃色（如果有的話）
-}
-
 
 class AssetManager:
     def __init__(self):
         self.img_blocks = {}
-        self.org_img_blocks = {}
 
         self.hotbar_bg = None
         self.select_frame = None
+
+        self.LEAVES_COLORS = {
+            "oak_leaves": (96, 163, 62),  # 經典溫帶草綠色
+            "spruce_leaves": (46, 115, 77),  # 針葉林深藍綠色
+            "birch_leaves": (128, 180, 151),  # 樺木偏粉綠、嫩綠色
+            "jungle_leaves": (48, 179, 61),  # 雨林鮮綠色
+            "desert_leaves": (174, 164, 114),  # 沙漠枯黃色（如果有的話）
+            "dark_oak_leaves": (35, 85, 25),  # 黑橡木深綠色
+        }
 
         self.animations = {}
 
@@ -54,20 +51,27 @@ class AssetManager:
 
             # 載入、優化並縮放圖片
 
-            if name in LEAVES_COLORS:
-                org_img = self._load_and_tint_imgs(str(path), LEAVES_COLORS[name])
+            if name in self.LEAVES_COLORS:
+                org_img = self._load_and_tint_imgs(str(path), self.LEAVES_COLORS[name])
 
-            elif name[:-5] in LEAVES_COLORS:
-                org_img = self._load_and_tint_imgs(str(path), LEAVES_COLORS[name[:-5]])
+            elif name[:-5] in self.LEAVES_COLORS:
+                org_img = self._load_and_tint_imgs(str(path), self.LEAVES_COLORS[name[:-5]])
 
             else:
                 org_img = pygame.image.load(str(path)).convert_alpha()
 
-            if name.endswith("_still"):
-                self.animations[name] = self._load_animation(str(path), tint_color=(30, 120, 240) if name == "water_still" else None)
+            if name.startswith("water_"):
+                self.animations[name] = self._load_animation(str(path), tint_color=(30, 120, 240))
+                if name.split("_")[1].isdigit():
+                    self.animations[name + "_rev"] = self._load_animation(str(path), tint_color=(30, 120, 240), rev=True)
+                    self.img_blocks[name + "_rev"] = self.animations[name + "_rev"].image
 
                 org_img = self.animations[name].image
-            self.org_img_blocks[name] = org_img
+
+            if name.startswith("lava_"):
+                self.animations[name] = self._load_animation(str(path))
+
+                org_img = self.animations[name].image
 
             # 2. 存縮放後的圖
             scaled_img = tool.scale_img(org_img, config.BLOCK_SIZE)
@@ -76,7 +80,7 @@ class AssetManager:
         self.bg_dirt = self.img_blocks["dirt"].copy()
         self.bg_dirt = tool.scale_img(self.bg_dirt, 40)
 
-    def _load_animation(self, path: str, tint_color: tuple[int, ...] = None):
+    def _load_animation(self, path: str, tint_color: tuple[int, ...] = None, rev: bool = False):
         frames = []
         sheet = pygame.image.load(path).convert_alpha()
 
@@ -89,6 +93,8 @@ class AssetManager:
         frame_count = sheet.get_height() // frame_size
         for i in range(frame_count):
             frame = sheet.subsurface((0, i * frame_size, frame_size, frame_size))
+            if rev:
+                frame = pygame.transform.flip(frame, True, False)
             frame = tool.scale_img(frame, config.BLOCK_SIZE)
 
             frames.append(frame)

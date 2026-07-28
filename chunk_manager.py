@@ -104,6 +104,15 @@ BIOMES = {
         "height": 15,
         "chunk_size": (3, 6),
     },
+    "dark_forest": {
+        "name": "dark_forest",
+        "surface": "grass",
+        "dirt": "dirt",
+        "tree": "dark_oak",
+        "tree_rate": 0.4,  # 樹木密度極高
+        "height": 10,
+        "chunk_size": (3, 6),
+    },
     # "volcano": {
     #     "name": "volcano",
     #     "surface": "basalt_side",
@@ -356,7 +365,7 @@ def _generate_caves(chunk_x, chunk_data, height_map):
             # lava_noise = opensimplex.noise2(world_x / 120, y / 120)
 
             if lake_noise > 0.72 and y > 80:
-                chunk_data[y][local_x] = "water_still"
+                chunk_data[y][local_x] = "water_source"
             else:
                 chunk_data[y][local_x] = "air"
 
@@ -494,7 +503,7 @@ def _generate_underground_water(chunk_x, chunk_data, height_map):
                 # 這樣有些原本被挖空的洞窟，下半段就會淹水，變成漂亮的地下湖泊！
                 current_block = chunk_data[y][local_x]
                 if current_block in ["air", "dirt", "stone"]:
-                    chunk_data[y][local_x] = "water_still"
+                    chunk_data[y][local_x] = "water_source"
     return chunk_data
 
 
@@ -626,12 +635,68 @@ def _veins_spawn(chunk_data, vein_size, center_y, center_x, map_width, map_heigh
 ├── _draw_cherry()
 └── _set_leaves_safe()
 """
+#  ❗ ❗ 這是特殊的情況 ❗ ❗
+# 1 代表必定生成樹葉，0 代表空置，0.5 左右代表有機率生成（營造邊緣落葉質感）
+DARK_OAK_LEAF_PATTERNS = [
+    [
+        [0, 1, 1, 1, 1, 1, 1, 0, 0],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [0, 1, 1, 1, 1, 1, 1, 1, 1],
+        [0, 1, 1, 1, 1, 1, 1, 1, 1],
+        [0, 0, 0, 1, 1, 1, 1, 0, 0],
+        [0, 0, 0, 0, 0, 1, 1, 0, 0]
+    ],
+    [
+        [0, 0, 1, 1, 1, 1, 1, 0, 0],
+        [1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 0, 0, 0],
+        [0, 1, 1, 1, 1, 0, 0, 0, 0],
+        [0, 0, 1, 1, 0, 0, 0, 0, 0],
+    ],
+    [
+        [0, 0, 1, 1, 1, 1, 1, 0, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 1, 0, 0],
+        [0, 1, 1, 1, 1, 1, 0, 0, 0],
+        [0, 0, 1, 1, 0, 0, 0, 0, 0],
+    ],
+    [
+        [0, 0, 1, 1, 1, 1, 1, 0, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 1, 0, 0],
+        [0, 0, 1, 1, 1, 1, 1, 0, 0],
+        [0, 0, 0, 0, 1, 1, 0, 0, 0],
+    ],
+]
+
 
 TREE_PATTERNS = {
-    "oak": {"height": (6, 8), "leaves": [[3, 3, 5, 5]], "fast_leaf_rate": 0.8},  # [4, 6, 7, 9, 8, 7, 7, 2]  阿姆斯特朗炮，之後做
-    "birch": {"height": (6, 8), "leaves": [[1, 3, 3, 5, 5]], "fast_leaf_rate": 0.8},
-    "spruce": {"height": (12, 15), "leaves": [[1, 3, 1, 3, 5, 3, 5, 3, 5], [1, 3, 3, 3]], "fast_leaf_rate": 0.8},
-    "jungle": {"height": (10, 16), "leaves": [[3, 3, 5, 5]], "fast_leaf_rate": 0.8},
+    "oak": {
+        "height": (6, 8),
+        "trunk_width": 1,
+        "leaves": [[3, 3, 5, 5]],
+        "fast_leaf_rate": 0.8,
+        "is_2d_matrix": False,
+    },  # [4, 6, 7, 9, 8, 7, 7, 2]  阿姆斯特朗炮，之後做
+    "birch": {"height": (6, 8), "trunk_width": 1, "leaves": [[1, 3, 3, 5, 5]], "fast_leaf_rate": 0.8, "is_2d_matrix": False},
+    "spruce": {
+        "height": (10, 14),
+        "trunk_width": 1,
+        "leaves": [[1, 3, 1, 3, 5, 3, 5, 3, 5], [1, 3, 3, 3]],
+        "fast_leaf_rate": 0.8,
+        "is_2d_matrix": False,
+    },
+    "jungle": {"height": (10, 16), "trunk_width": 1, "leaves": [[3, 3, 5, 5]], "fast_leaf_rate": 0.8, "is_2d_matrix": False},
+    "dark_oak": {
+        "height": (9, 12),
+        "trunk_width": 2,
+        "leaves": DARK_OAK_LEAF_PATTERNS,
+        "fast_leaf_rate": 0.85,
+        "is_2d_matrix": True,
+    },  # 👈 標記這棵樹使用 2D 矩陣繪製
 }
 
 
@@ -659,25 +724,11 @@ def _generate_trees(chunk_x, biome_name, chunk_data, height_map, rng: random.Ran
             bottom_y = surface_y - 1
 
             placed_tree_x.append(plant_world_x)
-            _draw_tree(biome["tree"], plant_local_x, bottom_y, chunk_x, chunk_data, rng)
+            if TREE_PATTERNS.get(biome["tree"], {}).get("is_2d_matrix"):
+                _draw_2d_matrix_tree(biome["tree"], plant_local_x, bottom_y, chunk_x, chunk_data, rng)
+            else:
+                _draw_symmetry_tree(biome["tree"], plant_local_x, bottom_y, chunk_x, chunk_data, rng)
             break
-
-    # for local_x in range(config.CHUNK_WIDTH):
-    #     world_x = chunk_x * config.CHUNK_WIDTH + local_x
-
-    #     biome = BIOMES[biome_name]
-
-    #     if biome["tree"] is None:
-    #         continue
-
-    #     surface_height = height_map[local_x]
-    #     tree_bottom_y = surface_height - 1
-
-    #     if chunk_data[surface_height][local_x] == "grass":
-    #         if rng.random() < biome["tree_rate"] and world_x - last_world_x >= tree_spawn_CD:
-    #             # 這裡不需要回傳，因為我們直接原地修改傳進去的陣列
-    #             _draw_tree(biome["tree"], local_x, tree_bottom_y, chunk_x, chunk_data, rng)
-    #             last_world_x = world_x
 
     return chunk_data
 
@@ -694,7 +745,7 @@ def _can_place_tree(plant_world_x, placed_tree_x, tree_spawn_CD):
     return True
 
 
-def _draw_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data, rng: random.Random):
+def _draw_symmetry_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data, rng: random.Random):
     if tree_type not in TREE_PATTERNS:
         print(f"Unknown tree type: {tree_type}")
         return
@@ -707,8 +758,10 @@ def _draw_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data, rng: ran
 
     # 畫樹幹
     for y in range(bottom_y, bottom_y - tree_height, -1):
-        if 0 <= y < config.MAP_HEIGHT:
-            chunk_data[y][plant_local_x] = f"{tree_type}_log"
+        if not (0 <= y < config.MAP_HEIGHT):
+            continue
+        for w in range(pattern["trunk_width"]):
+            _set_trunk_safe(tree_type, (chunk_x * config.CHUNK_WIDTH + plant_local_x) + w, y, chunk_x, chunk_data)
 
     # 畫樹冠
     top_y = bottom_y - tree_height + 1
@@ -717,6 +770,37 @@ def _draw_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data, rng: ran
     for i, width in enumerate(leaves_pattern):
         leaf_y = top_y + i
         _place_leaf_rectangle(tree_type, plant_local_x, leaf_y, width, 1, chunk_x, chunk_data, rng, fast_leaf_rate)
+
+
+def _draw_2d_matrix_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data, rng: random.Random):
+    if tree_type not in TREE_PATTERNS:
+        print(f"Unknown tree type: {tree_type}")
+        return
+
+    pattern = TREE_PATTERNS[tree_type]
+    min_height, max_height = pattern["height"]
+    tree_height = rng.randint(min_height, max_height)
+
+    fast_leaf_rate = pattern["fast_leaf_rate"]
+
+    # 畫樹幹
+    for y in range(bottom_y, bottom_y - tree_height, -1):
+        if not (0 <= y < config.MAP_HEIGHT):
+            continue
+        for w in range(pattern["trunk_width"]):
+            _set_trunk_safe(tree_type, (chunk_x * config.CHUNK_WIDTH + plant_local_x) + w, y, chunk_x, chunk_data)
+
+    # 畫樹冠（使用 2D 矩陣）
+    top_y = bottom_y - tree_height + 1
+    leaves_matrix = rng.choice(pattern["leaves"])
+
+    for dy, row in enumerate(leaves_matrix):
+        leaf_y = top_y + dy
+        for dx, cell in enumerate(row):
+            leaf_x = plant_local_x + dx - len(row) // 2  # 中心對齊
+            if cell == 1 and 0 <= leaf_x < config.CHUNK_WIDTH and 0 <= leaf_y < config.MAP_HEIGHT:
+                is_fast_leaf = rng.random() < fast_leaf_rate
+                _set_leaves_safe(tree_type, leaf_x + chunk_x * config.CHUNK_WIDTH, leaf_y, chunk_x, chunk_data, is_fast_leaf=is_fast_leaf)
 
 
 def _place_leaf_rectangle(
@@ -732,6 +816,34 @@ def _place_leaf_rectangle(
             leaf_world_x = (chunk_x * config.CHUNK_WIDTH + center_x) + lx_offset
             is_fast_leaf = rng.random() < fast_leaf_rate
             _set_leaves_safe(tree_type, leaf_world_x, ly, chunk_x, chunk_data, is_fast_leaf=is_fast_leaf)
+
+
+def _set_trunk_safe(tree_type, trunk_world_x, y, current_chunk_x, current_chunk_data):
+    if not (0 <= y < config.MAP_HEIGHT):
+        return
+
+    # 算出這個葉子落在哪個 chunk 索引，以及它的本地 X
+    target_chunk_x = trunk_world_x // config.CHUNK_WIDTH
+    local_x = trunk_world_x % config.CHUNK_WIDTH
+
+    log_block = f"{tree_type}_log"
+
+    # 情況 A：如果樹葉落在當前正在生成的這個 Chunk
+    if target_chunk_x == current_chunk_x:
+        block = current_chunk_data[y][local_x]
+        if block == "air":
+            current_chunk_data[y][local_x] = log_block
+
+    # 情況 B：如果樹葉飄到旁邊的 Chunk 了
+    else:
+        # 關鍵：只有當隔壁 Chunk 已經在記憶體中時，我們才寫入
+        # 絕對不呼叫 get_chunk() 避免無限遞迴！
+        if target_chunk_x in config.chunks:
+            neighbor_chunk = config.chunks[target_chunk_x]
+            block = neighbor_chunk.blocks[y][local_x]
+            if block  == "air":
+                neighbor_chunk.blocks[y][local_x] = log_block
+                neighbor_chunk.is_dirty = True
 
 
 def _set_leaves_safe(tree_type, leaf_world_x, y, current_chunk_x, current_chunk_data, is_fast_leaf=True):

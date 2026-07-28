@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from asset_manager import AssetManager
+    from fluid_manager import FluidManager
     from player import Player
 
 import pygame
@@ -37,6 +38,7 @@ class World:
         mouse_pos: tuple[int, int],
         player: "Player",
         camera: Camera,
+        fluid_manager: "FluidManager",
     ):
 
         self._handle_item_entities(player)
@@ -56,7 +58,7 @@ class World:
             self._handle_pick_block(clicked, player)
 
         elif mouse_buttons[2]:
-            self._handle_place_block(clicked, player)
+            self._handle_place_block(clicked, player, fluid_manager)
 
     def _get_clicked_block(self, mouse_pos, camera: Camera):
         world_x, world_y = camera.screen_to_world(mouse_pos)
@@ -93,19 +95,26 @@ class World:
             if player.can_pick_block():
                 player.pick_item(clicked.block)
 
-    def _handle_place_block(self, clicked: BlockClick, player: "Player"):
+    def _handle_place_block(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):
 
-        if self._can_place(clicked, player):
+        if self._can_place(clicked, player, fluid_manager):
             current_item = player.hotbar[player.selected_hotbar_index]
-            self._place_block(clicked, current_item["type"], player)
+            self._place_block(clicked, current_item["type"], player, fluid_manager)
+            fluid_manager.wake_water(clicked.x, clicked.y)
             player.remove_selected_item(1)
 
-    def _can_place(self, clicked: BlockClick, player: "Player"):
+    def _can_place(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):
 
-        if clicked.block != "air":
+        if clicked.block is None:
             return
 
         if player.hotbar[player.selected_hotbar_index] is None:
+            return
+
+        if fluid_manager.is_water(clicked.block):
+            return True
+
+        if clicked.block != "air":
             return
 
         if player.rect.colliderect(clicked.rect) or player.mode == "spectator":
@@ -113,7 +122,7 @@ class World:
 
         return True
 
-    def _place_block(self, clicked: BlockClick, block_type, player: "Player"):
+    def _place_block(self, clicked: BlockClick, block_type, player: "Player", fluid_manager: "FluidManager"):
         chunk_manager.set_block(clicked.x, clicked.y, block_type)
 
         new_block_rect = pygame.Rect(
@@ -126,6 +135,7 @@ class World:
         for item in self.item_entities:
             if item.rect.colliderect(new_block_rect):
                 item.resolve_stuck(new_block_rect, player)
+                fluid_manager.wake_water(clicked.x, clicked.y)
 
     def _handle_item_entities(self, player: "Player"):
         picked_items = []

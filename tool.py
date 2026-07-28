@@ -327,3 +327,15 @@ def scale_img(img, size):
 
 def float_offset(time, speed=1, height=10, offset=-10):
     return sin(time / 100 * speed) * height + offset
+
+
+def is_passable(block: str | None) -> bool:
+    """判斷方塊是否可穿透 / 碰不到 (空氣或任何型態的水)"""
+    if block is None or block == "air":
+        return True
+
+    # 只要開頭是 water，不論是 water_1, water_source 還是 water_1_rev 統統算穿透！
+    if block.startswith("water"):
+        return True
+
+    return False

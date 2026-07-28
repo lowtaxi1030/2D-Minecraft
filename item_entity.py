@@ -208,7 +208,7 @@ class ItemEntity:
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
                 block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
-                if block_name == "air":
+                if tool.is_passable(block_name):
                     continue
 
                 block_rect = pygame.Rect(
@@ -232,7 +232,7 @@ class ItemEntity:
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
                 block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
-                if block_name == "air":
+                if tool.is_passable(block_name):
                     continue
 
                 block_rect = pygame.Rect(
@@ -278,7 +278,7 @@ class ItemEntity:
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
                 block_name = block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
-                if block_name == "air":
+                if tool.is_passable(block_name):
                     continue
 
                 block_rect = pygame.Rect(

@@ -15,16 +15,9 @@ CHUNK_WIDTH = 16
 MAP_HEIGHT = 180
 
 chunks = {}
-""" 樣式
-chunks = {
-    0: chunk0,
-    1: chunk1,
-    2: chunk2,
-}
-"""
 height_map = []
 
-CURRENT_WORLD = "test"  # 可以隨意換成任何合法名字
+CURRENT_WORLD = "water copy"  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
 
 Timer_Speed = 1

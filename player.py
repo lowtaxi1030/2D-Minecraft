@@ -224,7 +224,7 @@ class Player:
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
                 block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
-                if block_name == "air" or self.mode == "spectator":
+                if tool.is_passable(block_name) or self.mode == "spectator":
                     continue
 
                 block_rect = pygame.Rect(
@@ -261,7 +261,7 @@ class Player:
             for y_pos in range(start_y, end_y):
                 for x_pos in range(start_x, end_x):
                     block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
-                    if block_name == "air" or self.mode == "spectator":
+                    if tool.is_passable(block_name) or self.mode == "spectator":
                         continue
 
                     block_rect = pygame.Rect(

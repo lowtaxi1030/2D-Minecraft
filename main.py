@@ -14,6 +14,7 @@ import ui_manager
 
 # import world_generator
 import world_manager
+from fluid_manager import FluidManager
 from player import Player
 
 save = save_manager.SaveManager()
@@ -42,6 +43,7 @@ last_chunk = None
 save.load_world(player)
 
 game_camera = camera.Camera(asset, player)
+fluid_manager = FluidManager(config.chunks)
 
 while config.running:
     events = pygame.event.get()
@@ -80,10 +82,11 @@ while config.running:
 
         # 更新
         game_camera.update(player)
-        world.update(mouse_buttons, mouse_pos, player, game_camera)
+        world.update(mouse_buttons, mouse_pos, player, game_camera, fluid_manager)
         player.update(mouse_pos, game_camera.scroll_x)
         ui.update(player, fps, mouse_pos, game_camera)
         asset.update()
+        fluid_manager.update(pygame.time.get_ticks())
 
         if dropped_item is not None:
             world.spawn_item_entity(dropped_item, player.rect.centerx, player.rect.top, "drop", player)

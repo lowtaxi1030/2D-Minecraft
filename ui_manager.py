@@ -91,6 +91,19 @@ class Hotbar:
                 item_center_x = first_slot_center_x + (i * self.SLOT_SPACING)
                 item_center_y = self.assets.select_frame_rect.centery
                 draw_item(screen, self.assets, item, item_center_x, item_center_y)
+        item = player.hotbar[player.selected_hotbar_index]
+
+        if item is not None:
+
+            ui.show_text(
+                screen,
+                item["type"].replace("_", " "),
+                tool.Colors.WHITE,
+                self.assets.select_frame_rect.centerx,
+                self.assets.select_frame_rect.centery - 80,
+                25,
+                screen_center=True,
+            )
 
 
 class Inventory:
