@@ -100,7 +100,10 @@ class World:
         if self._can_place(clicked, player, fluid_manager):
             current_item = player.hotbar[player.selected_hotbar_index]
             self._place_block(clicked, current_item["type"], player, fluid_manager)
+            if current_item["type"] == "water_source":
+                fluid_manager.add_fluid(clicked.x, clicked.y)
             fluid_manager.wake_water(clicked.x, clicked.y)
+
             player.remove_selected_item(1)
 
     def _can_place(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):

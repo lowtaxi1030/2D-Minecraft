@@ -24,6 +24,7 @@ class UI:
         self.debug = DebugScreen(assets)
 
     def handle_events(self, event, player, mouse_pos):
+        self.hotbar.handle_events(event, player, mouse_pos)
         self.inventory.handle_events(event, player, mouse_pos)
 
     def update(self, player, fps, mouse_pos, camera):
@@ -70,6 +71,13 @@ class Hotbar:
         self.INV_SPACING_X = 63
         self.INV_SPACING_Y = 63
 
+        self.show_hotbar = True
+
+    def handle_events(self, event, player: "Player", mouse_pos):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_F1:
+                self.show_hotbar = not self.show_hotbar
+
     def update(self, player: "Player"):
         self.assets.update_img_pos(self.assets.hotbar_bg_rect, screen_center=True, is_bottom=True)
 
@@ -77,33 +85,34 @@ class Hotbar:
         self.assets.select_frame_rect.top = self.assets.hotbar_bg_rect.top - 3
 
     def draw(self, screen: pygame.Surface, player: "Player"):
-        # 畫圖片
-        screen.blit(self.assets.hotbar_bg, self.assets.hotbar_bg_rect)
-        screen.blit(self.assets.select_frame, self.assets.select_frame_rect)
+        if self.show_hotbar:
+            # 畫圖片
+            screen.blit(self.assets.hotbar_bg, self.assets.hotbar_bg_rect)
+            screen.blit(self.assets.select_frame, self.assets.select_frame_rect)
 
-        # 畫方塊和數量
-        self.block_start_x = self.assets.select_frame_rect.centerx
-        self.block_start_y = self.assets.select_frame_rect.centery
-        first_slot_center_x = self.assets.hotbar_bg_rect.left + 36
-        for i in range(9):
-            item = player.hotbar[i]
+            # 畫方塊和數量
+            self.block_start_x = self.assets.select_frame_rect.centerx
+            self.block_start_y = self.assets.select_frame_rect.centery
+            first_slot_center_x = self.assets.hotbar_bg_rect.left + 36
+            for i in range(9):
+                item = player.hotbar[i]
+                if item is not None:
+                    item_center_x = first_slot_center_x + (i * self.SLOT_SPACING)
+                    item_center_y = self.assets.select_frame_rect.centery
+                    draw_item(screen, self.assets, item, item_center_x, item_center_y)
+            item = player.hotbar[player.selected_hotbar_index]
+
             if item is not None:
-                item_center_x = first_slot_center_x + (i * self.SLOT_SPACING)
-                item_center_y = self.assets.select_frame_rect.centery
-                draw_item(screen, self.assets, item, item_center_x, item_center_y)
-        item = player.hotbar[player.selected_hotbar_index]
 
-        if item is not None:
-
-            ui.show_text(
-                screen,
-                item["type"].replace("_", " "),
-                tool.Colors.WHITE,
-                self.assets.select_frame_rect.centerx,
-                self.assets.select_frame_rect.centery - 80,
-                25,
-                screen_center=True,
-            )
+                ui.show_text(
+                    screen,
+                    item["type"].replace("_", " "),
+                    tool.Colors.WHITE,
+                    self.assets.select_frame_rect.centerx,
+                    self.assets.select_frame_rect.centery - 80,
+                    25,
+                    screen_center=True,
+                )
 
 
 class Inventory:
@@ -348,8 +357,7 @@ class DebugScreen:
         if self.debug_frame >= 12:
             self.debug_frame = 0
 
-            world_mouse_x = (mouse_pos[0] + int(camera.scroll_x)) // config.BLOCK_SIZE
-            world_mouse_y = (mouse_pos[1] + int(camera.scroll_y)) // config.BLOCK_SIZE
+            world_mouse_x, world_mouse_y = camera.screen_to_world(mouse_pos)
 
             player_block_x = player.rect.centerx // config.BLOCK_SIZE
             player_block_y = player.rect.centery // config.BLOCK_SIZE

@@ -4,15 +4,11 @@ import pygame
 
 import asset_manager
 import camera
-
-# import chunk_manager
 import config
 import menu_manager
 import save_manager
 import tool
 import ui_manager
-
-# import world_generator
 import world_manager
 from fluid_manager import FluidManager
 from player import Player
