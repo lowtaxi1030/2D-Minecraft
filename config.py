@@ -17,7 +17,7 @@ MAP_HEIGHT = 180
 chunks = {}
 height_map = []
 
-CURRENT_WORLD = "water copy"  # 可以隨意換成任何合法名字
+CURRENT_WORLD = "fluid_spawn_dev"  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
 
 Timer_Speed = 1

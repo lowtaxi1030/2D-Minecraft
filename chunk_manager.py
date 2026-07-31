@@ -1,3 +1,9 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fluid_manager import FluidManager
+
+
 import math
 import os
 import random
@@ -147,13 +153,14 @@ def get_block(x_pos, y_pos):
     return chunk.blocks[local_y][local_x]
 
 
-def set_block(world_x, world_y, block_type):
+def set_block(world_x, world_y, block_type, fluid_manager: "FluidManager" = None):
     # 1. 根據世界格子 X 座標，算出在哪一個 Chunk 區塊
     chunk_i = world_x // config.CHUNK_WIDTH
 
     # 2. 如果該區塊剛好還沒生成，就先把它生出來
     if chunk_i not in config.chunks:
         get_chunk(chunk_i)
+        fluid_manager.register_chunk_fluids(chunk_i)  # 註冊 chunk 中的水源到 active_fluids
 
     # 3. 換算出在該區塊內（0 ~ 15）的相對 X 座標
     chunk_x = world_x % config.CHUNK_WIDTH
@@ -473,6 +480,10 @@ def _cleanup_terrain(chunk_x, chunk_data, height_map):
     return new_chunk
 
 
+def _generate_underground_fluids(fluid_type):
+    pass
+
+
 def _generate_underground_water(chunk_x, chunk_data, height_map):
     for local_x in range(config.CHUNK_WIDTH):
         world_x = chunk_x * config.CHUNK_WIDTH + local_x
@@ -481,22 +492,23 @@ def _generate_underground_water(chunk_x, chunk_data, height_map):
         # 限制地下水只在特定深度生成（例如：地表下方 15 格開始，到 Y = 95 之間）
         min_water_y = surface_y + 15
         max_water_y = 95
+
+        if min_water_y >= max_water_y:
+            continue
+
         for y in range(config.MAP_HEIGHT):
-            if y >= config.MAP_HEIGHT or y >= max_water_y or y <= min_water_y:
+            if y >= max_water_y or y <= min_water_y:
                 continue
 
             if chunk_data[y][local_x] == "bedrock":
                 continue
 
             # 1. 大範圍的主水脈形狀 Noise (頻率稍微拉大，讓水脈看起來比較粗、比較連貫)
-            water_vein_noise = opensimplex.noise2(world_x / 35.0, y / 20.0)
-
-            # 2. 地下水位控制 Noise (用來模擬起伏的地下水位線)
-            water_table_noise = opensimplex.noise2(world_x / 80.0, 0)
+            water_vein_noise = opensimplex.noise2(world_x / 40.0, y / 25.0)
 
             # 換算出動態的水位門檻（例如值越大，水位越高）
             depth_factor = (y - min_water_y) / (max_water_y - min_water_y)  # 算出一個 0~1 的深度比例
-            water_threshold = 0.75 - (depth_factor * 0.3) + (water_table_noise * 0.1)
+            water_threshold = 0.7 - depth_factor * 0.15
 
             if water_vein_noise > water_threshold:
                 # 為了好玩，只有當這一格目前是空氣(洞窟)、泥土或石頭時，才把它填成水
@@ -644,7 +656,7 @@ DARK_OAK_LEAF_PATTERNS = [
         [0, 1, 1, 1, 1, 1, 1, 1, 1],
         [0, 1, 1, 1, 1, 1, 1, 1, 1],
         [0, 0, 0, 1, 1, 1, 1, 0, 0],
-        [0, 0, 0, 0, 0, 1, 1, 0, 0]
+        [0, 0, 0, 0, 0, 1, 1, 0, 0],
     ],
     [
         [0, 0, 1, 1, 1, 1, 1, 0, 0],
@@ -841,7 +853,7 @@ def _set_trunk_safe(tree_type, trunk_world_x, y, current_chunk_x, current_chunk_
         if target_chunk_x in config.chunks:
             neighbor_chunk = config.chunks[target_chunk_x]
             block = neighbor_chunk.blocks[y][local_x]
-            if block  == "air":
+            if block == "air":
                 neighbor_chunk.blocks[y][local_x] = log_block
                 neighbor_chunk.is_dirty = True
 

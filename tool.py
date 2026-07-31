@@ -134,7 +134,7 @@ class Colors:
         return color1 if condition else color2
 
 
-def screen_vague(vague):
+def screen_vague(vague: int):
     """要放在此函式上的物件才會被模糊"""
     snapshot = s.copy()
 
@@ -158,17 +158,15 @@ def os_open_file(pt):
         sub.call(["xdg-open", pt])
 
 
-def clamp(start, end, num):
+def clamp(start, end, value):
     if start is None:
         start = -math.inf
     if end is None:
         end = math.inf
-    return min(max(start, num), end)
+    return min(max(start, value), end)
 
 
-def in_range(start, end, num):
-    # if start > end:
-    #     raise RangeError("'start' can't less then 'end'")
+def in_range(start: int | float, end: int | float, num):
     return start <= num <= end
 
 

@@ -13,19 +13,20 @@ class Player:
         # 2. 物理相關變數
         self.vel_x = 0
         self.vel_y = 0
-        self.jump_strength = -(config.BLOCK_SIZE / 4.5)
+        self.jump_strength = -10
         self.is_grounded = False
         self.all_modes = ["survival", "creative", "spectator"]  # , "adventure" 之後再用
         self.mode_index = 0
         self.mode = self.all_modes[self.mode_index]
-        self.current_speed = config.BLOCK_SIZE // 10
+        self.current_speed = 4.3  # blocks per second
         self.jump_buffer = 0
 
-        self.gravity = round(max(0.1, config.BLOCK_SIZE / 55), 2)
-        self.player_speed = config.BLOCK_SIZE // 10
-        self.cheat_speed = 30
-        self.player_run_speed = config.BLOCK_SIZE // 5
-        self.player_flying_speed = config.BLOCK_SIZE // 4
+        self.gravity = 40
+        self.player_walk_speed = 4.3  # blocks per second
+        self.cheat_speed = 30  # blocks per second
+        self.player_run_speed = self.player_walk_speed * 1.3  # blocks per second
+        self.player_flying_speed = 10  # blocks per second
+        self.player_flying_run_speed = 20  # blocks per second
 
         self.is_stuck = False
         self.is_running = False
@@ -128,15 +129,19 @@ class Player:
 
                 # X 軸：左右控制
                 if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                    self.vel_x -= self.player_flying_speed  # self.cheat_speed  # 往左是負
+                    self.vel_x -= (
+                        self.player_flying_run_speed if self.is_running else self.player_flying_speed
+                    )  # self.cheat_speed  # 往左是負
                 if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                    self.vel_x += self.player_flying_speed  # self.cheat_speed  # 往右是正
+                    self.vel_x += (
+                        self.player_flying_run_speed if self.is_running else self.player_flying_speed
+                    )  # self.cheat_speed  # 往右是正
 
                 # Y 軸：上下自由飛行
                 if keys[pygame.K_UP] or keys[pygame.K_w]:
-                    self.vel_y -= self.player_flying_speed  # 往上飛是負（對抗重力）
+                    self.vel_y -= self.player_flying_run_speed if self.is_running else self.player_flying_speed  # 往上飛是負（對抗重力）
                 if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-                    self.vel_y += self.player_flying_speed  # 往下飛是正
+                    self.vel_y += self.player_flying_run_speed if self.is_running else self.player_flying_speed  # 往下飛是正
             elif self.mode != "spectator":
                 self.vel_x = 0
 
@@ -171,15 +176,13 @@ class Player:
             else:
                 self.is_running = False
 
-    def update(self, mouse_pos, scroll_x):
+    def update(self, mouse_pos: tuple[int, int], scroll_x: int, dt: int):
         # 處理按鍵問題
-        if self.is_flying:
-            self.is_running = False
 
         # self.is_running &= not self.is_flying  # (另一種寫法，可以嘗試)
 
         """處理重力、移動位置、以及與地圖方塊的碰撞偵測"""
-        self.current_speed = self.player_run_speed if self.is_running else self.player_speed  # self.cheat_speed
+        self.current_speed = self.player_run_speed if self.is_running else self.player_walk_speed  # self.cheat_speed
 
         left_x = int(self.rect.left // config.BLOCK_SIZE)
         right_x = int((self.rect.right - 1) // config.BLOCK_SIZE)
@@ -202,17 +205,17 @@ class Player:
         start_y = max(0, center_grid_y - 2)
         end_y = min(config.MAP_HEIGHT, center_grid_y + 3)
 
-        self.rect.x += self.vel_x
+        self.rect.x += self.vel_x * config.BLOCK_SIZE * dt
 
         self._collide_x(start_x, end_x, start_y, end_y)
         # 應用重力
         if self.mode != "spectator" and not self.is_flying:
-            self.vel_y += self.gravity
+            self.vel_y += self.gravity * dt
 
         # 預設玩家在空中
         self.is_grounded = False
 
-        self._collide_y(start_x, end_x, start_y, end_y)
+        self._collide_y(start_x, end_x, start_y, end_y, dt)
 
         if mouse_pos[0] < self.rect.centerx - scroll_x:
             self.facing = -1
@@ -234,6 +237,10 @@ class Player:
                     config.BLOCK_SIZE,
                 )
 
+                # 如果卡牆了，就不要移動，交給_collide_y處理
+                if self.is_stuck:
+                    self.vel_x = 0
+
                 # 如果 X 移動後撞到了方塊
                 if self.rect.colliderect(block_rect) and self.mode != "spectator":
                     # 往右走時撞到（速度大於 0）
@@ -247,7 +254,7 @@ class Player:
                         self.rect.left = block_rect.right
                         self._try_auto_jump(block_rect)
 
-    def _collide_y(self, start_x, end_x, start_y, end_y):
+    def _collide_y(self, start_x, end_x, start_y, end_y, dt):
         rem_y = abs(self.vel_y)  # 還剩下多少 Y 距離要走
         sign_y = 1 if self.vel_y > 0 else -1
 

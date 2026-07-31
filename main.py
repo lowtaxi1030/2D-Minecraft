@@ -41,6 +41,9 @@ save.load_world(player)
 game_camera = camera.Camera(asset, player)
 fluid_manager = FluidManager(config.chunks)
 
+
+dt = 1
+
 while config.running:
     events = pygame.event.get()
     keys = pygame.key.get_pressed()
@@ -79,7 +82,7 @@ while config.running:
         # 更新
         game_camera.update(player)
         world.update(mouse_buttons, mouse_pos, player, game_camera, fluid_manager)
-        player.update(mouse_pos, game_camera.scroll_x)
+        player.update(mouse_pos, game_camera.scroll_x, dt)
         ui.update(player, fps, mouse_pos, game_camera)
         asset.update()
         fluid_manager.update(pygame.time.get_ticks())
@@ -143,7 +146,7 @@ while config.running:
                     config.show_debug_screen = not config.show_debug_screen
 
     pygame.display.flip()
-    clock.tick(60)
+    dt = clock.tick(60) / 1000.0
 
 pygame.quit()
 

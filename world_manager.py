@@ -52,7 +52,7 @@ class World:
             return
 
         if mouse_buttons[0]:
-            self._handle_break_block(clicked, player)
+            self._handle_break_block(clicked, player, fluid_manager)
 
         elif mouse_buttons[1]:
             self._handle_pick_block(clicked, player)
@@ -73,8 +73,8 @@ class World:
             clicked_block,
         )
 
-    def _handle_break_block(self, clicked: BlockClick, player: "Player"):
-        if clicked.block != "air" and player.can_place_block():
+    def _handle_break_block(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):
+        if clicked.block != "air" and player.can_place_block() and self._can_break(clicked, player, fluid_manager):
 
             if player.will_drop_item_entity():
                 self.item_entities.append(
@@ -90,6 +90,12 @@ class World:
 
             chunk_manager.set_block(clicked.x, clicked.y, "air")
 
+            if clicked.block == "water_source":
+                fluid_manager.add_fluid(clicked.x, clicked.y, "water")
+            fluid_manager.wake_fluid("water", clicked.x, clicked.y, fluid_manager.active_fluids)
+
+            # print(fluid_manager.active_fluids["water"])
+
     def _handle_pick_block(self, clicked: BlockClick, player: "Player"):
         if clicked.block != "air":
             if player.can_pick_block():
@@ -100,28 +106,41 @@ class World:
         if self._can_place(clicked, player, fluid_manager):
             current_item = player.hotbar[player.selected_hotbar_index]
             self._place_block(clicked, current_item["type"], player, fluid_manager)
-            if current_item["type"] == "water_source":
-                fluid_manager.add_fluid(clicked.x, clicked.y)
-            fluid_manager.wake_water(clicked.x, clicked.y)
 
             player.remove_selected_item(1)
+
+            if current_item["type"] == "water_source":
+                fluid_manager.add_fluid(clicked.x, clicked.y, "water")
+            fluid_manager.wake_fluid("water", clicked.x, clicked.y, fluid_manager.active_fluids)
 
     def _can_place(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):
 
         if clicked.block is None:
-            return
+            return False
 
         if player.hotbar[player.selected_hotbar_index] is None:
-            return
+            return False
 
-        if fluid_manager.is_water(clicked.block):
+        if fluid_manager.is_fluid(clicked.block):
             return True
 
         if clicked.block != "air":
-            return
+            return False
 
         if player.rect.colliderect(clicked.rect) or player.mode == "spectator":
-            return
+            return False
+
+        return True
+
+    def _can_break(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):
+        if clicked.block is None:
+            return False
+
+        if clicked.block == "air":
+            return False
+
+        if fluid_manager.is_fluid(clicked.block) and player.mode == "survival":
+            return False
 
         return True
 
@@ -138,7 +157,7 @@ class World:
         for item in self.item_entities:
             if item.rect.colliderect(new_block_rect):
                 item.resolve_stuck(new_block_rect, player)
-                fluid_manager.wake_water(clicked.x, clicked.y)
+                fluid_manager.wake_fluid("water", clicked.x, clicked.y, fluid_manager.active_fluids)
 
     def _handle_item_entities(self, player: "Player"):
         picked_items = []
