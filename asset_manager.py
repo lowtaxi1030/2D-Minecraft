@@ -70,6 +70,14 @@ class AssetManager:
 
             if name.startswith("lava_"):
                 self.animations[name] = self._load_animation(str(path))
+                if name.split("_")[1].isdigit():
+                    self.animations[name + "_rev"] = self._load_animation(str(path), rev=True)
+                    self.img_blocks[name + "_rev"] = self.animations[name + "_rev"].image
+
+                org_img = self.animations[name].image
+
+            if name.startswith("lava_"):
+                self.animations[name] = self._load_animation(str(path))
 
                 org_img = self.animations[name].image
 

@@ -71,6 +71,7 @@ while config.running:
 
         player.handle_input()
 
+        player.just_switched_mode = False
         for event in events:
             item = player.handle_event(event, keys)
 
@@ -80,7 +81,7 @@ while config.running:
             ui.handle_events(event, player, mouse_pos)
 
         # 更新
-        game_camera.update(player)
+        game_camera.update(player, fluid_manager)
         world.update(mouse_buttons, mouse_pos, player, game_camera, fluid_manager)
         player.update(mouse_pos, game_camera.scroll_x, dt)
         ui.update(player, fps, mouse_pos, game_camera)
@@ -100,7 +101,7 @@ while config.running:
         ui.draw(screen, player, fps, mouse_pos, game_camera)
 
         if current_chunk != last_chunk:
-            game_camera._load_visible_chunks(player)
+            game_camera._load_visible_chunks(player, fluid_manager)
             last_chunk = current_chunk
 
     elif config.game_state == "PAUSE":

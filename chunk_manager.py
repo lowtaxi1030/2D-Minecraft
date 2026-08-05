@@ -146,21 +146,20 @@ def get_block(x_pos, y_pos):
     chunk_index = world_grid_x // config.CHUNK_WIDTH
 
     local_x = world_grid_x % config.CHUNK_WIDTH
-    local_y = y_pos // config.BLOCK_SIZE
+    local_y = tool.clamp(0, config.MAP_HEIGHT - 1, y_pos // config.BLOCK_SIZE)
 
     chunk = get_chunk(chunk_index)
 
     return chunk.blocks[local_y][local_x]
 
 
-def set_block(world_x, world_y, block_type, fluid_manager: "FluidManager" = None):
+def set_block(world_x, world_y, block_type):
     # 1. 根據世界格子 X 座標，算出在哪一個 Chunk 區塊
     chunk_i = world_x // config.CHUNK_WIDTH
 
     # 2. 如果該區塊剛好還沒生成，就先把它生出來
     if chunk_i not in config.chunks:
-        get_chunk(chunk_i)
-        fluid_manager.register_chunk_fluids(chunk_i)  # 註冊 chunk 中的水源到 active_fluids
+        chunk = get_chunk(chunk_i)
 
     # 3. 換算出在該區塊內（0 ~ 15）的相對 X 座標
     chunk_x = world_x % config.CHUNK_WIDTH
@@ -173,7 +172,7 @@ def set_block(world_x, world_y, block_type, fluid_manager: "FluidManager" = None
     chunk.is_dirty = True
 
 
-def get_chunk(chunk_x) -> Chunk:
+def get_chunk(chunk_x, fluid_manager: "FluidManager" = None) -> Chunk:
     # 1. 已經載入
     if chunk_x in config.chunks:
         return config.chunks[chunk_x]
@@ -186,6 +185,8 @@ def get_chunk(chunk_x) -> Chunk:
         biome_name = _generate_biome(chunk_x, rng)
 
         config.chunks[chunk_x] = Chunk(chunk_x, loaded_chunk, biome_name)
+        if fluid_manager is not None:
+            fluid_manager.register_chunk_fluids(chunk_x, config.chunks[chunk_x])
         return config.chunks[chunk_x]
 
     # 3. 沒有存檔就生成
@@ -194,6 +195,8 @@ def get_chunk(chunk_x) -> Chunk:
     chunk = Chunk(chunk_x, blocks, biome_name)
 
     config.chunks[chunk_x] = chunk
+    if fluid_manager is not None:
+        fluid_manager.register_chunk_fluids(chunk_x, chunk)
     return chunk
 
 
@@ -211,7 +214,9 @@ def make_map(map_width, map_height, current_chunk_i):
     chunk_data = _generate_cave_entrances(current_chunk_i, chunk_data, height_map, rng)
     chunk_data = _generate_trees(current_chunk_i, biome_name, chunk_data, height_map, rng)
     chunk_data = _cleanup_terrain(current_chunk_i, chunk_data, height_map)
-    chunk_data = _generate_underground_water(current_chunk_i, chunk_data, height_map)
+    chunk_data = _generate_underground_fluids(current_chunk_i, chunk_data, height_map)
+    # chunk_data = _generate_underground_water(current_chunk_i, chunk_data, height_map)
+    # chunk_data = _generate_underground_lava(current_chunk_i, chunk_data, height_map)
     chunk_data = _generate_veins(chunk_data, map_width, map_height, rng)
 
     return chunk_data, biome_name
@@ -480,43 +485,127 @@ def _cleanup_terrain(chunk_x, chunk_data, height_map):
     return new_chunk
 
 
-def _generate_underground_fluids(fluid_type):
-    pass
-
-
-def _generate_underground_water(chunk_x, chunk_data, height_map):
+def _generate_underground_fluids(chunk_x, chunk_data, height_map):
     for local_x in range(config.CHUNK_WIDTH):
         world_x = chunk_x * config.CHUNK_WIDTH + local_x
         surface_y = height_map[local_x]
 
-        # 限制地下水只在特定深度生成（例如：地表下方 15 格開始，到 Y = 95 之間）
+        # --- 深度設定 ---
+        # 1. 地下水範圍 (淺/中層)
         min_water_y = surface_y + 15
-        max_water_y = 95
+        max_water_y = 90
 
-        if min_water_y >= max_water_y:
-            continue
+        # 2. 岩漿範圍 (深層 ~ 基岩上方)
+        min_lava_y = max(surface_y + 35, 75)  # 至少要在 Y=75 之後才開始有岩漿
+        max_lava_y = config.MAP_HEIGHT - 3  # 留幾格給基岩
 
         for y in range(config.MAP_HEIGHT):
-            if y >= max_water_y or y <= min_water_y:
-                continue
-
             if chunk_data[y][local_x] == "bedrock":
                 continue
 
-            # 1. 大範圍的主水脈形狀 Noise (頻率稍微拉大，讓水脈看起來比較粗、比較連貫)
-            water_vein_noise = opensimplex.noise2(world_x / 40.0, y / 25.0)
+            current_block = chunk_data[y][local_x]
 
-            # 換算出動態的水位門檻（例如值越大，水位越高）
-            depth_factor = (y - min_water_y) / (max_water_y - min_water_y)  # 算出一個 0~1 的深度比例
-            water_threshold = 0.7 - depth_factor * 0.15
+            # --------------------------------------------------
+            # 🌋 🔥 岩漿生成邏輯 (優先判定深層)
+            # --------------------------------------------------
+            if min_lava_y <= y <= max_lava_y:
+                # 採用不同的噪聲種子/偏移量 (如 world_x + 500) 避免水脈跟岩漿形狀完全重疊
+                lava_noise = opensimplex.noise2((world_x + 500) / 30.0, (y + 500) / 20.0)
 
-            if water_vein_noise > water_threshold:
-                # 為了好玩，只有當這一格目前是空氣(洞窟)、泥土或石頭時，才把它填成水
-                # 這樣有些原本被挖空的洞窟，下半段就會淹水，變成漂亮的地下湖泊！
-                current_block = chunk_data[y][local_x]
-                if current_block in ["air", "dirt", "stone"]:
-                    chunk_data[y][local_x] = "water_source"
+                # 越接近地底深處，岩漿生成的門檻越低 (越來越多岩漿)
+                lava_depth_factor = (y - min_lava_y) / (max_lava_y - min_lava_y)
+                lava_threshold = 0.75 - lava_depth_factor * 0.2  # 最深處門檻降到約 0.55
+
+                if lava_noise > lava_threshold:
+                    if current_block in ["air", "stone", "deepslate"]:
+                        chunk_data[y][local_x] = "lava_source"
+                        continue  # 這裡生成了岩漿，這格就跳過，不繼續塗成水
+
+            # --------------------------------------------------
+            # 💧 🌊 地下水生成邏輯 (中/淺層)
+            # --------------------------------------------------
+            if min_water_y > max_water_y:
+                continue
+            if min_water_y <= y <= max_water_y:
+                water_vein_noise = opensimplex.noise2(world_x / 40.0, y / 25.0)
+
+                water_depth_factor = (y - min_water_y) / (max_water_y - min_water_y)
+                water_threshold = 0.7 - water_depth_factor * 0.15
+
+                if water_vein_noise > water_threshold:
+                    if current_block in ["air", "dirt", "stone"]:
+                        chunk_data[y][local_x] = "water_source"
+
     return chunk_data
+
+
+# def _generate_underground_water(chunk_x, chunk_data, height_map):
+#     for local_x in range(config.CHUNK_WIDTH):
+#         world_x = chunk_x * config.CHUNK_WIDTH + local_x
+#         surface_y = height_map[local_x]
+
+#         # 限制地下水只在特定深度生成（例如：地表下方 15 格開始，到 Y = 95 之間）
+#         min_water_y = surface_y + 15
+#         max_water_y = 95
+
+#         if min_water_y >= max_water_y:
+#             continue
+
+#         for y in range(config.MAP_HEIGHT):
+#             if y >= max_water_y or y <= min_water_y:
+#                 continue
+
+#             if chunk_data[y][local_x] == "bedrock":
+#                 continue
+
+#             # 1. 大範圍的主水脈形狀 Noise (頻率稍微拉大，讓水脈看起來比較粗、比較連貫)
+#             water_vein_noise = opensimplex.noise2(world_x / 40.0, y / 25.0)
+
+#             # 換算出動態的水位門檻（例如值越大，水位越高）
+#             depth_factor = (y - min_water_y) / (max_water_y - min_water_y)  # 算出一個 0~1 的深度比例
+#             water_threshold = 0.7 - depth_factor * 0.15
+
+#             if water_vein_noise > water_threshold:
+#                 # 為了好玩，只有當這一格目前是空氣(洞窟)、泥土或石頭時，才把它填成水
+#                 # 這樣有些原本被挖空的洞窟，下半段就會淹水，變成漂亮的地下湖泊！
+#                 current_block = chunk_data[y][local_x]
+#                 if current_block in ["air", "dirt", "stone"]:
+#                     chunk_data[y][local_x] = "water_source"
+#     return chunk_data
+
+
+# def _generate_underground_lava(chunk_x, chunk_data, height_map):
+#     for local_x in range(config.CHUNK_WIDTH):
+#         world_x = chunk_x * config.CHUNK_WIDTH + local_x
+#         surface_y = height_map[local_x]
+
+#         min_lava_y = surface_y + 80
+#         max_lava_y = 180
+
+#         if min_lava_y >= max_lava_y:
+#             continue
+
+#         for y in range(config.MAP_HEIGHT):
+#             if y >= max_lava_y or y <= min_lava_y:
+#                 continue
+
+#             if chunk_data[y][local_x] == "bedrock":
+#                 continue
+
+#             # 1. 大範圍的主水脈形狀 Noise (頻率稍微拉大，讓水脈看起來比較粗、比較連貫)
+#             lava_vein_noise = opensimplex.noise2(world_x / 40.0, y / 25.0)
+
+#             # 換算出動態的水位門檻（例如值越大，水位越高）
+#             depth_factor = (y - min_lava_y) / (max_lava_y - min_lava_y)  # 算出一個 0~1 的深度比例
+#             lava_threshold = 0.7 - depth_factor * 0.15
+
+#             if lava_vein_noise > lava_threshold:
+#                 # 為了好玩，只有當這一格目前是空氣(洞窟)、泥土或石頭時，才把它填成水
+#                 # 這樣有些原本被挖空的洞窟，下半段就會淹水，變成漂亮的地下湖泊！
+#                 current_block = chunk_data[y][local_x]
+#                 if current_block in ["air", "dirt", "stone"]:
+#                     chunk_data[y][local_x] = "lava_source"
+#     return chunk_data
 
 
 def _generate_veins(chunk_data, map_width, map_height, rng: random.Random):

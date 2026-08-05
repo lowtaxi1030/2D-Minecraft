@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from asset_manager import AssetManager
+    from fluid_manager import FluidManager
     from player import Player
 import json
 
@@ -29,7 +30,7 @@ class Camera:
         self.block_size = config.BLOCK_SIZE
         self.render_rect = pygame.Rect(0, 0, 0, 0)
 
-    def update(self, player: "Player"):
+    def update(self, player: "Player", fluid_manager: "FluidManager"):
 
         view_width = config.current_width / self.zoom
         view_height = config.current_height / self.zoom
@@ -56,14 +57,14 @@ class Camera:
         # self.scroll_x = tool.clamp(0, max_scroll_x, self.scroll_x)
         self.scroll_y = tool.clamp(0, max_scroll_y, self.scroll_y)
 
-        self._load_visible_chunks(player)
+        self._load_visible_chunks(player, fluid_manager)
 
-    def _load_visible_chunks(self, player: "Player"):
+    def _load_visible_chunks(self, player: "Player", fluid_manager: "FluidManager" = None):
         # 第一步：生成玩家附近的 chunk
         current_chunk = player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
 
         for chunk_x in range(current_chunk - 5, current_chunk + 6):
-            chunk_manager.get_chunk(chunk_x)
+            chunk_manager.get_chunk(chunk_x, fluid_manager)
 
         # 第二步：刪掉離玩家太遠的 chunk
         max_distance = 8
@@ -158,11 +159,3 @@ class Camera:
         self.render_rect = scaled.get_rect(center=screen.get_rect().center)
 
         screen.blit(scaled, self.render_rect)
-
-    def draw_option_bg(self, player, mouse_pos, screen, world_surface):
-        world_surface.fill(tool.Colors.CYAN)
-
-        self.update(player)
-        player.draw(world_surface, self.scroll_x, self.scroll_y)
-        self.draw_world(world_surface, mouse_pos, draw_hover=False)
-        self.draw(screen, world_surface)

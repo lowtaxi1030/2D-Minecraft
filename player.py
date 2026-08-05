@@ -34,6 +34,8 @@ class Player:
         self.is_flying = False
         self.is_open_inv = False
 
+        self.just_switched_mode = False
+
         # 記錄格式： { pygame.K_d: 上次按下的時間(毫秒), pygame.K_a: 上次按下的時間(毫秒) }
         self.last_press_time = {}
         self.DOUBLE_DELAY = 250
@@ -76,6 +78,7 @@ class Player:
                         self.vel_y = 0
                     if self.mode == "survival":
                         self.is_flying = False
+                    self.just_switched_mode = True
 
                 if pygame.K_1 <= event.key <= pygame.K_9:
                     self.selected_hotbar_index = event.key - pygame.K_1
@@ -207,7 +210,7 @@ class Player:
 
         self.rect.x += self.vel_x * config.BLOCK_SIZE * dt
 
-        self._collide_x(start_x, end_x, start_y, end_y)
+        self._collide_x(start_x, end_x, start_y, end_y, is_swich_mode=self.just_switched_mode)
         # 應用重力
         if self.mode != "spectator" and not self.is_flying:
             self.vel_y += self.gravity * dt
@@ -222,7 +225,7 @@ class Player:
         elif mouse_pos[0] > self.rect.centerx - scroll_x:
             self.facing = 1
 
-    def _collide_x(self, start_x, end_x, start_y, end_y):
+    def _collide_x(self, start_x, end_x, start_y, end_y, is_swich_mode=False):
         # 檢查玩家周圍的方塊
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
@@ -238,7 +241,7 @@ class Player:
                 )
 
                 # 如果卡牆了，就不要移動，交給_collide_y處理
-                if self.is_stuck:
+                if is_swich_mode and self.is_stuck:
                     self.vel_x = 0
 
                 # 如果 X 移動後撞到了方塊
@@ -397,7 +400,7 @@ class Player:
         count = self._try_find_empty_slot(self.hotbar, item_type, count)
         count = self._try_find_empty_slot(self.inventory, item_type, count)
 
-        return count == 0
+        return count
 
     def drop_selected_item(self, drop_all=False):
         current_item = self.hotbar[self.selected_hotbar_index]

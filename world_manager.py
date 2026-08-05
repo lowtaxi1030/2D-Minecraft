@@ -88,11 +88,15 @@ class World:
                     )
                 )
 
+            fluid = fluid_manager.get_fluid_type(clicked.block)
+
+            if clicked.block.endswith("_source"):
+                fluid_manager.add_fluid(clicked.x, clicked.y, fluid)
+
             chunk_manager.set_block(clicked.x, clicked.y, "air")
 
-            if clicked.block == "water_source":
-                fluid_manager.add_fluid(clicked.x, clicked.y, "water")
-            fluid_manager.wake_fluid("water", clicked.x, clicked.y, fluid_manager.active_fluids)
+            for f in fluid_manager.FLUID_PROPERTIES.keys():
+                fluid_manager.wake_fluid(f, clicked.x, clicked.y, fluid_manager.active_fluids)
 
             # print(fluid_manager.active_fluids["water"])
 
@@ -109,9 +113,13 @@ class World:
 
             player.remove_selected_item(1)
 
-            if current_item["type"] == "water_source":
-                fluid_manager.add_fluid(clicked.x, clicked.y, "water")
-            fluid_manager.wake_fluid("water", clicked.x, clicked.y, fluid_manager.active_fluids)
+            fluid = fluid_manager.get_fluid_type(current_item["type"])
+
+            if current_item["type"].endswith("_source"):
+                fluid_manager.add_fluid(clicked.x, clicked.y, fluid)
+
+            for f in fluid_manager.FLUID_PROPERTIES.keys():
+                fluid_manager.wake_fluid(f, clicked.x, clicked.y, fluid_manager.active_fluids)
 
     def _can_place(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):
 
@@ -121,13 +129,13 @@ class World:
         if player.hotbar[player.selected_hotbar_index] is None:
             return False
 
+        if player.rect.colliderect(clicked.rect) or player.mode == "spectator":
+            return False
+
         if fluid_manager.is_fluid(clicked.block):
             return True
 
         if clicked.block != "air":
-            return False
-
-        if player.rect.colliderect(clicked.rect) or player.mode == "spectator":
             return False
 
         return True
@@ -140,6 +148,8 @@ class World:
             return False
 
         if fluid_manager.is_fluid(clicked.block) and player.mode == "survival":
+            if clicked.block.endswith("_source"):
+                return True
             return False
 
         return True
@@ -157,7 +167,6 @@ class World:
         for item in self.item_entities:
             if item.rect.colliderect(new_block_rect):
                 item.resolve_stuck(new_block_rect, player)
-                fluid_manager.wake_fluid("water", clicked.x, clicked.y, fluid_manager.active_fluids)
 
     def _handle_item_entities(self, player: "Player"):
         picked_items = []
@@ -169,7 +178,8 @@ class World:
 
             # 處理碰到玩家
             if player.rect.colliderect(item.rect) and player.can_pickup_item(item.item_type) and item.pickup_delay == 0:
-                if player.give_item(item.item_type, item.count):
+                remaining = player.give_item(item.item_type, item.count)
+                if remaining == 0:
                     picked_items.append(item)
 
         for item in picked_items:

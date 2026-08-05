@@ -333,7 +333,7 @@ def is_passable(block: str | None) -> bool:
         return True
 
     # 只要開頭是 water，不論是 water_1, water_source 還是 water_1_rev 統統算穿透！
-    if block.startswith("water"):
+    if block.startswith("water") or block.startswith("lava"):
         return True
 
     return False

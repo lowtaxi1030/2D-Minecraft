@@ -11,16 +11,14 @@ class FluidManager:
 
         self.FLUID_PROPERTIES = {
             "water": {
-                # "max_spread": 7,  # 最大擴散距離
-                "max_level": 8,
+                "max_level": 8,  # 最大擴散距離
                 "update_delay": 300,  # 更新頻率 (ms)
                 "last_update_time": 0,
                 "flow_block": "water_flow",
                 "source_block": "water_source",
             },
             "lava": {
-                # "max_spread": 5,  # 岩漿擴散較短
-                "max_level": 6,
+                "max_level": 5,  # 岩漿擴散較短
                 "update_delay": 550,  # 岩漿流得很慢  (ms)
                 "last_update_time": 0,
                 "flow_block": "lava_flow",
@@ -30,15 +28,22 @@ class FluidManager:
 
         self.all_fluid_blocks = {f"{fluid}_{t}" for fluid in self.FLUID_PROPERTIES for t in ("flow", "source")}
 
-    def register_chunk_fluids(self, chunk_x):
+    def register_chunk_fluids(self, chunk_x, chunk):
         """當 chunk 被生成時，呼叫此方法將 chunk 中的水源加入 active_fluids"""
-        chunk = self.chunks[chunk_x]
-        for fluid in self.FLUID_PROPERTIES.keys():
-            fluid_data = self.FLUID_PROPERTIES[fluid]
+
+        for fluid, fluid_data in self.FLUID_PROPERTIES.items():
+            target_block = fluid_data["source_block"]
+            found_count = 0
+
             for y in range(config.MAP_HEIGHT):
                 for local_x in range(config.CHUNK_WIDTH):
                     block = chunk.blocks[y][local_x]
-                    if block == fluid_data["source_block"]:
+
+                    # 印出地圖裡到底出現了什麼液體方塊
+                    if "lava" in block or "water" in block:
+                        found_count += 1
+
+                    if block == target_block:
                         world_x = chunk_x * config.CHUNK_WIDTH + local_x
                         self.active_fluids[fluid].add((world_x, y))
 
@@ -169,10 +174,76 @@ class FluidManager:
         # current_fluid.add((x, y))
 
     def _update_single_lava(self, x: int, y: int, fluid_data):
-        pass
+        next_fluid = self.next_active_fluids["lava"]
 
-    # 內部 Helper：
-    def _get_fluid_level(self, fluid_type: str, world_x: int, world_y: int):
+        level = self._get_fluid_level("lava", x, y)
+        has_changed = False
+
+        # Step2: 向下流
+        below = self._get_block(x, y + 1)
+        below_level = self._get_fluid_level("lava", x, y + 1)
+
+        if self._has_support("lava", x, y):
+            if below == "air":
+                self._set_block(x, y + 1, "lava_flow")
+                next_fluid.add((x, y + 1))
+                next_fluid.add((x, y))
+                return
+            if below_level is not None and below_level > level:
+                self._set_block(x, y + 1, "lava_flow")
+                next_fluid.add((x, y + 1))
+                has_changed = True
+
+        # Step3: 判斷能不能左右流
+        new_level = level + 1
+
+        # 只有當水位還沒達到最大值時，才能繼續向左右擴散
+        # print("[DEBUG](fluid_manager): Step3")
+        if self._has_support("lava", x, y) and new_level <= fluid_data["max_level"]:
+            for dx in (-1, 1):
+                nx = x + dx
+                side_block = self._get_block(nx, y)
+
+                # 情況 A：旁邊是空氣才能流過去
+                if self._is_air(side_block) and not self._is_fluid_type(below, "lava"):
+                    self._set_fluid("lava", nx, y, new_level, dx)
+                    next_fluid.add((nx, y))
+
+                    has_changed = True
+
+                # 情況 B：旁邊已經有岩漿，且水位比我弱（數字大）-> 直接覆蓋！
+                elif self._is_fluid_type(side_block, "lava"):
+                    side_level = self._get_fluid_level("lava", nx, y)
+                    if side_level is not None and side_level > new_level:
+                        self._set_fluid("lava", nx, y, new_level, dx)
+                        next_fluid.add((nx, y))
+
+                        has_changed = True
+
+        if has_changed:
+            next_fluid.add((x, y))
+
+        # Strp4: 檢查哪些水已經沒有來源
+        # print("[DEBUG](fluid_manager): Step4")
+        if not self._has_support("lava", x, y):
+            current_level = self._get_fluid_level("lava", x, y)
+
+            if current_level is None or current_level >= fluid_data["max_level"] or self._is_fluid_type(self._get_block(x, y), "lava"):
+                self._set_block(x, y, "air")
+
+            # # 喚醒四周，讓退潮效應像骨牌一樣向外傳遞
+            self.wake_fluid("lava", x, y, target=self.next_active_fluids)
+            return
+
+    """ 內部 Helper"""
+
+    def get_fluid_type(self, block: str) -> str:
+        for fluid_type in self.FLUID_PROPERTIES:
+            if block.startswith(fluid_type):
+                return fluid_type
+        return None
+
+    def _get_fluid_level(self, fluid_type: str, world_x: int, world_y: int) -> int | None:
         block = self._get_block(world_x, world_y)
         if block is None:
             return
@@ -195,14 +266,7 @@ class FluidManager:
             return 1
         return -1
 
-    def _set_fluid(
-        self,
-        fluid_type: str,
-        x: int,
-        y: int,
-        level: int,
-        dir: int = -1,
-    ):
+    def _set_fluid(self, fluid_type: str, x: int, y: int, level: int, dir: int = -1):
         """dir 要填 -1 或 1"""
 
         clamped_level = tool.clamp(0, self.FLUID_PROPERTIES[fluid_type]["max_level"], level)

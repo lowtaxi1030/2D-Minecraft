@@ -129,6 +129,9 @@ class Inventory:
         self.inv_main_first_x = self.inv_hotbar_first_x
         self.inv_main_first_y = self.assets.inv_rect.top + 287  # 調整這個
 
+        self.craft_start_x = 675
+        self.craft_start_y = 100
+
         self.INV_SPACING_X = 63
         self.INV_SPACING_Y = 63
 
@@ -242,15 +245,22 @@ class Inventory:
         return col, row
 
     def _get_clicked_slot_info(self, mouse_pos):
-        # --- 1. 檢查主背包區域 ---
-        # 💡 提示：把 self.inv_main_first_x 和 y 丟進去算
+        # --- 1. 檢查合成欄區域 ---
+        # 把 self.craft_start_x、y 丟進去算
+        col, row = self._get_clicked_slot(mouse_pos, self.craft_start_x, self.craft_start_y)
+        if mouse_pos[0] >= self.inv_main_first_x and mouse_pos[1] >= self.inv_main_first_y:
+            if 0 <= col < 9 and 0 <= row < 3:
+                return "craft", row * 9 + col
+
+        # --- 2. 檢查主背包區域 ---
+        # 改把 self.inv_main_first_x、y 丟進去算
         col, row = self._get_clicked_slot(mouse_pos, self.inv_main_first_x, self.inv_main_first_y)
         if mouse_pos[0] >= self.inv_main_first_x and mouse_pos[1] >= self.inv_main_first_y:
             if 0 <= col < 9 and 0 <= row < 3:
                 return "inventory", row * 9 + col
 
-        # --- 2. 檢查快捷列區域 ---
-        # 💡 提示：改把 self.inv_hotbar_first_x 和 y 丟進去算
+        # --- 3. 檢查快捷列區域 ---
+        # 改把 self.inv_hotbar_first_x、y 丟進去算
         col, row = self._get_clicked_slot(mouse_pos, self.inv_hotbar_first_x, self.inv_hotbar_first_y)
         if mouse_pos[0] >= self.inv_hotbar_first_x and mouse_pos[1] >= self.inv_hotbar_first_y:
             # 快捷列只有一排，所以 row 必須是 0
@@ -265,8 +275,10 @@ class Inventory:
         if area == "inventory":
             return player.inventory[index]
 
-    def _set_slot(self, player, area, index, item):
-        if area == "hotbar":
+    def _set_slot(self, player: "Player", area, index, item):
+        if area == "craft":
+            pass
+        elif area == "hotbar":
             player.hotbar[index] = item
         elif area == "inventory":
             player.inventory[index] = item
@@ -399,6 +411,7 @@ class DebugScreen:
                 "",
                 "=== Performance ===",
                 f"FPS : {fps:.0f}",
+                f"Scren Mouse Pos: {mouse_pos}",
                 f"Loaded Chunks : {len(config.chunks)}",
                 # f"Entities : {len(world.entities)}",
                 f"Dirty Chunks : {sum(chunk.is_dirty for chunk in config.chunks.values())}",
