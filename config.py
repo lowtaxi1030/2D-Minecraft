@@ -17,7 +17,7 @@ MAP_HEIGHT = 180
 chunks = {}
 height_map = []
 
-CURRENT_WORLD = "test1"  # 可以隨意換成任何合法名字
+CURRENT_WORLD = "craft_dev"  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
 
 Timer_Speed = 1
@@ -32,5 +32,4 @@ show_debug_screen = False
 
 pause_background = None
 
-water_frame = 0
-water_timer = 0
+TYPES_OF_WOOD = ["oak", "birch", "spruce", "jungle", "acacia", "dark_oak"]

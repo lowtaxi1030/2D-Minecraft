@@ -529,7 +529,7 @@ def _generate_underground_fluids(chunk_x, chunk_data, height_map):
             if min_water_y <= y <= max_water_y:
                 water_vein_noise = opensimplex.noise2(world_x / 40.0, y / 25.0)
 
-                water_depth_factor = (y - min_water_y) / (max_water_y - min_water_y)
+                water_depth_factor = (y - min_water_y) / max(max_water_y - min_water_y, 1)
                 water_threshold = 0.7 - water_depth_factor * 0.15
 
                 if water_vein_noise > water_threshold:

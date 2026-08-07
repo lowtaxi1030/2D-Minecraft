@@ -109,7 +109,7 @@ class World:
 
         if self._can_place(clicked, player, fluid_manager):
             current_item = player.hotbar[player.selected_hotbar_index]
-            self._place_block(clicked, current_item["type"], player, fluid_manager)
+            self._place_block(clicked, current_item["type"], player)
 
             player.remove_selected_item(1)
 
@@ -122,17 +122,18 @@ class World:
                 fluid_manager.wake_fluid(f, clicked.x, clicked.y, fluid_manager.active_fluids)
 
     def _can_place(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):
+        hand_item = player.hotbar[player.selected_hotbar_index]
 
         if clicked.block is None:
             return False
 
-        if player.hotbar[player.selected_hotbar_index] is None:
+        if hand_item is None:
             return False
 
         if player.rect.colliderect(clicked.rect) or player.mode == "spectator":
             return False
 
-        if fluid_manager.is_fluid(clicked.block):
+        if fluid_manager.is_fluid(clicked.block) and not fluid_manager.is_fluid(hand_item["type"]):
             return True
 
         if clicked.block != "air":
@@ -154,7 +155,7 @@ class World:
 
         return True
 
-    def _place_block(self, clicked: BlockClick, block_type, player: "Player", fluid_manager: "FluidManager"):
+    def _place_block(self, clicked: BlockClick, block_type, player: "Player"):
         chunk_manager.set_block(clicked.x, clicked.y, block_type)
 
         new_block_rect = pygame.Rect(

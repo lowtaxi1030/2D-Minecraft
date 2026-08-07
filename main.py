@@ -6,14 +6,17 @@ import asset_manager
 import camera
 import config
 import menu_manager
+import recipes
 import save_manager
 import tool
 import ui_manager
 import world_manager
+from craft_manager import CraftingManager
 from fluid_manager import FluidManager
 from player import Player
 
 save = save_manager.SaveManager()
+crafting_manager = CraftingManager()
 
 # 告訴系統將下一個建立的視窗放在螢幕正中央
 os.environ["SDL_VIDEO_CENTERED"] = "1"
@@ -40,6 +43,12 @@ save.load_world(player)
 
 game_camera = camera.Camera(asset, player)
 fluid_manager = FluidManager(config.chunks)
+
+recipes.register_recipes(crafting_manager)
+# print("Recipes registered:", len(crafting_manager.recipes))
+# print("Registered recipes:")
+# for recipe in crafting_manager.recipes:
+#     print(f"Ingredients: {recipe.ingredients}, Result: {recipe.result['type']} x{recipe.result['count']}")
 
 
 dt = 1
@@ -78,7 +87,7 @@ while config.running:
             if item is not None:
                 dropped_item = item
 
-            ui.handle_events(event, player, mouse_pos)
+            ui.handle_events(event, player, mouse_pos, world, crafting_manager)
 
         # 更新
         game_camera.update(player, fluid_manager)

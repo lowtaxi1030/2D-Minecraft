@@ -3,12 +3,15 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from asset_manager import AssetManager
     from camera import Camera
+    from craft_manager import CraftingManager
     from player import Player
+    from world_manager import World
 
 import pygame
 
 import chunk_manager
 import config
+import craft_manager
 import tool
 import ui_obs as ui
 
@@ -23,9 +26,9 @@ class UI:
         self.inventory = Inventory(assets)
         self.debug = DebugScreen(assets)
 
-    def handle_events(self, event, player, mouse_pos):
+    def handle_events(self, event, player, mouse_pos, world_manager: "World", crafting_manager: "CraftingManager"):
         self.hotbar.handle_events(event, player, mouse_pos)
-        self.inventory.handle_events(event, player, mouse_pos)
+        self.inventory.handle_events(event, player, mouse_pos, world_manager, crafting_manager)
 
     def update(self, player, fps, mouse_pos, camera):
         self.hotbar.update(player)
@@ -55,6 +58,7 @@ def draw_item(screen, assets, item, center_x, center_y):
         center_x,
         center_y + 5,
         25,
+        show=item["count"] > 1,
     )
 
 
@@ -129,72 +133,102 @@ class Inventory:
         self.inv_main_first_x = self.inv_hotbar_first_x
         self.inv_main_first_y = self.assets.inv_rect.top + 287  # 調整這個
 
-        self.craft_start_x = 675
-        self.craft_start_y = 100
+        self.craft_start_x = self.assets.inv_rect.right - 281
+        self.craft_start_y = self.assets.inv_rect.top + 56
+
+        self.craft_output_x = self.assets.inv_rect.right - 50
+        self.craft_output_y = self.assets.inv_rect.top + 126
+        self.preview_item = None
 
         self.INV_SPACING_X = 63
         self.INV_SPACING_Y = 63
 
+        self.player_craft_slots = craft_manager.CraftingGrid(2, 2)  # 合成欄位長度為2X2=4
         self.held_item = None
 
-    def handle_events(self, event, player: "Player", mouse_pos):
+    def handle_events(self, event, player: "Player", mouse_pos, world_manager: "World", crafting_manager: "CraftingManager"):
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
-                self._handle_left_click(player, mouse_pos)
+                self._handle_left_click(player, mouse_pos, world_manager, crafting_manager)
 
             if event.button == 3:
-                self._handle_right_click(player, mouse_pos)
+                self._handle_right_click(player, mouse_pos, world_manager, crafting_manager)
 
-    def _handle_left_click(self, player: "Player", mouse_pos):
+        self._update_craft_preview(player, world_manager, crafting_manager)
+
+    def _handle_left_click(self, player: "Player", mouse_pos, world_manager: "World", crafting_manager: "CraftingManager"):
 
         area, index = self._get_clicked_slot_info(mouse_pos)
         if area is None:
             if not self.assets.inv_rect.collidepoint(mouse_pos):
                 if self.held_item is not None:
-                    pass  # 生成掉落物
+                    world_manager.spawn_item_entity(self.held_item, player.rect.centerx, player.rect.top, "inv_drop", player)  # 生成掉落物
+                    self.held_item = None
             return
 
-        self._handle_slot_left_click(player, area, index)
+        self._handle_slot_left_click(player, area, index, world_manager, crafting_manager)
 
-    def _handle_right_click(self, player: "Player", mouse_pos):
+    def _handle_right_click(self, player: "Player", mouse_pos, world_manager: "World", crafting_manager: "CraftingManager"):
 
         area, index = self._get_clicked_slot_info(mouse_pos)
         if area is None:
             return
 
-        self._handle_slot_right_click(player, area, index)
+        self._handle_slot_right_click(player, area, index, world_manager, crafting_manager)
 
-    def _handle_slot_left_click(self, player: "Player", area, index):
+    def _handle_slot_left_click(self, player: "Player", area, index, world_manager: "World", crafting_manager: "CraftingManager"):
 
         if not player.is_open_inv:
             return
 
         slot_item = self._get_slot(player, area, index)
 
+        # 嘗試呼叫合成
+        if area == "output_craft":
+            # 1. 取得當前合成盤材料字典
+            ingredients = self._get_crafting_ingredients_dict()
+            if ingredients == {}:
+                return
+
+            # self._can_receive_crafted_item()
+
+            result = crafting_manager.craft(ingredients, self.player_craft_slots, is_preview=False)  # 執行合成，扣除材料
+
+            if result is not None and result:
+                self._receive_crafted_item(result, player, world_manager)  # 將成品給玩家
+            return
+
+        # 如果手上沒東西
         if self.held_item is None:
             self.held_item = slot_item
             slot_item = None
 
             self._set_slot(player, area, index, slot_item)
 
+        # 如果手上有東西(上面判斷通過)，且格子沒東西
         elif slot_item is None:
             self._set_slot(player, area, index, self.held_item)
 
             self.held_item = None
 
+        # 如果手上的東西和格子上的東西一樣，嘗試合併
         elif slot_item["type"] == self.held_item["type"]:
             slot_item, self.held_item = self._try_merge_stack(slot_item, self.held_item)
 
             self._set_slot(player, area, index, slot_item)
 
+        # 如果手上的東西和格子上的東西不一樣，交換
         else:
             slot_item, self.held_item = self.held_item, slot_item
 
             self._set_slot(player, area, index, slot_item)
 
-    def _handle_slot_right_click(self, player: "Player", area, index):
+    def _handle_slot_right_click(self, player: "Player", area, index, world_manager: "World", crafting_manager: "CraftingManager"):
 
         if not player.is_open_inv:
+            return
+
+        if area == "output_craft":
             return
 
         slot_item = self._get_slot(player, area, index)
@@ -237,6 +271,55 @@ class Inventory:
         else:
             pass
 
+    # def _can_receive_crafted_item(self):
+    #     if self.held_item is None:
+    #         return True
+    #     if self.held_item["count"] < 64:
+    #         return True
+
+    def _receive_crafted_item(self, result_item, player: "Player", world_manager: "World"):
+        remaining = 0
+        if self.held_item is None:
+            self.held_item = result_item
+        elif self.held_item["type"] == result_item["type"]:
+            self.held_item, result_item = self._try_merge_stack(self.held_item, result_item)
+            if result_item is not None and result_item["count"] > 0:
+                remaining = player.give_item(result_item["type"], result_item["count"])  # 將多的成品放入玩家背包或掉落到地面
+        else:
+            # 如果手上有東西，且不是同一種物品，則直接給玩家背包
+            if result_item is not None and result_item["count"] > 0:
+                remaining = player.give_item(result_item["type"], result_item["count"])  # 將成品放入玩家背包或掉落到地面
+
+        if remaining > 0:
+            world_manager.spawn_item_entity(remaining, player.rect.centerx, player.rect.top, "inv_drop", player)  # 生成掉落物
+
+    def update(self):
+        self.assets.update_img_pos(self.assets.inv_rect, y_center=True, screen_center=True)
+
+        self.craft_start_x = self.assets.inv_rect.right - 281
+        self.craft_start_y = self.assets.inv_rect.top + 56
+
+        self.craft_output_x = self.assets.inv_rect.right - 50
+        self.craft_output_y = self.assets.inv_rect.top + 126
+
+        self.inv_hotbar_first_x = self.assets.inv_rect.left + 20
+        self.inv_hotbar_first_y = self.assets.inv_rect.bottom - 91
+
+        self.inv_main_first_x = self.inv_hotbar_first_x
+        self.inv_main_first_y = self.assets.inv_rect.top + 287
+
+    def _update_craft_preview(self, player, world_manager, crafting_manager: "CraftingManager"):
+        # 統計合成盤裡的材料數量
+        ingredients = self._get_crafting_ingredients_dict()
+
+        # 這時候 ingredients 就會變成 {"oak_log": 1} 這種字典格式了！
+        preview_result = crafting_manager.craft(ingredients, self.player_craft_slots, is_preview=True)
+
+        if preview_result:
+            self.preview_item = preview_result
+        else:
+            self.preview_item = None
+
     """好用工具"""
 
     def _get_clicked_slot(self, mouse_pos, start_x, start_y):
@@ -248,18 +331,25 @@ class Inventory:
         # --- 1. 檢查合成欄區域 ---
         # 把 self.craft_start_x、y 丟進去算
         col, row = self._get_clicked_slot(mouse_pos, self.craft_start_x, self.craft_start_y)
-        if mouse_pos[0] >= self.inv_main_first_x and mouse_pos[1] >= self.inv_main_first_y:
-            if 0 <= col < 9 and 0 <= row < 3:
-                return "craft", row * 9 + col
+        if mouse_pos[0] >= self.craft_start_x and mouse_pos[1] >= self.craft_start_y:
+            if 0 <= col < self.player_craft_slots.width and 0 <= row < self.player_craft_slots.height:
+                return "craft", row * self.player_craft_slots.width + col
 
-        # --- 2. 檢查主背包區域 ---
+        # --- 2. 檢查合成結果欄區域 ---
+        # 把 self.craft_output_x、y 丟進去算
+        output_rect = pygame.Rect(0, 0, config.SLOT_SIZE, config.SLOT_SIZE)
+        output_rect.center = (self.craft_output_x, self.craft_output_y)
+        if output_rect.collidepoint(mouse_pos):
+            return "output_craft", 0
+
+        # --- 3. 檢查主背包區域 ---
         # 改把 self.inv_main_first_x、y 丟進去算
         col, row = self._get_clicked_slot(mouse_pos, self.inv_main_first_x, self.inv_main_first_y)
         if mouse_pos[0] >= self.inv_main_first_x and mouse_pos[1] >= self.inv_main_first_y:
             if 0 <= col < 9 and 0 <= row < 3:
                 return "inventory", row * 9 + col
 
-        # --- 3. 檢查快捷列區域 ---
+        # --- 4. 檢查快捷列區域 ---
         # 改把 self.inv_hotbar_first_x、y 丟進去算
         col, row = self._get_clicked_slot(mouse_pos, self.inv_hotbar_first_x, self.inv_hotbar_first_y)
         if mouse_pos[0] >= self.inv_hotbar_first_x and mouse_pos[1] >= self.inv_hotbar_first_y:
@@ -270,18 +360,35 @@ class Inventory:
         return None, None
 
     def _get_slot(self, player: "Player", area, index):
+        if area == "output_craft":
+            return self.preview_item
+        if area == "craft":
+            return self.player_craft_slots.get(index)
         if area == "hotbar":
             return player.hotbar[index]
         if area == "inventory":
             return player.inventory[index]
 
     def _set_slot(self, player: "Player", area, index, item):
+        if area == "output_craft":
+            self.preview_item = None
         if area == "craft":
-            pass
-        elif area == "hotbar":
+            self.player_craft_slots.set(index, item)
+        if area == "hotbar":
             player.hotbar[index] = item
-        elif area == "inventory":
+        if area == "inventory":
             player.inventory[index] = item
+
+    def _get_crafting_ingredients_dict(self):
+        # 統計合成盤裡的材料數量
+        ingredients = {}
+        for i in range(self.player_craft_slots.width * self.player_craft_slots.height):
+            slot = self.player_craft_slots.get(i)
+            if slot is not None:
+                item_type = slot["type"]
+                count = slot["count"]
+                ingredients[item_type] = ingredients.get(item_type, 0) + count
+        return ingredients
 
     def _try_merge_stack(self, dst_item, src_item):
         """
@@ -305,26 +412,28 @@ class Inventory:
 
     """"""
 
-    def update(self):
-        self.assets.update_img_pos(self.assets.inv_rect, y_center=True, screen_center=True)
-
-        self.inv_hotbar_first_x = self.assets.inv_rect.left + 20
-        self.inv_hotbar_first_y = self.assets.inv_rect.bottom - 91
-
-        self.inv_main_first_x = self.inv_hotbar_first_x
-        self.inv_main_first_y = self.assets.inv_rect.top + 287
-
-    def draw(self, screen, player: "Player"):
+    def draw(self, screen: pygame.Surface, player: "Player"):
         self._draw_background(screen)
+        self._draw_crafting_grid(screen)
         self._draw_inventory_items(player, screen)
         self._draw_hotbar_items(player, screen)
 
         self._draw_held_item(screen)
+        self._draw_preview_item(screen)
 
-    def _draw_background(self, screen):
+    def _draw_background(self, screen: pygame.Surface):
         screen.blit(self.assets.inventory_img, self.assets.inv_rect)
 
-    def _draw_inventory_items(self, player, screen):
+    def _draw_crafting_grid(self, screen: pygame.Surface):
+        for row in range(self.player_craft_slots.height):
+            for col in range(self.player_craft_slots.width):
+                item = self.player_craft_slots.grid[row][col]
+                if item is not None:
+                    item_center_x = self.craft_start_x + col * self.INV_SPACING_X + config.SLOT_SIZE // 2
+                    item_center_y = self.craft_start_y + row * self.INV_SPACING_Y + config.SLOT_SIZE // 2
+                    draw_item(screen, self.assets, item, item_center_x, item_center_y)
+
+    def _draw_inventory_items(self, player, screen: pygame.Surface):
         """繪製 3x9 主背包"""
         for row in range(3):
             for col in range(9):
@@ -337,7 +446,7 @@ class Inventory:
                     item_center_y = self.inv_main_first_y + row * self.INV_SPACING_Y + config.SLOT_SIZE // 2
                     draw_item(screen, self.assets, item, item_center_x, item_center_y)
 
-    def _draw_hotbar_items(self, player, screen):
+    def _draw_hotbar_items(self, player, screen: pygame.Surface):
         for i in range(9):
             item = player.hotbar[i]
             if item is not None:
@@ -346,13 +455,21 @@ class Inventory:
                 item_center_y = self.inv_hotbar_first_y + config.SLOT_SIZE // 2
                 draw_item(screen, self.assets, item, item_center_x, item_center_y)
 
-    def _draw_held_item(self, screen):
+    def _draw_held_item(self, screen: pygame.Surface):
         if self.held_item is None:
             return
 
         mouse_x, mouse_y = pygame.mouse.get_pos()
 
         draw_item(screen, self.assets, self.held_item, mouse_x, mouse_y)
+
+    def _draw_preview_item(self, screen: pygame.Surface):
+        # 測試用：直接畫一個工作檯看位置對不對
+        # draw_item(screen, self.assets, {"type": "crafting_table", "count": 1}, self.craft_output_x, self.craft_output_y)
+        if self.preview_item is None:
+            return
+
+        draw_item(screen, self.assets, self.preview_item, self.craft_output_x, self.craft_output_y)
 
 
 class DebugScreen:

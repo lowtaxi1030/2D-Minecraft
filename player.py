@@ -24,7 +24,7 @@ class Player:
         self.gravity = 40
         self.player_walk_speed = 4.3  # blocks per second
         self.cheat_speed = 30  # blocks per second
-        self.player_run_speed = self.player_walk_speed * 1.3  # blocks per second
+        self.player_run_speed = 10.0  # blocks per second
         self.player_flying_speed = 10  # blocks per second
         self.player_flying_run_speed = 20  # blocks per second
 
@@ -393,7 +393,10 @@ class Player:
 
     """掉落物相關"""
 
-    def give_item(self, item_type: str, count: int):
+    def give_item(self, item_type: str, count: int, should_modify=True):
+        if not should_modify:
+            return count
+
         count = self._try_merge_slots(self.hotbar, item_type, count)
         count = self._try_merge_slots(self.inventory, item_type, count)
 
@@ -421,7 +424,7 @@ class Player:
         else:
             return None
 
-    def _try_merge_slots(self, slots, item_type, count):
+    def _try_merge_slots(self, slots, item_type: str, count: int):
         for _, item in enumerate(slots):
             if item is not None and item["type"] == item_type and item["count"] < self.MAX_STACK:
                 can_place_num = self.MAX_STACK - item["count"]

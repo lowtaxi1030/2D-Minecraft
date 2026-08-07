@@ -16,13 +16,14 @@ class ItemEntity:
         """
         直接傳入方塊的左上角座標，至中由本身自行處理\n
         spawn_reason 可以是：\n
-        "drop"    --玩家按 Q 丟出\n
-        "break"   --挖方塊掉落\n
-        "craft"   --合成出來的東西因背包沒有空間而跑出來\n
-        "death"   --玩家死亡掉落\n
-        "mob"     --生物掉落\n
-        "chest"   --箱子噴出\n
-        "command" --指令生成\n
+        "drop"     --玩家按 Q 丟出\n
+        "inv_drop" --從背包丟出\n
+        "break"    --挖方塊掉落\n
+        "craft"    --合成出來的東西因背包沒有空間而跑出來\n
+        "death"    --玩家死亡掉落\n
+        "mob"      --生物掉落\n
+        "chest"    --箱子噴出\n
+        "command"  --指令生成\n
         """
         self.spawn_reason = spawn_reason
 
@@ -60,6 +61,9 @@ class ItemEntity:
             case "drop":
                 self._init_drop(player)
 
+            case "inv_drop":
+                self._init_inv_drop(player)
+
             case "break":
                 self._init_break()
 
@@ -85,6 +89,12 @@ class ItemEntity:
 
         self.vel_x = player.facing * 15
         self.vel_y = -4
+
+    def _init_inv_drop(self, player: "Player"):
+        self.pickup_delay = 120
+
+        self.vel_x = player.facing * 25
+        self.vel_y = -5
 
     def _init_break(self):
         speed = random.randint(5, 10)
