@@ -1,0 +1,30 @@
+from crafting_table import CraftingTable
+
+SPECIAL_BLOCKS = {
+    "crafting_table": CraftingTable,  # 現在只有一個
+    # "furnace": Furnace,
+    # "chest": Chest,
+    # "bed": Bed,
+    # "door": Door,
+    # "trapdoor": Trapdoor,
+    # "ladder": Ladder,
+    # "torch": Torch,
+    # "sign": Sign,
+    # "anvil": Anvil,
+    # "enchanting_table": EnchantingTable,
+    # "brewing_stand": BrewingStand,
+    # "cauldron": Cauldron,
+    # "jukebox": Jukebox,
+    # "note_block": NoteBlock,
+    # "piston": Piston,
+    # "sticky_piston": StickyPiston,
+    # "dispenser": Dispenser,
+    # "dropper": Dropper,
+    # "hopper": Hopper,
+    # "observer": Observer,
+    # "redstone_block": RedstoneBlock,
+    # "redstone_torch": RedstoneTorch,
+    # "lever": Lever,
+    # "button": Button,
+    # "pressure_plate": PressurePlate,
+}

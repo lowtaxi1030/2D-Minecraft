@@ -79,6 +79,7 @@ while config.running:
         dropped_item = None
 
         player.handle_input()
+        ui.handle_input()
 
         player.just_switched_mode = False
         for event in events:

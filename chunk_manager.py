@@ -131,6 +131,7 @@ BIOMES = {
 }
 
 
+
 class Chunk:
     def __init__(self, chunk_x: int, blocks, biome_name):
         self.chunk_x = chunk_x

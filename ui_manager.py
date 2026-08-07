@@ -26,6 +26,10 @@ class UI:
         self.inventory = Inventory(assets)
         self.debug = DebugScreen(assets)
 
+    def handle_input(self):
+        # 其他的之後如果有再說
+        self.inventory.handle_input()
+
     def handle_events(self, event, player, mouse_pos, world_manager: "World", crafting_manager: "CraftingManager"):
         self.hotbar.handle_events(event, player, mouse_pos)
         self.inventory.handle_events(event, player, mouse_pos, world_manager, crafting_manager)
@@ -146,6 +150,11 @@ class Inventory:
         self.player_craft_slots = craft_manager.CraftingGrid(2, 2)  # 合成欄位長度為2X2=4
         self.held_item = None
 
+        self.keys = []
+
+    def handle_input(self):
+        self.keys = pygame.key.get_pressed()
+
     def handle_events(self, event, player: "Player", mouse_pos, world_manager: "World", crafting_manager: "CraftingManager"):
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
@@ -191,6 +200,21 @@ class Inventory:
                 return
 
             # self._can_receive_crafted_item()
+
+            # 快速鍵！
+            if self.keys[pygame.K_LSHIFT] or self.keys[pygame.K_RSHIFT]:
+                # 處理快速鍵SHIFT: 一次合成、直到材料不夠為止，並把材料丟進背包裏面
+                while True:
+                    # 1. 執行合成（直接傳盤面，讓它自動計算當前剩餘材料）
+                    result = crafting_manager.craft(ingredients, self.player_craft_slots, is_preview=False)
+
+                    # 2. 沒材料了，安全跳出
+                    if not result:
+                        break
+
+                    # 3. 把成品給玩家（塞進背包）
+                    self._receive_crafted_item(result, player, world_manager, force_inventory=True)
+                return
 
             result = crafting_manager.craft(ingredients, self.player_craft_slots, is_preview=False)  # 執行合成，扣除材料
 
@@ -277,18 +301,22 @@ class Inventory:
     #     if self.held_item["count"] < 64:
     #         return True
 
-    def _receive_crafted_item(self, result_item, player: "Player", world_manager: "World"):
+    def _receive_crafted_item(self, result_item, player: "Player", world_manager: "World", force_inventory=False):
         remaining = 0
-        if self.held_item is None:
-            self.held_item = result_item
-        elif self.held_item["type"] == result_item["type"]:
-            self.held_item, result_item = self._try_merge_stack(self.held_item, result_item)
-            if result_item is not None and result_item["count"] > 0:
-                remaining = player.give_item(result_item["type"], result_item["count"])  # 將多的成品放入玩家背包或掉落到地面
+        if force_inventory:
+            remaining = player.give_item(result_item["type"], result_item["count"])  # 將成品放入玩家背包或掉落到地面
+
         else:
-            # 如果手上有東西，且不是同一種物品，則直接給玩家背包
-            if result_item is not None and result_item["count"] > 0:
-                remaining = player.give_item(result_item["type"], result_item["count"])  # 將成品放入玩家背包或掉落到地面
+            if self.held_item is None:
+                self.held_item = result_item
+            elif self.held_item["type"] == result_item["type"]:
+                self.held_item, result_item = self._try_merge_stack(self.held_item, result_item)
+                if result_item is not None and result_item["count"] > 0:
+                    remaining = player.give_item(result_item["type"], result_item["count"])  # 將多的成品放入玩家背包或掉落到地面
+            else:
+                # 如果手上有東西，且不是同一種物品，則直接給玩家背包
+                if result_item is not None and result_item["count"] > 0:
+                    remaining = player.give_item(result_item["type"], result_item["count"])  # 將成品放入玩家背包或掉落到地面
 
         if remaining > 0:
             world_manager.spawn_item_entity(remaining, player.rect.centerx, player.rect.top, "inv_drop", player)  # 生成掉落物
@@ -418,8 +446,8 @@ class Inventory:
         self._draw_inventory_items(player, screen)
         self._draw_hotbar_items(player, screen)
 
-        self._draw_held_item(screen)
         self._draw_preview_item(screen)
+        self._draw_held_item(screen)
 
     def _draw_background(self, screen: pygame.Surface):
         screen.blit(self.assets.inventory_img, self.assets.inv_rect)
