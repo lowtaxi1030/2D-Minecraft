@@ -12,14 +12,19 @@ BASE_DIR = Path(__file__).parent
 
 IMAGE_PATH = BASE_DIR / "images"
 
-BLOCKS_PATH = IMAGE_PATH / "2d_blocks"
+BLOCKS_PATH = IMAGE_PATH / "blocks"
+ITEMS_PATH = IMAGE_PATH / "items"
 
 pygame.init()
+
+class CategoryNotCurrectError(Exception):
+    __module__ = "builtins"
 
 
 class AssetManager:
     def __init__(self):
         self.img_blocks = {}
+        self.img_items = {}
 
         self.hotbar_bg = None
         self.select_frame = None
@@ -97,6 +102,17 @@ class AssetManager:
             scaled_img = tool.scale_img(org_img, config.BLOCK_SIZE)
             self.img_blocks[name] = scaled_img
 
+        for path in ITEMS_PATH.rglob("*.png"):
+            # 取得不含副檔名的名稱，例如 "grass", "coal ore"
+            name = path.stem
+
+            org_img = pygame.image.load(str(path)).convert_alpha()
+
+            # 存縮放後的圖
+            scaled_img = tool.scale_img(org_img, config.BLOCK_SIZE)
+            self.img_items[name] = scaled_img
+
+        # 處理泥土背景
         self.bg_dirt = self.img_blocks["dirt"].copy()
         self.bg_dirt = tool.scale_img(self.bg_dirt, 40)
 
@@ -202,7 +218,7 @@ class AssetManager:
         if animation:
             return self.animations[name].image
 
-        return self.img_blocks[name]
+        return self.img_blocks.get(name, self.img_items.get(name))
 
     @staticmethod
     def update_img_pos(img_rect: pygame.Rect, new_pos: tuple = None, y_center=False, screen_center=True, is_bottom=False):
@@ -229,3 +245,67 @@ class AssetManager:
 
         if y_center:
             img_rect.centery = config.current_height // 2
+
+    def get_img(self, type: str, category: str):
+        """
+        category: 可以是"block"、"item"
+        """
+
+        # --- 1. 快取檢查 (Cache Check) ---
+        if category == "block":
+            if type in self.img_blocks.keys():
+                return self.img_blocks[type]
+            path = BLOCKS_PATH
+        elif category == "item":
+            if type in self.img_items.keys():
+                return self.img_items[type]
+            path = ITEMS_PATH
+        else:
+            raise CategoryNotCurrectError(f"no such category called '{category}'")
+
+        img_path = path / type
+
+        # --- 2. 若快取沒有，才執行載入與處理 (Cache Miss) ---
+        name = img_path.stem
+
+        # 載入、優化並縮放圖片
+        if category == "block":
+            if name in self.LEAVES_COLORS:
+                org_img = self._load_and_tint_imgs(str(img_path), self.LEAVES_COLORS[name])
+
+            elif name[:-5] in self.LEAVES_COLORS:
+                org_img = self._load_and_tint_imgs(str(img_path), self.LEAVES_COLORS[name[:-5]])
+
+            else:
+                org_img = pygame.image.load(str(img_path)).convert_alpha()
+
+            if name.startswith("water_"):
+                self.animations[name] = self._load_animation(str(img_path), tint_color=(30, 120, 240))
+                if name.split("_")[1].isdigit():
+                    self.animations[name + "_rev"] = self._load_animation(str(img_path), tint_color=(30, 120, 240), rev=True)
+                    self.img_blocks[name + "_rev"] = self.animations[name + "_rev"].image
+
+                org_img = self.animations[name].image
+
+            if name.startswith("lava_"):
+                self.animations[name] = self._load_animation(str(img_path))
+                if name.split("_")[1].isdigit():
+                    self.animations[name + "_rev"] = self._load_animation(str(img_path), rev=True)
+                    self.img_blocks[name + "_rev"] = self.animations[name + "_rev"].image
+
+                org_img = self.animations[name].image
+
+            # 2. 存縮放後的圖
+            scaled_img = tool.scale_img(org_img, config.BLOCK_SIZE)
+            self.img_blocks[name] = scaled_img
+
+        elif category == "item":
+            # 取得不含副檔名的名稱，例如 "grass", "coal ore"
+            name = img_path.stem
+
+            org_img = pygame.image.load(str(img_path)).convert_alpha()
+
+            # 存縮放後的圖
+            scaled_img = tool.scale_img(org_img, config.BLOCK_SIZE)
+            self.img_items[name] = scaled_img
+

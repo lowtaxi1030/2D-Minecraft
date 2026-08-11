@@ -62,8 +62,8 @@ class UI:
         self.debug.draw(screen, player, fps, mouse_pos, camera)
 
 
-def draw_item(screen, assets, item, center_x, center_y):
-    block_img = assets.img_blocks[item["type"]]
+def draw_item(screen, assets: "AssetManager", item, center_x, center_y):
+    block_img = assets.img_blocks.get(item["type"], assets.img_items.get(item["type"]))
     block_img = pygame.transform.scale(block_img, (48, 48))
     block_rect = block_img.get_rect()
     block_rect.center = (center_x, center_y)

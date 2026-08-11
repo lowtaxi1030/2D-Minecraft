@@ -1,7 +1,7 @@
 import random
 from pathlib import Path
 
-GAME_VERSION = "V0.8.0"
+GAME_VERSION = "V0.8.2"  # 8是合成台
 
 
 BASE_DIR = Path(__file__).parent

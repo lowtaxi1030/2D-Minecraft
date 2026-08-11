@@ -30,7 +30,7 @@ def show_text(
     alpha=255,
     line_gap=5,
     use_cache=True,
-):
+) -> p.Rect | None:
     # ---------- Font Cache ----------
     font_key = (font_type, size)
 
@@ -92,22 +92,14 @@ def show_text(
     # ---------- Draw ----------
     first_rect = None
 
-    total_height = (
-        relative_rects[-1].bottom
-        if relative_rects
-        else 0
-    )
+    total_height = relative_rects[-1].bottom if relative_rects else 0
 
     for i, surf in enumerate(surfaces):
 
         draw_rect = relative_rects[i].copy()
 
         if center:
-            offset = (
-                relative_rects[i].top
-                + draw_rect.height / 2
-                - total_height / 2
-            )
+            offset = relative_rects[i].top + draw_rect.height / 2 - total_height / 2
             draw_rect.center = (x, y + offset)
 
         else:

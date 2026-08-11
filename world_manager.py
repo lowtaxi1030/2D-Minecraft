@@ -96,7 +96,7 @@ class World:
                         clicked.y * config.BLOCK_SIZE,
                         spawn_reason="break",
                         player=player,
-                        img=self.assets.img_blocks[clicked.block],
+                        img=self.assets.block(clicked.block),
                     )
                 )
 
@@ -199,7 +199,7 @@ class World:
             self.item_entities.remove(item)
 
     def spawn_item_entity(self, item, x, y, spawn_reason, player):
-        new_entity = item_entity.ItemEntity(item, x, y, spawn_reason, player, self.assets.img_blocks[item["type"]])
+        new_entity = item_entity.ItemEntity(item, x, y, spawn_reason, player, self.assets.block(item["type"]))
 
         self.item_entities.append(new_entity)
 

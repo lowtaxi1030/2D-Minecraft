@@ -35,15 +35,15 @@ RECIPES = [
         "result_type": "'plank_type'_door",  # 特殊處理
         "result_count": 3,
     },
-    {
-        "ingredients": {"'all'_planks": 6},
-        "shape": [
-            ["'all'_planks", "'all'_planks", "'all'_planks"],
-            ["'all'_planks", "'all'_planks", "'all'_planks"],
-        ],
-        "result_type": "'plank_type'_trapdoor",  # 特殊處理
-        "result_count": 1,
-    },
+    # {
+    #     "ingredients": {"'all'_planks": 6},
+    #     "shape": [
+    #         ["'all'_planks", "'all'_planks", "'all'_planks"],
+    #         ["'all'_planks", "'all'_planks", "'all'_planks"],
+    #     ],
+    #     "result_type": "'plank_type'_trapdoor",  # 特殊處理
+    #     "result_count": 1,
+    # },
     {
         "ingredients": {"stone": 8},
         "shape": [
@@ -54,6 +54,25 @@ RECIPES = [
         "result_type": "furnace",
         "result_count": 1,
     },
+    {
+        "ingredients": {"'all'_planks": 2},
+        "shape": [
+            ["'all'_planks"],
+            ["'all'_planks"],
+        ],
+        "result_type": "stick",
+        "result_count": 4,
+    },
+    {
+        "ingredients": {"'all'_planks": 3, "stick": 2},
+        "shape": [
+            ["'all'_planks", "'all'_planks", "'all'_planks"],
+            [None, "stick", None],
+            [None, "stick", None],
+        ],
+        "result_type": "wooden_pickaxe",
+        "result_count": 1,
+    }
 ]
 
 
