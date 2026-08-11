@@ -1,4 +1,4 @@
-from crafting_table import CraftingTable
+from .crafting_table import CraftingTable
 
 SPECIAL_BLOCKS = {
     "crafting_table": CraftingTable,  # 現在只有一個

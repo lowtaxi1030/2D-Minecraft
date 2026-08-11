@@ -24,15 +24,17 @@ class Player:
         self.gravity = 40
         self.player_walk_speed = 4.3  # blocks per second
         self.cheat_speed = 30  # blocks per second
-        self.player_run_speed = 10.0  # blocks per second
-        self.player_flying_speed = 10  # blocks per second
-        self.player_flying_run_speed = 20  # blocks per second
+        self.player_run_speed = 10.0  # blocks per second  正常是player_walk_speed * 1.3，之後條回來
+        self.player_flying_speed = 10.0  # blocks per second
+        self.player_flying_run_speed = 20.0  # blocks per second
 
         self.is_stuck = False
         self.is_running = False
         self.auto_jump = True
         self.is_flying = False
-        self.is_open_inv = False
+
+        self.crafting_type = None
+        # self.crafting_types = [None, "inventory", "crafting_table"]
 
         self.just_switched_mode = False
 
@@ -69,7 +71,7 @@ class Player:
     def handle_event(self, event, keys):
 
         if event.type == pygame.KEYDOWN:
-            if not self.is_open_inv:
+            if not self.crafting_type:
                 if event.key == pygame.K_m:
                     self.mode_index = (self.mode_index + 1) % len(self.all_modes)
                     self.mode = self.all_modes[self.mode_index]
@@ -111,7 +113,10 @@ class Player:
                         return self.drop_selected_item()
 
             if event.key == pygame.K_e:
-                self.is_open_inv = not self.is_open_inv
+                if self.crafting_type is None:
+                    self.crafting_type = "inventory"
+                else:
+                    self.crafting_type = None
 
         if event.type == pygame.MOUSEWHEEL:
             self.selected_hotbar_index -= event.y
@@ -125,7 +130,7 @@ class Player:
         """處理鍵盤輸入（左右移動、跳躍）"""
 
         keys = pygame.key.get_pressed()
-        if not self.is_open_inv:
+        if not self.crafting_type:
             if self.mode == "spectator" or self.is_flying:
                 self.vel_x = 0
                 self.vel_y = 0
@@ -351,7 +356,7 @@ class Player:
                 # 嘗試把手上的東西放進背包空位
                 if self._move_hand_item_to_inventory():
                     # 情況 A：成功把手上物品移入背包（或本來就是空手）
-                    print("拿出", self.inventory[i])
+                    # print("拿出", self.inventory[i])
                     self.hotbar[self.selected_hotbar_index] = self.inventory[i]
                     self.inventory[i] = None
                 else:

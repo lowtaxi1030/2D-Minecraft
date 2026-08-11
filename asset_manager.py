@@ -35,11 +35,23 @@ class AssetManager:
 
         self.animations = {}
 
+        self.ui_images = {}
+        self.ui_rects: dict[str, pygame.Rect] = {}
+
+        self.UI_IMAGES = [
+            "inventory",
+            "crafting_table",
+            # "furnace",
+            # "loom",
+            # "stonecutter",
+            # "chest",
+        ]
+
     def load(self):
         self._load_blocks()
 
         self._load_hotbar()
-        self._load_inventory()
+        self._load_ui_assets()
         self._load_setting()
 
     def _load_blocks(self):
@@ -130,15 +142,15 @@ class AssetManager:
         except FileNotFoundError as e:
             sys.exit(f"找不到 hotbar_bg 或 select_frame 的圖\n{e}")
 
-    def _load_inventory(self):
+    def _load_ui_assets(self):
         try:
-            self.inventory_img = pygame.image.load(f"{str(IMAGE_PATH)}/ui/inventory.png")
-            self.inventory_img = pygame.transform.scale_by(self.inventory_img, 3.5)
-            self.inv_rect = self.inventory_img.get_rect()
-            self.inv_rect.center = (config.WIDTH // 2, config.HEIGHT // 2)
-
+            for img in self.UI_IMAGES:
+                self.ui_images[img] = pygame.image.load(f"{str(IMAGE_PATH)}/ui/{img}.png")
+                self.ui_images[img] = pygame.transform.scale_by(self.ui_images[img], 3.5)
+                self.ui_rects[img] = self.ui_images[img].get_rect()
+                self.ui_rects[img].center = (config.WIDTH // 2, config.HEIGHT // 2)
         except FileNotFoundError as e:
-            sys.exit(f"找不到 inventory 的圖片\n{e}")
+            sys.exit(f"找不到 ui 的圖片\n{e}")
 
     def _load_setting(self):
         try:

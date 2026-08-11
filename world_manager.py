@@ -11,6 +11,7 @@ import chunk_manager
 import config
 import item_entity
 from camera import Camera
+from special_blocks import SPECIAL_BLOCKS
 
 
 class BlockClick:
@@ -43,7 +44,7 @@ class World:
 
         self._handle_item_entities(player)
 
-        if not any(mouse_buttons) or player.is_open_inv:
+        if not any(mouse_buttons) or player.crafting_type is not None:
             return
         # 計算世界座標
         clicked = self._get_clicked_block(mouse_pos, camera)
@@ -58,7 +59,8 @@ class World:
             self._handle_pick_block(clicked, player)
 
         elif mouse_buttons[2]:
-            self._handle_place_block(clicked, player, fluid_manager)
+            if not self._handle_special_block(clicked, player):
+                self._handle_place_block(clicked, player, fluid_manager)
 
     def _get_clicked_block(self, mouse_pos, camera: Camera):
         world_x, world_y = camera.screen_to_world(mouse_pos)
@@ -72,6 +74,16 @@ class World:
             world_y,
             clicked_block,
         )
+
+    def _handle_special_block(self, clicked: BlockClick, player: "Player") -> bool:
+        # 檢查是不是特殊方塊
+        if (special_block_class := SPECIAL_BLOCKS.get(clicked.block)) is None:
+            return False
+        # 執行interact
+        special_block = special_block_class(player)
+        special_block.interact()
+
+        return True
 
     def _handle_break_block(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):
         if clicked.block != "air" and player.can_place_block() and self._can_break(clicked, player, fluid_manager):

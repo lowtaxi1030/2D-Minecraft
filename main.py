@@ -25,8 +25,8 @@ pygame.init()
 screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT), pygame.RESIZABLE)
 world_surface = pygame.Surface((config.current_width, config.current_height))
 clock = pygame.time.Clock()
-# screen_text = "2D Minecraft - V0.0.0"
-pygame.display.set_caption("2D Minecraft - V0.0.0")  # 之後放screen_text
+# screen_text = f"2D Minecraft - {config.GAME_VERSION}"
+pygame.display.set_caption(f"2D Minecraft - {config.GAME_VERSION}")  # 之後放screen_text
 
 player = Player(0, 20)
 

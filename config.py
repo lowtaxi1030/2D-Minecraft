@@ -1,6 +1,9 @@
 import random
 from pathlib import Path
 
+GAME_VERSION = "V0.8.0"
+
+
 BASE_DIR = Path(__file__).parent
 
 WIDTH, HEIGHT = 1000, 600
@@ -17,7 +20,7 @@ MAP_HEIGHT = 180
 chunks = {}
 height_map = []
 
-CURRENT_WORLD = "craft_dev"  # 可以隨意換成任何合法名字
+CURRENT_WORLD = "123"  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
 
 Timer_Speed = 1
