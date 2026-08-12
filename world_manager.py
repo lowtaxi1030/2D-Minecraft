@@ -5,12 +5,15 @@ if TYPE_CHECKING:
     from fluid_manager import FluidManager
     from player import Player
 
+import random
+
 import pygame
 
 import chunk_manager
 import config
 import item_entity
 from camera import Camera
+from game_data.block_drops import BLOCK_DROPS
 from special_blocks import SPECIAL_BLOCKS
 
 
@@ -112,16 +115,17 @@ class World:
 
     def _handle_break_block(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):
         if clicked.block != "air" and player.can_place_block() and self._can_break(clicked, player, fluid_manager):
+            drop_item_type = self.get_drop_item(clicked.block)
 
-            if player.will_drop_item_entity():
+            if player.will_drop_item_entity() and drop_item_type is not None:
                 self.item_entities.append(
                     item_entity.ItemEntity(
-                        {"type": clicked.block, "count": 1},
+                        {"type": drop_item_type, "count": 1},
                         clicked.x * config.BLOCK_SIZE,
                         clicked.y * config.BLOCK_SIZE,
                         spawn_reason="break",
                         player=player,
-                        img=self.assets.block(clicked.block),
+                        img=self.assets.block(drop_item_type),
                     )
                 )
 
@@ -222,6 +226,50 @@ class World:
 
         for item in picked_items:
             self.item_entities.remove(item)
+
+    @staticmethod
+    def get_drop_item(block_name: str):
+
+        def pick_weighted_drop(raw_drops):
+            # 1. 如果是字典：代表有設定「權重/比重」
+            if isinstance(raw_drops, dict):
+                items = list(raw_drops.keys())
+                weights = list(raw_drops.values())
+                return random.choices(items, weights=weights, k=1)[0]
+
+            # 2. 如果是清單：代表「等機率隨機抽取」
+            elif isinstance(raw_drops, list):
+                return random.choice(raw_drops)
+
+            # 3. 如果是單一字串
+            return raw_drops
+
+        # 一般精確匹配 (例如 "stone", "grass")
+        if block_name in BLOCK_DROPS:
+            raw_drops = BLOCK_DROPS[block_name]
+
+            chosen_drop = pick_weighted_drop(raw_drops)
+            return chosen_drop  # 如果配置檔寫 None 就回傳 None
+
+        # 動態模板比對 (例如 {wood}_leaves)
+        for pattern, raw_drops in BLOCK_DROPS.items():
+            if "{wood}" in pattern:
+                prefix, suffix = pattern.split("{wood}", 1)
+
+                if block_name.startswith(prefix) and block_name.endswith(suffix):
+                    # 提取出來的木頭種類 (例如 "birch")
+                    # 處理 suffix 為空字串的情況
+                    end_index = len(block_name) - len(suffix) if suffix else None
+                    wood_type = block_name[len(prefix) : end_index]
+
+                    chosen_drop = pick_weighted_drop(raw_drops)
+
+                    if chosen_drop:
+                        return chosen_drop.replace("{wood}", wood_type)
+                    return None  # 抽到 None 代表不掉落
+
+        # 若字典內完全沒設定，預設掉落方塊自己本身
+        return block_name
 
     def spawn_item_entity(self, item, x, y, spawn_reason, player):
         new_entity = item_entity.ItemEntity(item, x, y, spawn_reason, player, self.assets.block(item["type"]))

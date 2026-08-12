@@ -5,8 +5,8 @@ import pygame
 import asset_manager
 import camera
 import config
+import game_data.recipes as recipes
 import menu_manager
-import recipes
 import save_manager
 import tool
 import ui_manager

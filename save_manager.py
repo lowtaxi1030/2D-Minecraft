@@ -87,6 +87,16 @@ class SaveManager:
         with open(file_path) as f:
             loaded_chunk = json.load(f)
 
+        current_height = len(loaded_chunk)
+
+        if current_height < config.MAP_HEIGHT:
+            # 計算還差了幾層 Y 軸
+            missing_layers = config.MAP_HEIGHT - current_height
+
+            # 將缺少的層數補在後面（向下延伸）
+            for _ in range(missing_layers):
+                loaded_chunk.append(["air"] * config.CHUNK_WIDTH)
+
         return loaded_chunk
 
     def chunk_path(self, chunk_x):

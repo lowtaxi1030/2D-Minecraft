@@ -17,6 +17,7 @@ ITEMS_PATH = IMAGE_PATH / "items"
 
 pygame.init()
 
+
 class CategoryNotCurrectError(Exception):
     __module__ = "builtins"
 
@@ -263,7 +264,7 @@ class AssetManager:
         else:
             raise CategoryNotCurrectError(f"no such category called '{category}'")
 
-        img_path = path / type
+        img_path = path / f"{type}.png"
 
         # --- 2. 若快取沒有，才執行載入與處理 (Cache Miss) ---
         name = img_path.stem
@@ -308,4 +309,3 @@ class AssetManager:
             # 存縮放後的圖
             scaled_img = tool.scale_img(org_img, config.BLOCK_SIZE)
             self.img_items[name] = scaled_img
-

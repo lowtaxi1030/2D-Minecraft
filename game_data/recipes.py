@@ -115,6 +115,54 @@ RECIPES = [
         "result_type": "{tool_material}_spear",
         "result_count": 1,
     },
+    {
+        "ingredients": {"{metal}": 8},
+        "shape": [
+            ["{metal}", None, "{metal}"],
+            ["{metal}", "{metal}", "{metal}"],
+            ["{metal}", "{metal}", "{metal}"],
+        ],
+        "result_type": "{tool_metal}_chestplate",
+        "result_count": 1,
+    },
+    {
+        "ingredients": {"{metal}": 7},
+        "shape": [
+            ["{metal}", "{metal}", "{metal}"],
+            ["{metal}", None, "{metal}"],
+            ["{metal}", None, "{metal}"],
+        ],
+        "result_type": "{tool_metal}_leggings",
+        "result_count": 1,
+    },
+    {
+        "ingredients": {"{metal}": 5},
+        "shape": [
+            ["{metal}", "{metal}", "{metal}"],
+            ["{metal}", None, "{metal}"],
+        ],
+        "result_type": "{tool_metal}_helmet",
+        "result_count": 1,
+    },
+    {
+        "ingredients": {"{metal}": 4},
+        "shape": [
+            ["{metal}", None, "{metal}"],
+            ["{metal}", None, "{metal}"],
+        ],
+        "result_type": "{tool_metal}_boots",
+        "result_count": 1,
+    },
+    {
+        "ingredients": {"{metal}": 9},
+        "shape": [
+            ["{metal}", "{metal}", "{metal}"],
+            ["{metal}", "{metal}", "{metal}"],
+            ["{metal}", "{metal}", "{metal}"],
+        ],
+        "result_type": "{tool_metal}_block",
+        "result_count": 1,
+    },
 ]
 
 
@@ -123,12 +171,16 @@ def register_recipes(crafting_manager: "CraftingManager"):
         # 🎯 檢查配方是否含有 '{wood}' 預留字
         is_wood_template = any("{wood}" in str(k) for k in r["ingredients"].keys()) or "{wood}" in r["result_type"]
         is_material_template = any("{material}" in str(v) for v in r["ingredients"].keys()) or "{tool_material}" in r["result_type"]
+        is_metal_template = any("{metal}" in str(v) for v in r["ingredients"].keys()) or "{tool_metal}" in r["result_type"]
 
         if is_wood_template:
             _handle_wood_recipe(r, crafting_manager)
 
         elif is_material_template:
             _handle_material_recipe(r, crafting_manager)
+
+        elif is_metal_template:
+            _handle_metal_recipe(r, crafting_manager)
 
         else:
             # 一般普通固定配方
@@ -186,6 +238,29 @@ def _handle_material_recipe(r, crafting_manager: CraftingManager):
         crafting_manager.add_recipe(recipe)
 
 
+def _handle_metal_recipe(r, crafting_manager: CraftingManager):
+    # 🎯 遍歷每一種材質 (例如: ("oak_planks", "wooden"), ("iron_ingot", "iron"))
+    for met_item, tool_prefix in get_all_metal():
+
+        # 1. 替換 ingredients
+        new_ingredients = {item.replace("{metal}", met_item): count for item, count in r["ingredients"].items()}
+
+        # 2. 替換 shape 陣列
+        new_shape = [[item.replace("{metal}", met_item) if item is not None else None for item in row] for row in r["shape"]]
+
+        # 3. 替換成品名稱 (例如 "{tool_metal}_pickaxe" -> "iron_pickaxe")
+        new_result_type = r["result_type"].replace("{tool_metal}", tool_prefix)
+
+        # 建立並註冊 ShapeRecipe
+        recipe = craft_manager.ShapeRecipe(
+            ingredients=new_ingredients,
+            shape=new_shape,
+            result_type=new_result_type,
+            result_count=r["result_count"],
+        )
+        crafting_manager.add_recipe(recipe)
+
+
 def get_all_materials() -> list[tuple[str, str]]:
     materials = []
     # 1. 把所有木頭種類展開
@@ -203,3 +278,17 @@ def get_all_materials() -> list[tuple[str, str]]:
         ]
     )
     return materials
+
+
+def get_all_metal() -> list[tuple[str, str]]:
+    metals = []
+
+    metals.extend(
+        [
+            ("iron_ingot", "iron"),
+            ("copper_ingot", "copper"),
+            ("gold_ingot", "golden"),
+            ("diamond", "diamond"),
+        ]
+    )
+    return metals

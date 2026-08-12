@@ -143,7 +143,7 @@ class Camera:
 
                 if block_name != "air":
                     # print(block_name)
-                    img = self.assets.block(block_name)  # 之後改成.get_img(block_name)
+                    img = self.assets.block(block_name)  # .get_img(block_name, "block")
                     if img:
                         screen.blit(img, (pixel_x, pixel_y))
                     else:
