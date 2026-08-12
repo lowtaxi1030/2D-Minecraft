@@ -129,7 +129,7 @@ class FluidManager:
                 side_block = self._get_block(nx, y)
 
                 # 情況 A：旁邊是空氣才能流過去
-                if self._is_air(side_block) and not self._is_fluid_type(below, "water"):
+                if self._is_air(side_block) and (not self._is_fluid_type(below, "water") or below == fluid_data["source_block"]):
                     self._set_fluid("water", nx, y, new_level, dx)
                     next_fluid.add((nx, y))
 
@@ -205,7 +205,7 @@ class FluidManager:
                 side_block = self._get_block(nx, y)
 
                 # 情況 A：旁邊是空氣才能流過去
-                if self._is_air(side_block) and not self._is_fluid_type(below, "lava"):
+                if self._is_air(side_block) and (not self._is_fluid_type(below, "lava") or below == fluid_data["source_block"]):
                     self._set_fluid("lava", nx, y, new_level, dx)
                     next_fluid.add((nx, y))
 

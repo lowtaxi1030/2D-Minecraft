@@ -33,6 +33,9 @@ class World:
 
         self.item_entities = []
 
+        self.last_pos = (0, 0)
+        self.last_mouse_btn = -1
+
     def update(
         self,
         mouse_buttons: tuple[bool, bool, bool],
@@ -44,12 +47,32 @@ class World:
 
         self._handle_item_entities(player)
 
+        # 沒有按下任何鍵，或是正在合成中
         if not any(mouse_buttons) or player.crafting_type is not None:
+            # 鬆開所有按鍵時，把記錄的按鍵與位置重置
+            self.last_mouse_btn = -1
+            self.last_pos = None
             return
+
+        current_btn = -1
+        if mouse_buttons[0]:
+            current_btn = 0
+        elif mouse_buttons[1]:
+            current_btn = 1
+        elif mouse_buttons[2]:
+            current_btn = 2
+
         # 計算世界座標
         clicked = self._get_clicked_block(mouse_pos, camera)
 
         if clicked is None:
+            self.last_mouse_btn = -1
+            self.last_pos = None
+            return
+
+        current_pos = (clicked.x, clicked.y)
+
+        if current_pos == self.last_pos and current_btn == self.last_mouse_btn:
             return
 
         if mouse_buttons[0]:
@@ -61,6 +84,8 @@ class World:
         elif mouse_buttons[2]:
             if not self._handle_special_block(clicked, player):
                 self._handle_place_block(clicked, player, fluid_manager)
+        self.last_pos = current_pos
+        self.last_mouse_btn = current_btn
 
     def _get_clicked_block(self, mouse_pos, camera: Camera):
         world_x, world_y = camera.screen_to_world(mouse_pos)

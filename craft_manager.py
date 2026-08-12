@@ -8,7 +8,7 @@
 class ShapeRecipe:
     def __init__(self, ingredients: dict[str, int], shape: list[list[None | str]], result_type: str, result_count: int):
         self.ingredients = ingredients  # ex. {"stone": 3, "stick": 2}  # 材料
-        self.shape = shape  # 合成形狀
+        self.shape = self._trim_shape(shape)  # 合成形狀
         self.result = {"type": result_type, "count": result_count}  # ex. {"type": "stone_pickaxe", "count": 1}  # 成品
 
     def can_craft(self, crafting_grid):
@@ -28,6 +28,33 @@ class ShapeRecipe:
 
         return self.result.copy()
 
+    def _trim_shape(self, shape: list[list[str | None]]) -> list[list[str | None]]:
+        items_pos = []
+        # 1. 遍歷傳進來的 shape 矩陣，找出所有非 None 物品的位置 (r, c)
+        for r in range(len(shape)):
+            for c in range(len(shape[r])):
+                if shape[r][c] is not None:
+                    items_pos.append((r, c))
+
+        if not items_pos:
+            return []
+
+        # 2. 算出最小與最大的列 (r)、行 (c) 邊界
+        min_r = min(r for r, c in items_pos)
+        max_r = max(r for r, c in items_pos)
+        min_c = min(c for r, c in items_pos)
+        max_c = max(c for r, c in items_pos)
+
+        # 3. 根據邊界裁切陣列
+        trimmed_shape = []
+        for r in range(min_r, max_r + 1):
+            row = []
+            for c in range(min_c, max_c + 1):
+                # shape[r][c] 本身就是字串或 None，直接加入即可！
+                row.append(shape[r][c])
+            trimmed_shape.append(row)
+
+        return trimmed_shape
 
 class CraftingManager:
     def __init__(self):

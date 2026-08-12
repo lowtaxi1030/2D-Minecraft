@@ -1,7 +1,7 @@
 import random
 from pathlib import Path
 
-GAME_VERSION = "V0.8.2"  # 8是合成台
+GAME_VERSION = "V0.8.4.2"
 
 
 BASE_DIR = Path(__file__).parent
@@ -15,12 +15,14 @@ BLOCK_SIZE = 50
 camera_zoom = 1.0
 
 CHUNK_WIDTH = 16
-MAP_HEIGHT = 180
+MAP_HEIGHT = 300
+
+BASE_LINE = 80
 
 chunks = {}
 height_map = []
 
-CURRENT_WORLD = "123"  # 可以隨意換成任何合法名字
+CURRENT_WORLD = "spawn_test2"  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
 
 Timer_Speed = 1

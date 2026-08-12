@@ -63,7 +63,7 @@ class UI:
 
 
 def draw_item(screen, assets: "AssetManager", item, center_x, center_y):
-    block_img = assets.img_blocks.get(item["type"], assets.img_items.get(item["type"]))
+    block_img = assets.block(item["type"])
     block_img = pygame.transform.scale(block_img, (48, 48))
     block_rect = block_img.get_rect()
     block_rect.center = (center_x, center_y)
@@ -669,8 +669,12 @@ class DebugScreen:
 
             world_mouse_x, world_mouse_y = camera.screen_to_world(mouse_pos)
 
+            show_mouse_y = 63 + (config.BASE_LINE - world_mouse_y)
+
             player_block_x = player.rect.centerx // config.BLOCK_SIZE
             player_block_y = player.rect.centery // config.BLOCK_SIZE
+
+            show_player_y = 63 + (config.BASE_LINE - player_block_y)
 
             current_chunk = player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
             local_x = player_block_x % config.CHUNK_WIDTH
@@ -695,7 +699,7 @@ class DebugScreen:
 
             self.left_lines = [
                 "=== Player ===",
-                f"Pos : ({player_block_x}, {player_block_y})",
+                f"Pos : ({player_block_x}, {show_player_y})",
                 f"Vel : ({player.vel_x:.2f}, {player.vel_y:.2f})",
                 f"Grounded : {player.is_grounded}",
                 f"Flying : {player.is_flying}",
@@ -703,7 +707,7 @@ class DebugScreen:
                 f"Facing : {'Right' if player.facing == 1 else 'Left'}",
                 "",
                 "=== Block ===",
-                f"Mouse Pos : ({world_mouse_x}, {world_mouse_y})",
+                f"Mouse Pos : ({world_mouse_x}, {show_mouse_y})",
                 f"Mouse : {mouse_block}",
                 f"Standing : {standing_block}",
                 "",

@@ -9,39 +9,41 @@ if TYPE_CHECKING:
 import config
 import craft_manager
 
+TYPES_OF_MATERIAL = ["{wood}_planks", "stone", "iron_ingot", "copper_ingot", "gold_ingot", "diamond"]
+
 RECIPES = [
     {
-        "ingredients": {"'all'_log": 1},
-        "shape": [["'all'_log"]],
-        "result_type": "'all'_planks",
+        "shape": [["{wood}_log"]],
+        "ingredients": {"{wood}_log": 1},
+        "result_type": "{wood}_planks",
         "result_count": 4,
     },
     {
-        "ingredients": {"'all'_planks": 4},
+        "ingredients": {"{wood}_planks": 4},
         "shape": [
-            ["'all'_planks", "'all'_planks"],
-            ["'all'_planks", "'all'_planks"],
+            ["{wood}_planks", "{wood}_planks"],
+            ["{wood}_planks", "{wood}_planks"],
         ],
         "result_type": "crafting_table",
         "result_count": 1,
     },
     {
-        "ingredients": {"'all'_planks": 6},
+        "ingredients": {"{wood}_planks": 6},
         "shape": [
-            ["'all'_planks", "'all'_planks"],
-            ["'all'_planks", "'all'_planks"],
-            ["'all'_planks", "'all'_planks"],
+            ["{wood}_planks", "{wood}_planks"],
+            ["{wood}_planks", "{wood}_planks"],
+            ["{wood}_planks", "{wood}_planks"],
         ],
-        "result_type": "'plank_type'_door",  # 特殊處理
+        "result_type": "{wood}_door",  # 特殊處理
         "result_count": 3,
     },
     # {
-    #     "ingredients": {"'all'_planks": 6},
+    #     "ingredients": {"{wood}_planks": 6},
     #     "shape": [
-    #         ["'all'_planks", "'all'_planks", "'all'_planks"],
-    #         ["'all'_planks", "'all'_planks", "'all'_planks"],
+    #         ["{wood}_planks", "{wood}_planks", "{wood}_planks"],
+    #         ["{wood}_planks", "{wood}_planks", "{wood}_planks"],
     #     ],
-    #     "result_type": "'plank_type'_trapdoor",  # 特殊處理
+    #     "result_type": "{wood}_trapdoor",  # 特殊處理
     #     "result_count": 1,
     # },
     {
@@ -55,54 +57,81 @@ RECIPES = [
         "result_count": 1,
     },
     {
-        "ingredients": {"'all'_planks": 2},
+        "ingredients": {"{wood}_planks": 2},
         "shape": [
-            ["'all'_planks"],
-            ["'all'_planks"],
+            ["{wood}_planks"],
+            ["{wood}_planks"],
         ],
         "result_type": "stick",
         "result_count": 4,
     },
     {
-        "ingredients": {"'all'_planks": 3, "stick": 2},
+        "ingredients": {"{material}": 3, "stick": 2},
         "shape": [
-            ["'all'_planks", "'all'_planks", "'all'_planks"],
+            ["{material}", "{material}", "{material}"],
             [None, "stick", None],
             [None, "stick", None],
         ],
-        "result_type": "wooden_pickaxe",
+        "result_type": "{tool_material}_pickaxe",
         "result_count": 1,
-    }
+    },
+    {
+        "ingredients": {"{material}": 3, "stick": 2},
+        "shape": [
+            ["{material}", "{material}", None],
+            ["{material}", "stick", None],
+            [None, "stick", None],
+        ],
+        "result_type": "{tool_material}_axe",
+        "result_count": 1,
+    },
+    {
+        "ingredients": {"{material}": 1, "stick": 2},
+        "shape": [
+            [None, "{material}"],
+            [None, "stick"],
+            [None, "stick"],
+        ],
+        "result_type": "{tool_material}_shovel",
+        "result_count": 1,
+    },
+    {
+        "ingredients": {"{material}": 2, "stick": 2},
+        "shape": [
+            ["{material}", "{material}"],
+            [None, "stick"],
+            [None, "stick"],
+        ],
+        "result_type": "{tool_material}_hoe",
+        "result_count": 1,
+    },
+    {
+        "ingredients": {"{material}": 1, "stick": 2},
+        "shape": [
+            ["{material}", None, None],
+            [None, "stick", None],
+            [None, None, "stick"],
+        ],
+        "result_type": "{tool_material}_spear",
+        "result_count": 1,
+    },
 ]
 
 
 def register_recipes(crafting_manager: "CraftingManager"):
-    # 石鎬 Recipe
     for r in RECIPES:
-        has_wood_template = any("'all'" in key or "'plank_type'" in key for key in r["ingredients"].keys())
-        if has_wood_template:
-            # 展開所有木頭種類
-            for wood in config.TYPES_OF_WOOD:
-                # 替換材料名稱中的 'all'
-                new_ingredients = {
-                    item.replace("'all'", wood).replace("'plank_type'", wood): count for item, count in r["ingredients"].items()
-                }
-                # 替換成品名稱中的 'all'
-                new_shape = [
-                    [item.replace("'all'", wood).replace("'plank_type'", wood) if item is not None else None for item in row]
-                    for row in r["shape"]
-                ]
-                new_result_type = r["result_type"].replace("'all'", wood).replace("'plank_type'", wood)
+        # 🎯 檢查配方是否含有 '{wood}' 預留字
+        is_wood_template = any("{wood}" in str(k) for k in r["ingredients"].keys()) or "{wood}" in r["result_type"]
+        is_material_template = any("{material}" in str(v) for v in r["ingredients"].keys()) or "{tool_material}" in r["result_type"]
 
-                recipe = craft_manager.ShapeRecipe(
-                    ingredients=new_ingredients,
-                    shape=new_shape,
-                    result_type=new_result_type,
-                    result_count=r["result_count"],
-                )
-                crafting_manager.add_recipe(recipe)
+        if is_wood_template:
+            _handle_wood_recipe(r, crafting_manager)
+
+        elif is_material_template:
+            _handle_material_recipe(r, crafting_manager)
+
         else:
-            # 一般普通配方，直接註冊
+            # 一般普通固定配方
             recipe = craft_manager.ShapeRecipe(
                 ingredients=r["ingredients"],
                 shape=r["shape"],
@@ -110,3 +139,67 @@ def register_recipes(crafting_manager: "CraftingManager"):
                 result_count=r["result_count"],
             )
             crafting_manager.add_recipe(recipe)
+
+
+def _handle_wood_recipe(r, crafting_manager: CraftingManager):
+    # 展開所有木頭 (oak, birch, spruce...)
+    for wood in config.TYPES_OF_WOOD:
+        # 1. 替換 ingredients (例如: "{wood}_log" -> "oak_log")
+        new_ingredients = {item.replace("{wood}", wood): count for item, count in r["ingredients"].items()}
+
+        # 2. 替換 shape
+        new_shape = [[item.replace("{wood}", wood) if item is not None else None for item in row] for row in r["shape"]]
+
+        # 3. 替換成品名稱 (例如: "{wood}_planks" -> "oak_planks")
+        new_result_type = r["result_type"].replace("{wood}", wood)
+
+        # 建立並註冊配方
+        recipe = craft_manager.ShapeRecipe(
+            ingredients=new_ingredients,
+            shape=new_shape,
+            result_type=new_result_type,
+            result_count=r["result_count"],
+        )
+        crafting_manager.add_recipe(recipe)
+
+
+def _handle_material_recipe(r, crafting_manager: CraftingManager):
+    # 🎯 遍歷每一種材質 (例如: ("oak_planks", "wooden"), ("iron_ingot", "iron"))
+    for mat_item, tool_prefix in get_all_materials():
+
+        # 1. 替換 ingredients
+        new_ingredients = {item.replace("{material}", mat_item): count for item, count in r["ingredients"].items()}
+
+        # 2. 替換 shape 陣列
+        new_shape = [[item.replace("{material}", mat_item) if item is not None else None for item in row] for row in r["shape"]]
+
+        # 3. 替換成品名稱 (例如 "{tool_material}_pickaxe" -> "iron_pickaxe")
+        new_result_type = r["result_type"].replace("{tool_material}", tool_prefix)
+
+        # 建立並註冊 ShapeRecipe
+        recipe = craft_manager.ShapeRecipe(
+            ingredients=new_ingredients,
+            shape=new_shape,
+            result_type=new_result_type,
+            result_count=r["result_count"],
+        )
+        crafting_manager.add_recipe(recipe)
+
+
+def get_all_materials() -> list[tuple[str, str]]:
+    materials = []
+    # 1. 把所有木頭種類展開
+    for wood in config.TYPES_OF_WOOD:
+        materials.append((f"{wood}_planks", "wooden"))
+
+    # 2. 加入其他一般材質 (材料名, 工具前綴)
+    materials.extend(
+        [
+            ("cobblestone", "stone"),
+            ("iron_ingot", "iron"),
+            ("copper_ingot", "copper"),
+            ("gold_ingot", "golden"),
+            ("diamond", "diamond"),
+        ]
+    )
+    return materials

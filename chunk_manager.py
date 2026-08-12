@@ -131,7 +131,6 @@ BIOMES = {
 }
 
 
-
 class Chunk:
     def __init__(self, chunk_x: int, blocks, biome_name):
         self.chunk_x = chunk_x
@@ -216,9 +215,7 @@ def make_map(map_width, map_height, current_chunk_i):
     chunk_data = _generate_trees(current_chunk_i, biome_name, chunk_data, height_map, rng)
     chunk_data = _cleanup_terrain(current_chunk_i, chunk_data, height_map)
     chunk_data = _generate_underground_fluids(current_chunk_i, chunk_data, height_map)
-    # chunk_data = _generate_underground_water(current_chunk_i, chunk_data, height_map)
-    # chunk_data = _generate_underground_lava(current_chunk_i, chunk_data, height_map)
-    chunk_data = _generate_veins(chunk_data, map_width, map_height, rng)
+    chunk_data = _generate_veins(current_chunk_i, chunk_data, rng)
 
     return chunk_data, biome_name
 
@@ -273,8 +270,6 @@ def _make_terrain(chunk_x):
     # 💡 提示：設定一個隨機種子，讓每次地形都不一樣
     opensimplex.seed(config.WORLD_SEED)
 
-    baseline = config.MAP_HEIGHT - 115  # 地平線基準面
-
     for local_x in range(config.CHUNK_WIDTH):
         world_x = chunk_x * config.CHUNK_WIDTH + local_x
 
@@ -287,7 +282,7 @@ def _make_terrain(chunk_x):
         # 3. 乘以山的高度落差
         noise_val = flattened_noise * 22.0
 
-        current_height = baseline + int(noise_val)
+        current_height = config.BASE_LINE + int(noise_val)
 
         # 安全防護，防止方塊超出地圖
         current_height = tool.clamp(5, config.MAP_HEIGHT - 5, current_height)
@@ -311,7 +306,7 @@ def _make_base_terrain(map_width, map_height, chunk_x, biome_name, height_map, r
             world_x = chunk_x * config.CHUNK_WIDTH + x
 
             offset = opensimplex.noise2(world_x / 80, 500) * 5
-            stone_limit = int(config.MAP_HEIGHT - 70 + offset)
+            stone_limit = int(config.MAP_HEIGHT - 80 + offset)
 
             if y < target_y:
                 block = "air"
@@ -540,154 +535,113 @@ def _generate_underground_fluids(chunk_x, chunk_data, height_map):
     return chunk_data
 
 
-# def _generate_underground_water(chunk_x, chunk_data, height_map):
-#     for local_x in range(config.CHUNK_WIDTH):
-#         world_x = chunk_x * config.CHUNK_WIDTH + local_x
-#         surface_y = height_map[local_x]
-
-#         # 限制地下水只在特定深度生成（例如：地表下方 15 格開始，到 Y = 95 之間）
-#         min_water_y = surface_y + 15
-#         max_water_y = 95
-
-#         if min_water_y >= max_water_y:
-#             continue
-
-#         for y in range(config.MAP_HEIGHT):
-#             if y >= max_water_y or y <= min_water_y:
-#                 continue
-
-#             if chunk_data[y][local_x] == "bedrock":
-#                 continue
-
-#             # 1. 大範圍的主水脈形狀 Noise (頻率稍微拉大，讓水脈看起來比較粗、比較連貫)
-#             water_vein_noise = opensimplex.noise2(world_x / 40.0, y / 25.0)
-
-#             # 換算出動態的水位門檻（例如值越大，水位越高）
-#             depth_factor = (y - min_water_y) / (max_water_y - min_water_y)  # 算出一個 0~1 的深度比例
-#             water_threshold = 0.7 - depth_factor * 0.15
-
-#             if water_vein_noise > water_threshold:
-#                 # 為了好玩，只有當這一格目前是空氣(洞窟)、泥土或石頭時，才把它填成水
-#                 # 這樣有些原本被挖空的洞窟，下半段就會淹水，變成漂亮的地下湖泊！
-#                 current_block = chunk_data[y][local_x]
-#                 if current_block in ["air", "dirt", "stone"]:
-#                     chunk_data[y][local_x] = "water_source"
-#     return chunk_data
-
-
-# def _generate_underground_lava(chunk_x, chunk_data, height_map):
-#     for local_x in range(config.CHUNK_WIDTH):
-#         world_x = chunk_x * config.CHUNK_WIDTH + local_x
-#         surface_y = height_map[local_x]
-
-#         min_lava_y = surface_y + 80
-#         max_lava_y = 180
-
-#         if min_lava_y >= max_lava_y:
-#             continue
-
-#         for y in range(config.MAP_HEIGHT):
-#             if y >= max_lava_y or y <= min_lava_y:
-#                 continue
-
-#             if chunk_data[y][local_x] == "bedrock":
-#                 continue
-
-#             # 1. 大範圍的主水脈形狀 Noise (頻率稍微拉大，讓水脈看起來比較粗、比較連貫)
-#             lava_vein_noise = opensimplex.noise2(world_x / 40.0, y / 25.0)
-
-#             # 換算出動態的水位門檻（例如值越大，水位越高）
-#             depth_factor = (y - min_lava_y) / (max_lava_y - min_lava_y)  # 算出一個 0~1 的深度比例
-#             lava_threshold = 0.7 - depth_factor * 0.15
-
-#             if lava_vein_noise > lava_threshold:
-#                 # 為了好玩，只有當這一格目前是空氣(洞窟)、泥土或石頭時，才把它填成水
-#                 # 這樣有些原本被挖空的洞窟，下半段就會淹水，變成漂亮的地下湖泊！
-#                 current_block = chunk_data[y][local_x]
-#                 if current_block in ["air", "dirt", "stone"]:
-#                     chunk_data[y][local_x] = "lava_source"
-#     return chunk_data
-
-
-def _generate_veins(chunk_data, map_width, map_height, rng: random.Random):
+def _generate_veins(chunk_x, chunk_data, rng: random.Random):
 
     # 🛠️ 在這裡集中管理所有礦物的生成規則，要新增礦物只要在這邊加一行就好！
     ore_rules = [
-        # {"name": 礦物名稱, "min_y": 最高高度, "max_y": 最低高度, "veins_range": 群落數範圍, "size_range": 每坨大小, "target_stones": 能替換的石頭}
-        {"name": "copper_ore", "min_y": 60, "max_y": 115, "veins_range": (0, 3), "size_range": (4, 8), "target_stones": ["stone"]},
-        {"name": "coal_ore", "min_y": 60, "max_y": 115, "veins_range": (0, 3), "size_range": (5, 25), "target_stones": ["stone"]},
-        {"name": "iron_ore", "min_y": 80, "max_y": 115, "veins_range": (0, 3), "size_range": (5, 18), "target_stones": ["stone"]},
-        {"name": "gold_ore", "min_y": 70, "max_y": 115, "veins_range": (0, 3), "size_range": (1, 6), "target_stones": ["stone"]},
-        {"name": "diamond_ore", "min_y": 90, "max_y": 115, "veins_range": (0, 1), "size_range": (1, 6), "target_stones": ["stone"]},
-        {"name": "redstone_ore", "min_y": 90, "max_y": 115, "veins_range": (1, 4), "size_range": (1, 6), "target_stones": ["stone"]},
-        {"name": "lapis_ore", "min_y": 80, "max_y": 115, "veins_range": (0, 4), "size_range": (2, 8), "target_stones": ["stone"]},
+        # {"name": "礦物名稱", "min_y": 最高高度, "max_y": 最低高度, "noise_scale_x": noise X 範圍, "noise_scale_y": noise Y 範圍, "noise_threshold": 礦物大小(Noise), "vein_size": 礦物大小(rng), "target_stones": ["stone" 或 "deepslate"]},
         {
-            "name": "deepslate_iron_ore",
-            "min_y": 115,
-            "max_y": 179,
-            "veins_range": (0, 3),
-            "size_range": (5, 18),
-            "target_stones": ["deepslate"],
+            "name": "copper_ore",
+            "min_y": 60,
+            "max_y": 115,
+            "noise_scale_x": 8.0,
+            "noise_scale_y": 8.0,
+            "noise_threshold": 0.7,
+            "vein_size": (4, 8),
+            "target_stones": ["stone"],
         },
         {
-            "name": "deepslate_coal_ore",
-            "min_y": 115,
-            "max_y": 179,
-            "veins_range": (0, 3),
-            "size_range": (5, 20),
-            "target_stones": ["deepslate"],
+            "name": "coal_ore",
+            "min_y": 60,
+            "max_y": 115,
+            "noise_scale_x": 8.0,
+            "noise_scale_y": 8.0,
+            "noise_threshold": 0.7,
+            "vein_size": (5, 25),
+            "target_stones": ["stone"],
         },
         {
-            "name": "deepslate_emerald_ore",
-            "min_y": 115,
-            "max_y": 179,
-            "veins_range": (0, 3),
-            "size_range": (1, 1),
-            "target_stones": ["deepslate"],
+            "name": "iron_ore",
+            "min_y": 80,
+            "max_y": 115,
+            "noise_scale_x": 16.0,
+            "noise_scale_y": 16.0,
+            "noise_threshold": 0.7,
+            "vein_size": (5, 25),
+            "target_stones": ["stone"],
         },
-        {
-            "name": "deepslate_diamond_ore",
-            "min_y": 115,
-            "max_y": 179,
-            "veins_range": (0, 3),
-            "size_range": (1, 6),
-            "target_stones": ["deepslate"],
-        },
-        {
-            "name": "deepslate_redstone_ore",
-            "min_y": 115,
-            "max_y": 179,
-            "veins_range": (1, 5),
-            "size_range": (1, 6),
-            "target_stones": ["deepslate"],
-        },
-        {
-            "name": "deepslate_lapis_ore",
-            "min_y": 115,
-            "max_y": 179,
-            "veins_range": (2, 7),
-            "size_range": (2, 8),
-            "target_stones": ["deepslate"],
-        },
+        # {"name": "gold_ore", "min_y": 70, "max_y": 115, "veins_range": (0, 3), "size_range": (1, 6), "target_stones": ["stone"]},
+        # {"name": "diamond_ore", "min_y": 90, "max_y": 115, "veins_range": (0, 1), "size_range": (1, 6), "target_stones": ["stone"]},
+        # {"name": "redstone_ore", "min_y": 90, "max_y": 115, "veins_range": (1, 4), "size_range": (1, 6), "target_stones": ["stone"]},
+        # {"name": "lapis_ore", "min_y": 80, "max_y": 115, "veins_range": (0, 4), "size_range": (2, 8), "target_stones": ["stone"]},
+        # {
+        #     "name": "deepslate_iron_ore",
+        #     "min_y": 115,
+        #     "max_y": 179,
+        #     "veins_range": (0, 3),
+        #     "size_range": (5, 18),
+        #     "target_stones": ["deepslate"],
+        # },
+        # {
+        #     "name": "deepslate_coal_ore",
+        #     "min_y": 115,
+        #     "max_y": 179,
+        #     "veins_range": (0, 3),
+        #     "size_range": (5, 20),
+        #     "target_stones": ["deepslate"],
+        # },
+        # {
+        #     "name": "deepslate_emerald_ore",
+        #     "min_y": 115,
+        #     "max_y": 179,
+        #     "veins_range": (0, 3),
+        #     "size_range": (1, 1),
+        #     "target_stones": ["deepslate"],
+        # },
+        # {
+        #     "name": "deepslate_diamond_ore",
+        #     "min_y": 115,
+        #     "max_y": 179,
+        #     "veins_range": (0, 3),
+        #     "size_range": (1, 6),
+        #     "target_stones": ["deepslate"],
+        # },
+        # {
+        #     "name": "deepslate_redstone_ore",
+        #     "min_y": 115,
+        #     "max_y": 179,
+        #     "veins_range": (1, 5),
+        #     "size_range": (1, 6),
+        #     "target_stones": ["deepslate"],
+        # },
+        # {
+        #     "name": "deepslate_lapis_ore",
+        #     "min_y": 115,
+        #     "max_y": 179,
+        #     "veins_range": (2, 7),
+        #     "size_range": (2, 8),
+        #     "target_stones": ["deepslate"],
+        # },
     ]
 
-    # ✨ 核心魔法：用一個迴圈，把所有礦物的規則依序拿出來跑
+    # 用一個迴圈，把所有礦物的規則依序拿出來跑
     for rule in ore_rules:
-        num_of_veins = rng.randint(rule["veins_range"][0], rule["veins_range"][1])
-        for _ in range(num_of_veins):
-            attempts = 0
-            max_attempts = 30
-            while attempts < max_attempts:
-                attempts += 1
-                # 🎯 修正：這樣 center_x 就會乖乖在 0 ~ 15 格之間隨機分散了
-                center_x = rng.randint(0, map_width - 1)
-                center_y = rng.randint(rule["min_y"], rule["max_y"])
-                if chunk_data[center_y][center_x] in rule["target_stones"]:
-                    break
+        for y in range(config.MAP_HEIGHT):
+            if not rule["min_y"] <= y <= rule["max_y"]:
+                continue
 
-            vein_size = rng.randint(rule["size_range"][0], rule["size_range"][1])
-            # 🎯 修正：傳入 map_width
-            _veins_spawn(chunk_data, vein_size, center_y, center_x, map_width, map_height, rule["name"])
+            for local_x in range(config.CHUNK_WIDTH):
+                world_x = chunk_x * config.CHUNK_WIDTH + local_x
+
+                ore_noise = opensimplex.noise2(world_x / rule["noise_scale_x"], y / rule["noise_scale_y"])
+                if chunk_data[y][local_x] in rule["target_stones"] and ore_noise > rule["noise_threshold"]:
+                    chunk_data[y][local_x] = rule["name"]
+                    # vein_size = rng.randint(*rule["vein_size"])
+                    # _veins_spawn(chunk_data, vein_size, y, local_x, config.CHUNK_WIDTH, config.MAP_HEIGHT, rule["name"])
+
+        # vein_size = rng.randint(rule["size_range"][0], rule["size_range"][1])
+        # # 🎯 修正：傳入 map_width
+        # _veins_spawn(chunk_data, vein_size, center_y, center_x, map_width, map_height, rule["name"])
 
     return chunk_data
 

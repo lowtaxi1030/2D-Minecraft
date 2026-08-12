@@ -142,7 +142,13 @@ class Camera:
                 pixel_x, pixel_y = self.world_to_screen(x_pos, y_pos)
 
                 if block_name != "air":
-                    screen.blit(self.assets.block(block_name), (pixel_x, pixel_y))
+                    # print(block_name)
+                    img = self.assets.block(block_name)  # 之後改成.get_img(block_name)
+                    if img:
+                        screen.blit(img, (pixel_x, pixel_y))
+                    else:
+                        # 印出警報但讓遊戲繼續跑，這樣就算未來漏掉新方塊的圖，也不會直接 Crash！
+                        print(f"⚠️ 找不到方塊圖檔：'{block_name}'")
 
                 if (world_x, world_y) == (x_pos, y_pos) and draw_hover:
                     block_rect = pygame.Rect(
