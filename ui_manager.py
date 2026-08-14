@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from asset_manager import AssetManager
@@ -22,47 +22,67 @@ clock = pygame.time.Clock()
 Item = dict[str, str | int]
 
 
+class Interfaces(Protocol):
+    def handle_input(self): ...
+    def handle_events(self): ...
+    def update(self): ...
+    def draw(self): ...
+
+
 class UI:
-    def __init__(self, assets: "AssetManager"):
+    def __init__(self, assets: AssetManager):
 
         self.hotbar = Hotbar(assets)
-        self.inventory = Inventory(assets)
-        self.crafting_table = CraftingTable(assets)
+
+        self.inventory = InventoryUI(assets)
+        self.crafting_table = CraftingTableUI(assets)
+        self.furnace = FurnaceUI(assets)
+
+        self.interfaces: dict[str, Interfaces] = {
+            "inventory": self.inventory,
+            "crafting_table": self.crafting_table,
+            "furnace": self.furnace,
+        }
+
         self.debug = DebugScreen(assets)
+
+        self.last_crafting_type = None
 
     def handle_input(self):
         # 其他的之後如果有再說
-        self.inventory.handle_input()
-        self.crafting_table.handle_input()
+        for interface in self.interfaces.values():
+            interface.handle_input()
 
-    def handle_events(self, event, player: Player, mouse_pos, world_manager: "World", crafting_manager: "CraftingManager"):
+    def handle_events(self, event, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
         self.hotbar.handle_events(event, player, mouse_pos)
 
-        if player.crafting_type == "inventory":
-            self.inventory.handle_events(event, player, mouse_pos, world_manager, crafting_manager)
+        if player.crafting_type is not None:
+            self.interfaces[player.crafting_type].handle_events(event, player, mouse_pos, world_manager, crafting_manager)
+            self.last_crafting_type = player.crafting_type
 
-        elif player.crafting_type == "crafting_table":
-            self.crafting_table.handle_events(event, player, mouse_pos, world_manager, crafting_manager)
+        elif self.last_crafting_type is not None:
+            self.interfaces[self.last_crafting_type].clear_grid_and_drop(player, world_manager)
+            self.last_crafting_type = None
 
     def update(self, player, fps, mouse_pos, camera):
         self.hotbar.update(player)
-        self.inventory.update()
-        self.crafting_table.update()
+
+        for interface in self.interfaces.values():
+            interface.update(player)
+
         self.debug.update(player, fps, mouse_pos, camera)
 
-    def draw(self, screen, player: "Player", fps, mouse_pos, camera):
+    def draw(self, screen, player: Player, fps, mouse_pos, camera):
 
-        if player.crafting_type == "inventory":
-            self.inventory.draw(screen, player)
-        elif player.crafting_type == "crafting_table":
-            self.crafting_table.draw(screen, player)
+        if player.crafting_type is not None:
+            self.interfaces[player.crafting_type].draw(screen, player)
         else:
             self.hotbar.draw(screen, player)
 
         self.debug.draw(screen, player, fps, mouse_pos, camera)
 
 
-def draw_item(screen, assets: "AssetManager", item, center_x, center_y):
+def draw_item(screen: pygame.Surface, assets: AssetManager, item, center_x, center_y):
     block_img = assets.block(item["type"])
     block_img = pygame.transform.scale(block_img, (48, 48))
     block_rect = block_img.get_rect()
@@ -80,7 +100,7 @@ def draw_item(screen, assets: "AssetManager", item, center_x, center_y):
 
 
 class Hotbar:
-    def __init__(self, assets: "AssetManager"):
+    def __init__(self, assets: AssetManager):
         self.assets = assets
 
         self.SLOT_SPACING = 64
@@ -94,18 +114,18 @@ class Hotbar:
 
         self.show_hotbar = True
 
-    def handle_events(self, event, player: "Player", mouse_pos):
+    def handle_events(self, event, player: Player, mouse_pos):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_F1:
                 self.show_hotbar = not self.show_hotbar
 
-    def update(self, player: "Player"):
+    def update(self, player: Player):
         self.assets.update_img_pos(self.assets.hotbar_bg_rect, screen_center=True, is_bottom=True)
 
         self.assets.select_frame_rect.left = self.assets.hotbar_bg_rect.left - 1 + (player.selected_hotbar_index * self.SLOT_SPACING)
         self.assets.select_frame_rect.top = self.assets.hotbar_bg_rect.top - 3
 
-    def draw(self, screen: pygame.Surface, player: "Player"):
+    def draw(self, screen: pygame.Surface, player: Player):
         if self.show_hotbar:
             # 畫圖片
             screen.blit(self.assets.hotbar_bg, self.assets.hotbar_bg_rect)
@@ -137,7 +157,7 @@ class Hotbar:
 
 
 class PlayerInventory:
-    def __init__(self, assets: "AssetManager"):
+    def __init__(self, assets: AssetManager):
         self.assets = assets
 
         self.SLOT_SPACING = 64
@@ -158,13 +178,13 @@ class PlayerInventory:
         row = (mouse_pos[1] - start_y) // self.INV_SPACING_Y
         return col, row
 
-    def _get_slot(self, player: "Player", area, index):
+    def _get_slot(self, player: Player, area, index):
         if area == "hotbar":
             return player.hotbar[index]
         if area == "inventory":
             return player.inventory[index]
 
-    def _update_slot(self, player: "Player", area, index, item):
+    def _update_slot(self, player: Player, area, index, item):
         if area == "hotbar":
             player.hotbar[index] = item
         if area == "inventory":
@@ -221,9 +241,11 @@ class PlayerInventory:
                 item_center_y = self.inv_hotbar_first_y + config.SLOT_SIZE // 2
                 draw_item(screen, self.assets, item, item_center_x, item_center_y)
 
+    def clear_grid_and_drop(self, player: Player, world_manager: World): ...
 
-class Inventory(PlayerInventory):
-    def __init__(self, assets: "AssetManager"):
+
+class InventoryUI(PlayerInventory):
+    def __init__(self, assets: AssetManager):
         super().__init__(assets)
         self.assets = assets
         self.item_slot_manager = SlotHandler()
@@ -243,7 +265,7 @@ class Inventory(PlayerInventory):
     def handle_input(self):
         self.keys = pygame.key.get_pressed()
 
-    def handle_events(self, event, player: "Player", mouse_pos, world_manager: "World", crafting_manager: "CraftingManager"):
+    def handle_events(self, event, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 self._handle_left_click(player, mouse_pos, world_manager, crafting_manager)
@@ -253,7 +275,7 @@ class Inventory(PlayerInventory):
 
         self._update_craft_preview(crafting_manager)
 
-    def _handle_left_click(self, player: "Player", mouse_pos, world_manager: "World", crafting_manager: "CraftingManager"):
+    def _handle_left_click(self, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
 
         area, index = self._get_clicked_slot_info(mouse_pos)
         if area is None:
@@ -299,7 +321,7 @@ class Inventory(PlayerInventory):
 
         self._update_slot(player, area, index, slot_item)
 
-    def _handle_right_click(self, player: "Player", mouse_pos, world_manager: "World", crafting_manager: "CraftingManager"):
+    def _handle_right_click(self, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
 
         area, index = self._get_clicked_slot_info(mouse_pos)
         if area is None:
@@ -311,7 +333,7 @@ class Inventory(PlayerInventory):
 
         self._update_slot(player, area, index, slot_item)
 
-    def _receive_crafted_item(self, result_item, player: "Player", world_manager: "World", force_inventory=False):
+    def _receive_crafted_item(self, result_item, player: Player, world_manager: World, force_inventory=False):
         remaining = 0
         if force_inventory:
             remaining = player.give_item(result_item["type"], result_item["count"])  # 將成品放入玩家背包或掉落到地面
@@ -331,7 +353,7 @@ class Inventory(PlayerInventory):
         if remaining > 0:
             world_manager.spawn_item_entity(remaining, player.rect.centerx, player.rect.top, "inv_drop", player)  # 生成掉落物
 
-    def update(self):
+    def update(self, player):
         self.assets.update_img_pos(self.assets.ui_rects["inventory"], y_center=True, screen_center=True)
 
         super().update()
@@ -342,7 +364,7 @@ class Inventory(PlayerInventory):
         self.craft_output_x = self.assets.ui_rects["inventory"].right - 50
         self.craft_output_y = self.assets.ui_rects["inventory"].top + 126
 
-    def _update_craft_preview(self, crafting_manager: "CraftingManager"):
+    def _update_craft_preview(self, crafting_manager: CraftingManager):
         # 統計合成盤裡的材料數量
         ingredients = self._get_crafting_ingredients_dict()
 
@@ -373,14 +395,14 @@ class Inventory(PlayerInventory):
 
         return super()._get_clicked_slot_info(mouse_pos)
 
-    def _get_slot(self, player: "Player", area, index):
+    def _get_slot(self, player: Player, area, index):
         if area == "output_craft":
             return self.preview_item
         if area == "craft":
             return self.player_craft_slots.get(index)
         return super()._get_slot(player, area, index)
 
-    def _update_slot(self, player: "Player", area, index, item):
+    def _update_slot(self, player: Player, area, index, item):
         if area == "output_craft":
             self.preview_item = None
         if area == "craft":
@@ -400,7 +422,7 @@ class Inventory(PlayerInventory):
 
     """"""
 
-    def draw(self, screen: pygame.Surface, player: "Player"):
+    def draw(self, screen: pygame.Surface, player: Player):
         self._draw_background(screen)
         self._draw_crafting_grid(screen)
         super().draw(screen, player)
@@ -436,9 +458,14 @@ class Inventory(PlayerInventory):
 
         draw_item(screen, self.assets, self.preview_item, self.craft_output_x, self.craft_output_y)
 
+    def clear_grid_and_drop(self, player: Player, world_manager: World):
+        if self.held_item is not None and self.held_item.get("count", 0) > 0:
+            player.give_item(self.held_item["type"], self.held_item["count"])
+            self.held_item = None
 
-class CraftingTable(PlayerInventory):
-    def __init__(self, assets: "AssetManager"):
+
+class CraftingTableUI(PlayerInventory):
+    def __init__(self, assets: AssetManager):
         super().__init__(assets)
         self.assets = assets
         self.item_slot_manager = SlotHandler()
@@ -465,7 +492,7 @@ class CraftingTable(PlayerInventory):
     def handle_input(self):
         self.keys = pygame.key.get_pressed()
 
-    def handle_events(self, event, player: "Player", mouse_pos, world_manager: "World", crafting_manager: "CraftingManager"):
+    def handle_events(self, event, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 self._handle_left_click(player, mouse_pos, world_manager, crafting_manager)
@@ -475,7 +502,7 @@ class CraftingTable(PlayerInventory):
 
         self._update_craft_preview(crafting_manager)
 
-    def _handle_left_click(self, player: "Player", mouse_pos, world_manager: "World", crafting_manager: "CraftingManager"):
+    def _handle_left_click(self, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
 
         area, index = self._get_clicked_slot_info(mouse_pos)
         if area is None:
@@ -523,7 +550,7 @@ class CraftingTable(PlayerInventory):
         self._update_slot(player, area, index, slot_item)
         # print("[from: _handle_left_click]  UPDATE :", area, index, slot_item)
 
-    def _handle_right_click(self, player: "Player", mouse_pos, world_manager: "World", crafting_manager: "CraftingManager"):
+    def _handle_right_click(self, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
 
         area, index = self._get_clicked_slot_info(mouse_pos)
         if area is None or area == "output_craft":
@@ -538,7 +565,7 @@ class CraftingTable(PlayerInventory):
         self._update_slot(player, area, index, slot_item)
         # print("[from: _handle_right_click]  UPDATE :", area, index, slot_item)
 
-    def _update_craft_preview(self, crafting_manager: "CraftingManager"):
+    def _update_craft_preview(self, crafting_manager: CraftingManager):
         # 統計合成盤裡的材料數量
         ingredients = self._get_crafting_ingredients_dict()
 
@@ -561,7 +588,7 @@ class CraftingTable(PlayerInventory):
                 ingredients[item_type] = ingredients.get(item_type, 0) + count
         return ingredients
 
-    def _receive_crafted_item(self, result_item, player: "Player", world_manager: "World", force_inventory=False):
+    def _receive_crafted_item(self, result_item, player: Player, world_manager: World, force_inventory=False):
         remaining = 0
         if force_inventory:
             remaining = player.give_item(result_item["type"], result_item["count"])  # 將成品放入玩家背包或掉落到地面
@@ -594,7 +621,7 @@ class CraftingTable(PlayerInventory):
 
         return super()._get_clicked_slot_info(mouse_pos)
 
-    def _get_slot(self, player: "Player", area, index):
+    def _get_slot(self, player: Player, area, index):
         if area == "craft":
             return self.crafting_grid.get(index)
         if area == "output_craft":
@@ -608,7 +635,7 @@ class CraftingTable(PlayerInventory):
             self.crafting_grid.set(index, item)
         return super()._update_slot(player, area, index, item)
 
-    def update(self):
+    def update(self, player: Player):
         self.assets.update_img_pos(self.assets.ui_rects["crafting_table"], y_center=True, screen_center=True)
 
         super().update()
@@ -652,16 +679,119 @@ class CraftingTable(PlayerInventory):
 
         draw_item(screen, self.assets, self.preview_item, self.craft_output_x, self.craft_output_y)
 
+    def clear_grid_and_drop(self, player: Player, world_manager: World):
+        """將 3x3 合成格與手上拿著的物品清空，並生成掉落物到世界上"""
+        # 1. 掉落 3x3 合成格裡的東西
+        for i in range(self.crafting_grid.width * self.crafting_grid.height):
+            item = self.crafting_grid.get(i)
+            if item is not None and item.get("count", 0) > 0:
+                player.give_item(item["type"], item["count"])
+                self.crafting_grid.set(i, None)
+
+        # 2. 如果玩家滑鼠游標上還「抓著」物品（held_item），也一起掉落
+        if self.held_item is not None and self.held_item.get("count", 0) > 0:
+            player.give_item(self.held_item["type"], self.held_item["count"])
+            self.held_item = None
+
+        # 3. 清空預覽
+        self.preview_item = None
+
+
+class FurnaceUI(PlayerInventory):
+    def __init__(self, assets: AssetManager):
+        super().__init__(assets)
+        self.item_slot_manager = SlotHandler()
+
+        self.held_item = None
+        self.preview_item = None
+
+        self.keys = []
+
+        self.FURNACE_OFFSET_X = 97
+        self.FURNACE_OFFSET_Y = 53
+
+        self.furnace_start_x = self.assets.ui_rects["furnace"].left + self.FURNACE_OFFSET_X
+        self.furnace_start_y = self.assets.ui_rects["furnace"].top + self.FURNACE_OFFSET_Y
+
+        self.furnace_output_x = self.assets.ui_rects["furnace"].left + 0
+        self.furnace_output_y = self.assets.ui_rects["furnace"].top + 0
+
+    def handle_input(self):
+        self.keys = pygame.key.get_pressed()
+
+    def handle_events(self, event, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                self._handle_left_click(player, mouse_pos, world_manager, crafting_manager)
+
+            if event.button == 3:
+                self._handle_right_click(player, mouse_pos, world_manager, crafting_manager)
+
+    def _handle_left_click(self, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
+
+        area, index = self._get_clicked_slot_info(mouse_pos)
+        if area is None:
+            if not self.assets.ui_rects["crafting_table"].collidepoint(mouse_pos):
+                if self.held_item is not None:
+                    world_manager.spawn_item_entity(self.held_item, player.rect.centerx, player.rect.top, "inv_drop", player)  # 生成掉落物
+                    self.held_item = None
+            return
+
+        slot_item = self._get_slot(player, area, index)
+        # print("[from: _hadle_left_click]  GET :", area, index, slot_item)
+
+        self.held_item, slot_item = self.item_slot_manager.handle_slot_left_click(self.held_item, slot_item)
+        # print("[from: _handle_left_click]  HANDLER :", self.held_item, slot_item)
+
+        self._update_slot(player, area, index, slot_item)
+        # print("[from: _handle_left_click]  UPDATE :", area, index, slot_item)
+
+    def _handle_right_click(self, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
+
+        area, index = self._get_clicked_slot_info(mouse_pos)
+        if area is None or area == "output_craft":
+            return
+
+        slot_item = self._get_slot(player, area, index)
+        # print("[from: _hadle_right_click]  GET :", area, index, slot_item)
+
+        self.held_item, slot_item = self.item_slot_manager.handle_slot_right_click(self.held_item, slot_item)
+        # print("[from: _handle_right_click]  HANDLER :", self.held_item, slot_item)
+
+        self._update_slot(player, area, index, slot_item)
+        # print("[from: _handle_right_click]  UPDATE :", area, index, slot_item)
+
+    def update(self, player):
+        self.assets.update_img_pos(self.assets.ui_rects["furnace"], y_center=True, screen_center=True)
+
+        super().update()
+        self.furnace_start_x = self.assets.ui_rects["furnace"].left + self.FURNACE_OFFSET_X
+        self.furnace_start_y = self.assets.ui_rects["furnace"].top + self.FURNACE_OFFSET_Y
+
+    def draw(self, screen: pygame.Surface, player):
+        screen.blit(self.assets.ui_images["furnace"], self.assets.ui_rects["furnace"])
+        super().draw(screen, player)
+        self._draw_held_item(screen)
+
+    def _draw_held_item(self, screen: pygame.Surface):
+        # print("[from: _draw_held_item]", self.held_item)
+        if self.held_item is None:
+            return
+
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+
+        draw_item(screen, self.assets, self.held_item, mouse_x, mouse_y)
+
 
 class DebugScreen:
-    def __init__(self, assets: "AssetManager"):
+    def __init__(self, assets: AssetManager):
         # self.assets = assets
 
         self.debug_frame = 0
         self.left_lines = []
         self.right_lines = []
 
-    def update(self, player: "Player", fps, mouse_pos: tuple[int, int], camera: "Camera"):
+    def update(self, player: Player, fps, mouse_pos: tuple[int, int], camera: Camera):
         self.debug_frame += 1
 
         if self.debug_frame >= 12:

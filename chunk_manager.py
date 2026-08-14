@@ -172,7 +172,7 @@ def set_block(world_x, world_y, block_type):
     chunk.is_dirty = True
 
 
-def get_chunk(chunk_x, fluid_manager: "FluidManager" = None) -> Chunk:
+def get_chunk(chunk_x, fluid_manager: FluidManager = None) -> Chunk:
     # 1. 已經載入
     if chunk_x in config.chunks:
         return config.chunks[chunk_x]
@@ -646,42 +646,41 @@ def _generate_veins(chunk_x, chunk_data, rng: random.Random):
     return chunk_data
 
 
-def _veins_spawn(chunk_data, vein_size, center_y, center_x, map_width, map_height, vein_name):
-    blocks_placed = 0
+# def _veins_spawn(chunk_data, vein_size, center_y, center_x, map_width, map_height, vein_name):
+#     blocks_placed = 0
 
-    # 建立一個「已經被感染」的方塊坐標清單，起點是中心
-    # 使用 set 是為了方便快速判斷某格是不是已經變成鐵礦了
-    infected_blocks = set()
-    infected_blocks.add((center_x, center_y))
+#     # 建立一個「已經被感染」的方塊坐標清單，起點是中心
+#     # 使用 set 是為了方便快速判斷某格是不是已經變成鐵礦了
+#     infected_blocks = set()
+#     infected_blocks.add((center_x, center_y))
 
-    # 先把中心點放下去
-    if chunk_data[center_y][center_x] in ["stone", "deepslate"]:
-        chunk_data[center_y][center_x] = vein_name
-        blocks_placed += 1
+#     # 先把中心點放下去
+#     if chunk_data[center_y][center_x] in ["stone", "deepslate"]:
+#         chunk_data[center_y][center_x] = vein_name
+#         blocks_placed += 1
 
-    # 🎯 建立一個安全計數器，防止無限迴圈
-    attempts = 0
-    max_attempts = vein_size * 5
+#     # 🎯 建立一個安全計數器，防止無限迴圈
+#     attempts = 0
+#     max_attempts = vein_size * 5
 
-    # 用 while 確保一定要放滿指定格數
-    while blocks_placed < vein_size and attempts < max_attempts:
-        attempts += 1
+#     # 用 while 確保一定要放滿指定格數
+#     while blocks_placed < vein_size and attempts < max_attempts:
+#         attempts += 1
 
-        base_x, base_y = random.choice(list(infected_blocks))
+#         base_x, base_y = random.choice(list(infected_blocks))
 
-        # 從這個挑選到的「突觸點」隨機抽一個上下左右的方向
-        dx, dy = random.choice([(0, 1), (0, -1), (1, 0), (-1, 0)])
-        next_x = max(0, min(map_width - 1, base_x + dx))
-        next_y = max(0, min(map_height - 1, base_y + dy))
+#         # 從這個挑選到的「突觸點」隨機抽一個上下左右的方向
+#         dx, dy = random.choice([(0, 1), (0, -1), (1, 0), (-1, 0)])
+#         next_x = max(0, min(map_width - 1, base_x + dx))
+#         next_y = max(0, min(map_height - 1, base_y + dy))
 
-        # 如果下一個位置是石頭，且還沒被感染
-        if chunk_data[next_y][next_x] in ["stone", "deepslate"] and (next_x, next_y) not in infected_blocks:
-            # 放下礦石
-            chunk_data[next_y][next_x] = vein_name
-            # 把這格加入「被感染清單」，下次也可能從這格突觸
-            infected_blocks.add((next_x, next_y))
-            blocks_placed += 1
-
+#         # 如果下一個位置是石頭，且還沒被感染
+#         if chunk_data[next_y][next_x] in ["stone", "deepslate"] and (next_x, next_y) not in infected_blocks:
+#             # 放下礦石
+#             chunk_data[next_y][next_x] = vein_name
+#             # 把這格加入「被感染清單」，下次也可能從這格突觸
+#             infected_blocks.add((next_x, next_y))
+#             blocks_placed += 1
 
 """
 ├── _draw_oak()

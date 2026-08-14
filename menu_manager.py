@@ -11,7 +11,7 @@ import ui_obs as ui
 
 
 class MenuManager:
-    def __init__(self, assets: "AssetManager"):
+    def __init__(self, assets: AssetManager):
         self.pause_menu = PauseMenu(assets)
         self.option_menu = OptionMenu(assets)
         self.video_menu = VideoMenu(assets)
@@ -71,7 +71,7 @@ class BaseMenu:
 
 
 class PauseMenu:
-    def __init__(self, assets: "AssetManager"):
+    def __init__(self, assets: AssetManager):
         self.assets = assets
 
         self.btn_w, self.btn_h = 350, 40  # 按鈕標準尺寸
@@ -143,7 +143,7 @@ class PauseMenu:
 
 
 class OptionMenu:
-    def __init__(self, assets: "AssetManager"):
+    def __init__(self, assets: AssetManager):
         self.assets = assets
 
         self.btn_w, self.btn_h = 350, 40  # 按鈕標準尺寸
@@ -248,7 +248,7 @@ class OptionMenu:
 
 
 class ControlsMenu:
-    def __init__(self, assets: "AssetManager"):
+    def __init__(self, assets: AssetManager):
         self.assets = assets
 
         self.btn_w, self.btn_h = 350, 40  # 按鈕標準尺寸
@@ -290,7 +290,7 @@ class ControlsMenu:
 
 
 class VideoMenu:
-    def __init__(self, assets: "AssetManager"):
+    def __init__(self, assets: AssetManager):
         self.assets = assets
 
         self.fov_value = 70  # 預設 FOV 值（Minecraft 通常是 70）

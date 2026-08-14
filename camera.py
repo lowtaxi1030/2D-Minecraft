@@ -16,7 +16,7 @@ world_dir = config.BASE_DIR / "saves" / config.CURRENT_WORLD / "chunks"
 
 
 class Camera:
-    def __init__(self, assets: "AssetManager", player: "Player"):
+    def __init__(self, assets: AssetManager, player: Player):
         self.assets = assets
 
         # 世界座標中的左上角
@@ -30,7 +30,7 @@ class Camera:
         self.block_size = config.BLOCK_SIZE
         self.render_rect = pygame.Rect(0, 0, 0, 0)
 
-    def update(self, player: "Player", fluid_manager: "FluidManager"):
+    def update(self, player: Player, fluid_manager: FluidManager):
 
         view_width = config.current_width / self.zoom
         view_height = config.current_height / self.zoom
@@ -59,7 +59,7 @@ class Camera:
 
         self._load_visible_chunks(player, fluid_manager)
 
-    def _load_visible_chunks(self, player: "Player", fluid_manager: "FluidManager" = None):
+    def _load_visible_chunks(self, player: Player, fluid_manager: FluidManager = None):
         # 第一步：生成玩家附近的 chunk
         current_chunk = player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
 

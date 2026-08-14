@@ -12,7 +12,7 @@ import tool
 
 
 class ItemEntity:
-    def __init__(self, item: dict[str, int], x, y, spawn_reason: str, player: "Player", img: pygame.Surface):
+    def __init__(self, item: dict[str, int], x, y, spawn_reason: str, player: Player, img: pygame.Surface):
         """
         直接傳入方塊的左上角座標，至中由本身自行處理\n
         spawn_reason 可以是：\n
@@ -84,13 +84,13 @@ class ItemEntity:
 
     """各種初始化函式"""
 
-    def _init_drop(self, player: "Player"):
+    def _init_drop(self, player: Player):
         self.pickup_delay = 60
 
         self.vel_x = player.facing * 15
         self.vel_y = -4
 
-    def _init_inv_drop(self, player: "Player"):
+    def _init_inv_drop(self, player: Player):
         self.pickup_delay = 120
 
         self.vel_x = player.facing * 25
@@ -102,7 +102,7 @@ class ItemEntity:
         self.vel_y = -8
         self.pickup_delay = 10
 
-    def _init_craft(self, player: "Player"):
+    def _init_craft(self, player: Player):
         self.pickup_delay = 60
 
         self.vel_x = player.facing * 15
@@ -161,7 +161,7 @@ class ItemEntity:
 
     """"""
 
-    def resolve_stuck(self, new_block_rect: pygame.Rect, player: "Player"):
+    def resolve_stuck(self, new_block_rect: pygame.Rect, player: Player):
         if not new_block_rect.colliderect(self.rect):
             return
 
@@ -208,7 +208,7 @@ class ItemEntity:
 
         self.rect.y = original_y
 
-    def _apply_attraction(self, player: "Player"):
+    def _apply_attraction(self, player: Player):
         player_pos = pygame.math.Vector2(player.rect.center)
         self_pos = pygame.math.Vector2(self.rect.center)
         direction = player_pos - self_pos
@@ -282,7 +282,7 @@ class ItemEntity:
 
     """外部用函式"""
 
-    def try_attract(self, player: "Player"):
+    def try_attract(self, player: Player):
         if self.pickup_delay > 0:
             self.is_attracting = False
             return

@@ -1,8 +1,10 @@
 from .crafting_table import CraftingTable
+from .furnace import Furnace
 
 SPECIAL_BLOCKS = {
-    "crafting_table": CraftingTable,  # 現在只有一個
-    # "furnace": Furnace,
+    "crafting_table": CraftingTable,
+    "furnace": Furnace,
+    # 做好後陸續加入
     # "chest": Chest,
     # "bed": Bed,
     # "door": Door,

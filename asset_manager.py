@@ -47,7 +47,7 @@ class AssetManager:
         self.UI_IMAGES = [
             "inventory",
             "crafting_table",
-            # "furnace",
+            "furnace",
             # "loom",
             # "stonecutter",
             # "chest",

@@ -1,7 +1,7 @@
 import random
 from pathlib import Path
 
-GAME_VERSION = "V0.26.8.5"
+GAME_VERSION = "V0.26.8.6"
 
 
 BASE_DIR = Path(__file__).parent
@@ -22,7 +22,7 @@ BASE_LINE = 80
 chunks = {}
 height_map = []
 
-CURRENT_WORLD = "item_drop_test"  # 可以隨意換成任何合法名字
+CURRENT_WORLD = "test1"  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
 
 Timer_Speed = 1

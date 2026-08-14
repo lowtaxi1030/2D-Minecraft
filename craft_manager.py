@@ -56,6 +56,13 @@ class ShapeRecipe:
 
         return trimmed_shape
 
+
+class ShapelessRecipe:
+    def __init__(self, ingredients, result_type, result_count):
+        self.ingredients = ingredients
+        self.result = {"type": result_type, "count": result_count}
+
+
 class CraftingManager:
     def __init__(self):
         self.recipes: list[ShapeRecipe] = []  # 石鎬 Recipe、火把 Recipe、熔爐 Recipe等

@@ -22,12 +22,12 @@ class SaveManager:
     #     }
 
     # 儲存
-    def save_world(self, player: "Player"):
+    def save_world(self, player: Player):
 
         self.save_level(player)
         self.save_loaded_chunks()
 
-    def save_level(self, player: "Player"):
+    def save_level(self, player: Player):
         with self.level_path().open("w", encoding="utf-8") as f:
             json.dump(
                 {
@@ -59,7 +59,7 @@ class SaveManager:
     def load_world(self, player):
         self.load_level(player)
 
-    def load_level(self, player: "Player"):
+    def load_level(self, player: Player):
         file_path = self.level_path()
 
         if not file_path.exists():

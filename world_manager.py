@@ -31,7 +31,7 @@ class BlockClick:
 
 
 class World:
-    def __init__(self, assets: "AssetManager"):
+    def __init__(self, assets: AssetManager):
         self.assets = assets
 
         self.item_entities = []
@@ -43,9 +43,9 @@ class World:
         self,
         mouse_buttons: tuple[bool, bool, bool],
         mouse_pos: tuple[int, int],
-        player: "Player",
+        player: Player,
         camera: Camera,
-        fluid_manager: "FluidManager",
+        fluid_manager: FluidManager,
     ):
 
         self._handle_item_entities(player)
@@ -103,7 +103,7 @@ class World:
             clicked_block,
         )
 
-    def _handle_special_block(self, clicked: BlockClick, player: "Player") -> bool:
+    def _handle_special_block(self, clicked: BlockClick, player: Player) -> bool:
         # 檢查是不是特殊方塊
         if (special_block_class := SPECIAL_BLOCKS.get(clicked.block)) is None:
             return False
@@ -113,9 +113,10 @@ class World:
 
         return True
 
-    def _handle_break_block(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):
+    def _handle_break_block(self, clicked: BlockClick, player: Player, fluid_manager: FluidManager):
         if clicked.block != "air" and player.can_place_block() and self._can_break(clicked, player, fluid_manager):
             drop_item_type = self.get_drop_item(clicked.block)
+            print(drop_item_type)
 
             if player.will_drop_item_entity() and drop_item_type is not None:
                 self.item_entities.append(
@@ -141,12 +142,12 @@ class World:
 
             # print(fluid_manager.active_fluids["water"])
 
-    def _handle_pick_block(self, clicked: BlockClick, player: "Player"):
+    def _handle_pick_block(self, clicked: BlockClick, player: Player):
         if clicked.block != "air":
             if player.can_pick_block():
                 player.pick_item(clicked.block)
 
-    def _handle_place_block(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):
+    def _handle_place_block(self, clicked: BlockClick, player: Player, fluid_manager: FluidManager):
 
         if self._can_place(clicked, player, fluid_manager):
             current_item = player.hotbar[player.selected_hotbar_index]
@@ -162,7 +163,7 @@ class World:
             for f in fluid_manager.FLUID_PROPERTIES.keys():
                 fluid_manager.wake_fluid(f, clicked.x, clicked.y, fluid_manager.active_fluids)
 
-    def _can_place(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):
+    def _can_place(self, clicked: BlockClick, player: Player, fluid_manager: FluidManager):
         hand_item = player.hotbar[player.selected_hotbar_index]
 
         if clicked.block is None:
@@ -182,7 +183,7 @@ class World:
 
         return True
 
-    def _can_break(self, clicked: BlockClick, player: "Player", fluid_manager: "FluidManager"):
+    def _can_break(self, clicked: BlockClick, player: Player, fluid_manager: FluidManager):
         if clicked.block is None:
             return False
 
@@ -196,7 +197,7 @@ class World:
 
         return True
 
-    def _place_block(self, clicked: BlockClick, block_type, player: "Player"):
+    def _place_block(self, clicked: BlockClick, block_type, player: Player):
         chunk_manager.set_block(clicked.x, clicked.y, block_type)
 
         new_block_rect = pygame.Rect(
@@ -210,7 +211,7 @@ class World:
             if item.rect.colliderect(new_block_rect):
                 item.resolve_stuck(new_block_rect, player)
 
-    def _handle_item_entities(self, player: "Player"):
+    def _handle_item_entities(self, player: Player):
         picked_items = []
 
         for item in self.item_entities:
@@ -229,6 +230,7 @@ class World:
 
     @staticmethod
     def get_drop_item(block_name: str):
+        print(block_name)
 
         def pick_weighted_drop(raw_drops):
             # 1. 如果是字典：代表有設定「權重/比重」
