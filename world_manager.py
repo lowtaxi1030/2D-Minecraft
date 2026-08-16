@@ -116,7 +116,7 @@ class World:
     def _handle_break_block(self, clicked: BlockClick, player: Player, fluid_manager: FluidManager):
         if clicked.block != "air" and player.can_place_block() and self._can_break(clicked, player, fluid_manager):
             drop_item_type = self.get_drop_item(clicked.block)
-            print(drop_item_type)
+            # print(drop_item_type)
 
             if player.will_drop_item_entity() and drop_item_type is not None:
                 self.item_entities.append(
@@ -230,7 +230,7 @@ class World:
 
     @staticmethod
     def get_drop_item(block_name: str):
-        print(block_name)
+        # print(block_name)
 
         def pick_weighted_drop(raw_drops):
             # 1. 如果是字典：代表有設定「權重/比重」

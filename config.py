@@ -1,7 +1,7 @@
 import random
 from pathlib import Path
 
-GAME_VERSION = "V0.26.8.6"
+GAME_VERSION = "V0.26.8.7"  # 8是合成
 
 
 BASE_DIR = Path(__file__).parent
@@ -22,8 +22,9 @@ BASE_LINE = 80
 chunks = {}
 height_map = []
 
-CURRENT_WORLD = "test1"  # 可以隨意換成任何合法名字
+CURRENT_WORLD = "test2"  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
+BIOME_NOISE_SCALE = 500
 
 Timer_Speed = 1
 

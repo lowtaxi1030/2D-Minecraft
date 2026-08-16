@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 import math
 import os
 import random
+import time
 
 import opensimplex
 
@@ -27,107 +28,108 @@ if not os.path.exists(info_dir):
 
 # 之後加"grass_color": (70,180,70),
 BIOMES = {
-    "plains": {
+    "snow": {
         "name": "plains",
+        "temp": -0.8,
+        "humidity": 0.0,
         "surface": "grass",
         "dirt": "dirt",
         "tree": "oak",
         "tree_rate": 0.03,
         "height": 8,
-        "chunk_size": (4, 7),
     },
-    "forest": {
+    "snow_forest": {
         "name": "forest",
+        "temp": -0.7,
+        "humidity": 0.6,
         "surface": "grass",
         "dirt": "dirt",
         "tree": "oak",
         "tree_rate": 0.15,
         "height": 12,
-        "chunk_size": (3, 6),
     },
-    "birch_forest": {
+    "stone_mountain": {
         "name": "birch_forest",
+        "temp": -0.3,
+        "humidity": -0.5,
         "surface": "grass",
         "dirt": "dirt",
         "tree": "birch",
         "tree_rate": 0.15,
         "height": 12,
-        "chunk_size": (3, 6),
     },
-    "desert": {
+    "mountain": {
         "name": "desert",
+        "temp": -0.2,
+        "humidity": 0.2,
         "surface": "sand",
         "dirt": "sand",
         "tree": None,
         "tree_rate": 0,
         "height": 5,
-        "chunk_size": (5, 9),
     },
-    "mountain": {
+    "plains": {
         "name": "mountain",
+        "temp": 0.0,
+        "humidity": -0.2,
         "surface": "grass",
         "dirt": "dirt",
         "tree": "spruce",
         "tree_rate": 0.02,
         "height": 35,
-        "chunk_size": (3, 7),
     },
-    "stone_mountain": {
+    "forest": {
         "name": "stone_mountain",
+        "temp": 0.1,
+        "humidity": 0.4,
         "surface": "stone",
         "dirt": "stone",
         "tree": None,
         "tree_rate": 0.02,
         "height": 35,
-        "chunk_size": (3, 7),
     },
-    "snow": {
+    "birch_forest": {
         "name": "snow",
+        "temp": 0.2,
+        "humidity": 0.3,
         "surface": "grass",
         "surface_cover": "snow",
         "dirt": "dirt",
         "tree": "spruce",
         "tree_rate": 0.05,
         "height": 10,
-        "chunk_size": (5, 8),
     },
-    "snow_forest": {
+    "dark_forest": {
         "name": "snow_forest",
+        "temp": 0.3,
+        "humidity": 0.8,
         "surface": "grass",
         "surface_cover": "snow",
         "dirt": "dirt",
         "tree": "spruce",
         "tree_rate": 0.15,
         "height": 10,
-        "chunk_size": (4, 7),
     },
-    "jungle": {
+    "desert": {
         "name": "jungle",
+        "temp": 0.8,
+        "humidity": -0.8,
         "surface": "grass",
         "dirt": "dirt",
         "tree": "jungle",
         "tree_rate": 0.25,
         "height": 15,
-        "chunk_size": (3, 6),
     },
-    "dark_forest": {
+    "jungle": {
         "name": "dark_forest",
+        "temp": 0.7,
+        "humidity": 0.9,
         "surface": "grass",
         "dirt": "dirt",
         "tree": "dark_oak",
         "tree_rate": 0.4,  # 樹木密度極高
         "height": 10,
-        "chunk_size": (3, 6),
     },
-    # "volcano": {
-    #     "name": "volcano",
-    #     "surface": "basalt_side",
-    #     "dirt": "stone",
-    #     "tree": None,
-    #     "tree_rate": 0,
-    #     "height": 45,
-    #     "chunk_size": (3, 7),
-    # },
 }
 
 
@@ -157,18 +159,14 @@ def set_block(world_x, world_y, block_type):
     # 1. 根據世界格子 X 座標，算出在哪一個 Chunk 區塊
     chunk_i = world_x // config.CHUNK_WIDTH
 
-    # 2. 如果該區塊剛好還沒生成，就先把它生出來
-    if chunk_i not in config.chunks:
-        chunk = get_chunk(chunk_i)
-
     # 3. 換算出在該區塊內（0 ~ 15）的相對 X 座標
-    chunk_x = world_x % config.CHUNK_WIDTH
+    local_x = world_x % config.CHUNK_WIDTH
     chunk_y = world_y  # Y 軸是固定的垂直高度，不需要取餘數
 
     # 4. 寫入方塊（記得照你 make_map 的順序先 Y 後 X）
     chunk = get_chunk(chunk_i)
 
-    chunk.blocks[chunk_y][chunk_x] = block_type
+    chunk.blocks[chunk_y][local_x] = block_type
     chunk.is_dirty = True
 
 
@@ -179,10 +177,10 @@ def get_chunk(chunk_x, fluid_manager: FluidManager = None) -> Chunk:
 
     # 2. 嘗試讀取存檔
     loaded_chunk = save.load_chunk(chunk_x)
-    rng = random.Random(config.WORLD_SEED + chunk_x * 1000003)
+    chunk_world_x = chunk_x * config.CHUNK_WIDTH
 
     if loaded_chunk is not None:
-        biome_name = _generate_biome(chunk_x, rng)
+        biome_name = get_biome(chunk_world_x)
 
         config.chunks[chunk_x] = Chunk(chunk_x, loaded_chunk, biome_name)
         if fluid_manager is not None:
@@ -201,67 +199,79 @@ def get_chunk(chunk_x, fluid_manager: FluidManager = None) -> Chunk:
 
 
 def make_map(map_width, map_height, current_chunk_i):
-    chunk_data = []
     rng = random.Random(config.WORLD_SEED + current_chunk_i * 1000003)
 
-    biome_name = _generate_biome(current_chunk_i, rng)
-    # print(current_chunk_i, biome_name)
+    t0 = time.perf_counter()
 
+    chunk_world_x = current_chunk_i * config.CHUNK_WIDTH
+    biome_name = get_biome(chunk_world_x)
     height_map = _make_terrain(current_chunk_i)
 
+    t1 = time.perf_counter()
     chunk_data = _make_base_terrain(map_width, map_height, current_chunk_i, biome_name, height_map, rng)
+
+    t2 = time.perf_counter()
     chunk_data = _generate_caves(current_chunk_i, chunk_data, height_map)
+
+    t3 = time.perf_counter()
     chunk_data = _generate_cave_entrances(current_chunk_i, chunk_data, height_map, rng)
+
+    t4 = time.perf_counter()
     chunk_data = _generate_trees(current_chunk_i, biome_name, chunk_data, height_map, rng)
+
+    t5 = time.perf_counter()
     chunk_data = _cleanup_terrain(current_chunk_i, chunk_data, height_map)
+
+    t6 = time.perf_counter()
     chunk_data = _generate_underground_fluids(current_chunk_i, chunk_data, height_map)
+
+    t7 = time.perf_counter()
     chunk_data = _generate_veins(current_chunk_i, chunk_data, rng)
+
+    t8 = time.perf_counter()
+
+    print(
+        f"[Chunk {current_chunk_i:3d}] 總耗時: {t8-t0:.4f}s | "
+        f"Terrain: {t1-t0:.4f}s | "
+        f"Base: {t2-t1:.4f}s | "
+        f"Caves: {t3-t2:.4f}s | "
+        f"Entrances: {t4-t3:.4f}s | "
+        f"Trees: {t5-t4:.4f}s | "
+        f"Cleanup: {t6-t5:.4f}s | "
+        f"Fluids: {t7-t6:.4f}s | "
+        f"Veins: {t8-t7:.4f}s"
+    )
 
     return chunk_data, biome_name
 
 
-biome_list = []
-
-last_chunk = 0
-
-
-def _generate_biome(chunk_x, rng: random.Random):
-    if not biome_list:
-        biome = rng.choice(list(BIOMES.keys()))
-        length = rng.randint(*BIOMES[biome]["chunk_size"])
-
-        biome_list.append({"start": 0, "end": length, "biome": biome})
-
-    while chunk_x >= biome_list[-1]["end"]:
-        start = biome_list[-1]["end"]
-
-        biome = rng.choice(list(BIOMES.keys()))
-        while biome == biome_list[-1]["biome"]:
-            biome = rng.choice(list(BIOMES.keys()))
-
-        length = rng.randint(*BIOMES[biome]["chunk_size"])
-
-        biome_list.append({"start": start, "end": start + length, "biome": biome})
-    while chunk_x < biome_list[0]["start"]:
-
-        end = biome_list[0]["start"]
-
-        biome = rng.choice(list(BIOMES.keys()))
-
-        while biome == biome_list[0]["biome"]:
-            biome = rng.choice(list(BIOMES.keys()))
-
-        length = rng.randint(*BIOMES[biome]["chunk_size"])
-
-        biome_list.insert(0, {"start": end - length, "end": end, "biome": biome})
-
-    return _get_biome(biome_list, chunk_x)
+# 🎯 輔助函式：將原始 Noise 拉平為均勻分布 (-1.0 ~ 1.0)
+def _get_uniform_noise(world_x: float, seed: int) -> float:
+    noise_x = world_x / config.BIOME_NOISE_SCALE
+    raw_noise = opensimplex.noise2(noise_x, seed)
+    return math.erf(raw_noise * 1.5)
 
 
-def _get_biome(biome_list, chunk_x):
-    for biome in biome_list:
-        if biome["start"] <= chunk_x < biome["end"]:
-            return biome["biome"]
+# 🎯 方案 B 主函式：透過溫度與濕度的 2D 歐幾里得距離決定群系
+def get_biome(world_x: int) -> str:
+    # 1. 取得校正後的溫度與濕度 (1000, 2000 為不同的種子碼)
+    temp_noise = _get_uniform_noise(world_x, 1000)
+    humidity_noise = _get_uniform_noise(world_x, 2000)
+
+    best_biome = "plains"
+    min_distance = float("inf")
+
+    # 2. 尋找與當前氣候最接近的生態系
+    for name, data in BIOMES.items():
+        dt = temp_noise - data["temp"]
+        dh = humidity_noise - data["humidity"]
+        distance = math.hypot(dt, dh)  # 計算 sqrt(dt^2 + dh^2)
+
+        if distance < min_distance:
+            min_distance = distance
+            best_biome = name
+
+    return best_biome
 
 
 def _make_terrain(chunk_x):
@@ -292,90 +302,62 @@ def _make_terrain(chunk_x):
 
 
 def _make_base_terrain(map_width, map_height, chunk_x, biome_name, height_map, rng: random.Random):
-    chunk_data = []
-
+    chunk_data = [["air"] * map_width for _ in range(map_height)]
+    biome = BIOMES[biome_name]
     dirt_depth_map = [rng.randint(3, 5) for _ in range(map_width)]
 
-    for y in range(map_height):
-        row = []
-        for x in range(map_width):
-            target_y = height_map[x]
-            biome = BIOMES[biome_name]
-            dirt_end_y = target_y + dirt_depth_map[x]
+    # 預先計算每一行 (x) 的 stone_limit，避免在 y 迴圈中重複算 opensimplex
+    stone_limits = []
+    for x in range(map_width):
+        world_x = chunk_x * config.CHUNK_WIDTH + x
+        offset = opensimplex.noise2(world_x / 80.0, 500) * 5
+        stone_limits.append(int(config.MAP_HEIGHT - 80 + offset))
 
-            world_x = chunk_x * config.CHUNK_WIDTH + x
+    for x in range(map_width):
+        target_y = height_map[x]
+        dirt_end_y = target_y + dirt_depth_map[x]
+        stone_limit = stone_limits[x]
 
-            offset = opensimplex.noise2(world_x / 80, 500) * 5
-            stone_limit = int(config.MAP_HEIGHT - 80 + offset)
+        # 表面與土層
+        chunk_data[target_y][x] = biome["surface"]
+        for y in range(target_y + 1, min(dirt_end_y, config.MAP_HEIGHT)):
+            chunk_data[y][x] = biome["dirt"]
 
-            if y < target_y:
-                block = "air"
-            elif y == config.MAP_HEIGHT - 1:
-                block = "bedrock"
-            elif y == target_y:
-                block = biome["surface"]
-            elif target_y < y < dirt_end_y:
-                block = biome["dirt"]
-            elif y < stone_limit:
-                block = "stone"
-            elif y < config.MAP_HEIGHT:
-                block = "deepslate"
+        # 石頭層
+        for y in range(dirt_end_y, min(stone_limit, config.MAP_HEIGHT)):
+            chunk_data[y][x] = "stone"
 
-            row.append(block)
-        chunk_data.append(row)
+        # 深板岩層
+        for y in range(max(dirt_end_y, stone_limit), config.MAP_HEIGHT - 1):
+            chunk_data[y][x] = "deepslate"
+
+        # 基岩
+        chunk_data[config.MAP_HEIGHT - 1][x] = "bedrock"
 
     return chunk_data
 
 
 def _generate_caves(chunk_x, chunk_data, height_map):
+    step = 2  # Y 軸採樣步階，數字越大越快
+    base_world_x = chunk_x * config.CHUNK_WIDTH
+
     for local_x in range(config.CHUNK_WIDTH):
-        world_x = chunk_x * config.CHUNK_WIDTH + local_x
-
-        cave_depth_noise = opensimplex.noise2(world_x / 150, 300)
-
-        value = (cave_depth_noise + 1) / 2
-        dynamic_buffer = int((1 - value) * 7)
-
-        # 取得這一行的高度限制（之前 _make_terrain 算出來的）
+        world_x = base_world_x + local_x
         surface_height = height_map[local_x]
+        start_y = surface_height + 5
 
-        for y in range(config.MAP_HEIGHT):
-            # 主洞窟
-            cave_noise = opensimplex.noise2(world_x / 20.0, y / 20.0)
-            # 控制洞大小(門檻)
-            size_noise = opensimplex.noise2(world_x / 120, y / 120)
-
-            room_noise = opensimplex.noise2(world_x / 80, y / 120)
-            tunnel_noise = opensimplex.noise2(world_x / 12, y / 12)
-            # 粗糙
-            # rough_noise = opensimplex.noise2(world_x / 4, y / 4)
-            # 地下湖
-
-            base_threshold = 0.4
-            threshold = base_threshold + size_noise * 0.12
-
+        # 步階採樣：每 step 格才算一次 Noise
+        for y in range(start_y, config.MAP_HEIGHT - 1, step):
             if chunk_data[y][local_x] == "bedrock":
                 continue
 
-            density = cave_noise
+            cave_noise = opensimplex.noise2(world_x / 20.0, y / 20.0)
 
-            if room_noise > 0.6:
-                density += 0.35
-
-            if tunnel_noise > 0.6:
-                density += 0.2
-
-            underground = y > surface_height + dynamic_buffer and density > threshold
-            if not underground:
-                continue
-
-            lake_noise = opensimplex.noise2(world_x / 120, y / 120)
-            # lava_noise = opensimplex.noise2(world_x / 120, y / 120)
-
-            if lake_noise > 0.72 and y > 80:
-                chunk_data[y][local_x] = "water_source"
-            else:
-                chunk_data[y][local_x] = "air"
+            if cave_noise > 0.35:
+                # 填補 step 範圍內的格子
+                for sy in range(y, min(y + step, config.MAP_HEIGHT - 1)):
+                    if chunk_data[sy][local_x] != "bedrock":
+                        chunk_data[sy][local_x] = "air"
 
     return chunk_data
 
@@ -429,55 +411,44 @@ def _generate_cave_entrances(chunk_x, chunk_data, height_map, rng: random.Random
 
 
 def _cleanup_terrain(chunk_x, chunk_data, height_map):
+    # 只複製一份出來做讀取，避免邊讀邊改影響結果
     new_chunk = [row[:] for row in chunk_data]
 
-    # stone_neighbors = 0
-    for local_x in range(config.CHUNK_WIDTH):
-        for y in range(config.MAP_HEIGHT):
-            # 第一種：清理單獨的小方塊
-            air_blocks = 0
-            for xx in range(local_x - 1, local_x + 2):
-                for yy in range(y - 1, y + 2):
-                    if xx == local_x and yy == y:
-                        continue
+    # 計算這個 Chunk 最高的 surface height，高於此高度太多（如 +10）的全是空氣，不用檢查
+    min_surface = min(height_map)
+    start_y = max(0, min_surface - 5)
 
-                    if xx < 0 or xx >= config.CHUNK_WIDTH:
-                        continue
-                    if yy < 0 or yy >= config.MAP_HEIGHT:
-                        continue
+    # 鄰居相對座標偏移量 (8 個方向)
+    neighbors_offsets = [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
+    CAN_CLEAN_BLOCKS = ["stone", "dirt", "deepslate"]
 
-                    if chunk_data[yy][xx] == "air":
-                        air_blocks += 1
-            if chunk_data[y][local_x] != "air":
-                if air_blocks >= 7:
-                    new_chunk[y][local_x] = "air"
+    for y in range(start_y, config.MAP_HEIGHT - 1):
+        for local_x in range(config.CHUNK_WIDTH):
+            current_block = chunk_data[y][local_x]
+            if current_block == "bedrock":
+                continue
 
-            # 第二種：填掉單獨的小洞
+            air_count = 0
             solid_count = 0
-            solid_type = ""
-            for xx in range(local_x - 1, local_x + 2):
-                for yy in range(y - 1, y + 2):
-                    if xx == local_x and yy == y:
-                        continue
+            last_solid_type = ""
 
-                    if xx < 0 or xx >= config.CHUNK_WIDTH:
-                        continue
-                    if yy < 0 or yy >= config.MAP_HEIGHT:
-                        continue
-
-                    if chunk_data[yy][xx] != "air":
+            for dx, dy in neighbors_offsets:
+                nx, ny = local_x + dx, y + dy
+                if 0 <= nx < config.CHUNK_WIDTH and 0 <= ny < config.MAP_HEIGHT:
+                    nb = chunk_data[ny][nx]
+                    if nb == "air":
+                        air_count += 1
+                    else:
                         solid_count += 1
-                        solid_type = chunk_data[yy][xx]
+                        last_solid_type = nb
 
-            if chunk_data[y][local_x] != "air":
-                if solid_count >= 8:
-                    new_chunk[y][local_x] = solid_type
+            # 第一種：清理孤立單獨的實體方塊
+            if current_block in CAN_CLEAN_BLOCKS and air_count >= 7:
+                new_chunk[y][local_x] = "air"
+            # 第二種：填補孤立單獨的小空洞
+            elif current_block in CAN_CLEAN_BLOCKS and solid_count >= 8:
+                new_chunk[y][local_x] = last_solid_type
 
-            # if stone_neighbors >= 5:
-            #     chunk_data[y][local_x] = "stone"
-
-            # if stone_neighbors < 5:
-            #     chunk_data[y][local_x] = "air"
     return new_chunk
 
 
@@ -536,151 +507,265 @@ def _generate_underground_fluids(chunk_x, chunk_data, height_map):
 
 
 def _generate_veins(chunk_x, chunk_data, rng: random.Random):
-
-    # 🛠️ 在這裡集中管理所有礦物的生成規則，要新增礦物只要在這邊加一行就好！
     ore_rules = [
-        # {"name": "礦物名稱", "min_y": 最高高度, "max_y": 最低高度, "noise_scale_x": noise X 範圍, "noise_scale_y": noise Y 範圍, "noise_threshold": 礦物大小(Noise), "vein_size": 礦物大小(rng), "target_stones": ["stone" 或 "deepslate"]},
-        {
-            "name": "copper_ore",
-            "min_y": 60,
-            "max_y": 115,
-            "noise_scale_x": 8.0,
-            "noise_scale_y": 8.0,
-            "noise_threshold": 0.7,
-            "vein_size": (4, 8),
-            "target_stones": ["stone"],
-        },
+        # =========================
+        # Stone
+        # =========================
         {
             "name": "coal_ore",
+            "seed_offset": 1000,
             "min_y": 60,
-            "max_y": 115,
-            "noise_scale_x": 8.0,
-            "noise_scale_y": 8.0,
-            "noise_threshold": 0.7,
+            "max_y": 220,
+            "scale": 8.0,
+            "threshold": 0.6,
+            "spawn_chance": 0.05,
             "vein_size": (5, 25),
-            "target_stones": ["stone"],
+            "target": "stone",
+        },
+        {
+            "name": "copper_ore",
+            "seed_offset": 2000,
+            "min_y": 60,
+            "max_y": 220,
+            "scale": 8.0,
+            "threshold": 0.75,
+            "spawn_chance": 0.04,
+            "vein_size": (4, 8),
+            "target": "stone",
         },
         {
             "name": "iron_ore",
+            "seed_offset": 3000,
             "min_y": 80,
-            "max_y": 115,
-            "noise_scale_x": 16.0,
-            "noise_scale_y": 16.0,
-            "noise_threshold": 0.7,
+            "max_y": 220,
+            "scale": 10.0,
+            "threshold": 0.7,
+            "spawn_chance": 0.04,
             "vein_size": (5, 25),
-            "target_stones": ["stone"],
+            "target": "stone",
         },
-        # {"name": "gold_ore", "min_y": 70, "max_y": 115, "veins_range": (0, 3), "size_range": (1, 6), "target_stones": ["stone"]},
-        # {"name": "diamond_ore", "min_y": 90, "max_y": 115, "veins_range": (0, 1), "size_range": (1, 6), "target_stones": ["stone"]},
-        # {"name": "redstone_ore", "min_y": 90, "max_y": 115, "veins_range": (1, 4), "size_range": (1, 6), "target_stones": ["stone"]},
-        # {"name": "lapis_ore", "min_y": 80, "max_y": 115, "veins_range": (0, 4), "size_range": (2, 8), "target_stones": ["stone"]},
-        # {
-        #     "name": "deepslate_iron_ore",
-        #     "min_y": 115,
-        #     "max_y": 179,
-        #     "veins_range": (0, 3),
-        #     "size_range": (5, 18),
-        #     "target_stones": ["deepslate"],
-        # },
-        # {
-        #     "name": "deepslate_coal_ore",
-        #     "min_y": 115,
-        #     "max_y": 179,
-        #     "veins_range": (0, 3),
-        #     "size_range": (5, 20),
-        #     "target_stones": ["deepslate"],
-        # },
-        # {
-        #     "name": "deepslate_emerald_ore",
-        #     "min_y": 115,
-        #     "max_y": 179,
-        #     "veins_range": (0, 3),
-        #     "size_range": (1, 1),
-        #     "target_stones": ["deepslate"],
-        # },
-        # {
-        #     "name": "deepslate_diamond_ore",
-        #     "min_y": 115,
-        #     "max_y": 179,
-        #     "veins_range": (0, 3),
-        #     "size_range": (1, 6),
-        #     "target_stones": ["deepslate"],
-        # },
-        # {
-        #     "name": "deepslate_redstone_ore",
-        #     "min_y": 115,
-        #     "max_y": 179,
-        #     "veins_range": (1, 5),
-        #     "size_range": (1, 6),
-        #     "target_stones": ["deepslate"],
-        # },
-        # {
-        #     "name": "deepslate_lapis_ore",
-        #     "min_y": 115,
-        #     "max_y": 179,
-        #     "veins_range": (2, 7),
-        #     "size_range": (2, 8),
-        #     "target_stones": ["deepslate"],
-        # },
+        {
+            "name": "gold_ore",
+            "seed_offset": 4000,
+            "min_y": 70,
+            "max_y": 220,
+            "scale": 10.0,
+            "threshold": 0.75,
+            "spawn_chance": 0.025,
+            "vein_size": (1, 6),
+            "target": "stone",
+        },
+        {
+            "name": "redstone_ore",
+            "seed_offset": 5000,
+            "min_y": 90,
+            "max_y": 220,
+            "scale": 12.0,
+            "threshold": 0.78,
+            "spawn_chance": 0.02,
+            "vein_size": (1, 6),
+            "target": "stone",
+        },
+        {
+            "name": "lapis_ore",
+            "seed_offset": 6000,
+            "min_y": 80,
+            "max_y": 220,
+            "scale": 12.0,
+            "threshold": 0.78,
+            "spawn_chance": 0.02,
+            "vein_size": (2, 8),
+            "target": "stone",
+        },
+        {
+            "name": "diamond_ore",
+            "seed_offset": 7000,
+            "min_y": 90,
+            "max_y": 220,
+            "scale": 30.0,
+            "threshold": 0.815,
+            "spawn_chance": 0.01,
+            "vein_size": (1, 6),
+            "target": "stone",
+        },
+        {
+            "name": "emerald_ore",
+            "seed_offset": 8000,
+            "min_y": 90,
+            "max_y": 220,
+            "scale": 12.0,
+            "threshold": 0.771,
+            "spawn_chance": 0.015,
+            "vein_size": (1, 1),
+            "target": "stone",
+        },
+        # =========================
+        # Deepslate
+        # =========================
+        {
+            "name": "deepslate_coal_ore",
+            "seed_offset": 1000,
+            "min_y": 223,
+            "max_y": 298,
+            "scale": 8.0,
+            "threshold": 0.6,
+            "spawn_chance": 0.05,
+            "vein_size": (5, 20),
+            "target": "deepslate",
+        },
+        {
+            "name": "deepslate_copper_ore",
+            "seed_offset": 2000,
+            "min_y": 223,
+            "max_y": 298,
+            "scale": 8.0,
+            "threshold": 0.75,
+            "spawn_chance": 0.04,
+            "vein_size": (5, 20),
+            "target": "deepslate",
+        },
+        {
+            "name": "deepslate_iron_ore",
+            "seed_offset": 3000,
+            "min_y": 223,
+            "max_y": 298,
+            "scale": 10.0,
+            "threshold": 0.7,
+            "spawn_chance": 0.04,
+            "vein_size": (5, 25),
+            "target": "deepslate",
+        },
+        {
+            "name": "deepslate_gold_ore",
+            "seed_offset": 4000,
+            "min_y": 223,
+            "max_y": 298,
+            "scale": 10.0,
+            "threshold": 0.75,
+            "spawn_chance": 0.025,
+            "vein_size": (1, 6),
+            "target": "deepslate",
+        },
+        {
+            "name": "deepslate_redstone_ore",
+            "seed_offset": 5000,
+            "min_y": 223,
+            "max_y": 298,
+            "scale": 12.0,
+            "threshold": 0.78,
+            "spawn_chance": 0.02,
+            "vein_size": (1, 6),
+            "target": "deepslate",
+        },
+        {
+            "name": "deepslate_lapis_ore",
+            "seed_offset": 6000,
+            "min_y": 223,
+            "max_y": 298,
+            "scale": 12.0,
+            "threshold": 0.78,
+            "spawn_chance": 0.02,
+            "vein_size": (2, 8),
+            "target": "deepslate",
+        },
+        {
+            "name": "deepslate_diamond_ore",
+            "seed_offset": 7000,
+            "min_y": 223,
+            "max_y": 298,
+            "scale": 30.0,
+            "threshold": 0.815,
+            "spawn_chance": 0.01,
+            "vein_size": (1, 6),
+            "target": "deepslate",
+        },
+        {
+            "name": "deepslate_emerald_ore",
+            "seed_offset": 8000,
+            "min_y": 223,
+            "max_y": 298,
+            "scale": 12.0,
+            "threshold": 0.771,
+            "spawn_chance": 0.015,
+            "vein_size": (1, 1),
+            "target": "deepslate",
+        },
     ]
 
-    # 用一個迴圈，把所有礦物的規則依序拿出來跑
     for rule in ore_rules:
+
         for y in range(config.MAP_HEIGHT):
-            if not rule["min_y"] <= y <= rule["max_y"]:
-                continue
-
             for local_x in range(config.CHUNK_WIDTH):
+
+                if chunk_data[y][local_x] != rule["target"]:
+                    continue
+
+                if rng.random() > rule["spawn_chance"]:
+                    continue
+
                 world_x = chunk_x * config.CHUNK_WIDTH + local_x
+                noise = opensimplex.noise2((world_x + rule["seed_offset"]) / rule["scale"], (y + rule["seed_offset"]) / rule["scale"])
 
-                ore_noise = opensimplex.noise2(world_x / rule["noise_scale_x"], y / rule["noise_scale_y"])
-                if chunk_data[y][local_x] in rule["target_stones"] and ore_noise > rule["noise_threshold"]:
-                    chunk_data[y][local_x] = rule["name"]
-                    # vein_size = rng.randint(*rule["vein_size"])
-                    # _veins_spawn(chunk_data, vein_size, y, local_x, config.CHUNK_WIDTH, config.MAP_HEIGHT, rule["name"])
+                if noise <= rule["threshold"]:
+                    continue
 
-        # vein_size = rng.randint(rule["size_range"][0], rule["size_range"][1])
-        # # 🎯 修正：傳入 map_width
-        # _veins_spawn(chunk_data, vein_size, center_y, center_x, map_width, map_height, rule["name"])
+                vein_size = rng.randint(*rule["vein_size"])
+
+                _spawn_vein(chunk_data, vein_size, y, local_x, rule["name"], rng)
 
     return chunk_data
 
 
-# def _veins_spawn(chunk_data, vein_size, center_y, center_x, map_width, map_height, vein_name):
-#     blocks_placed = 0
+def _spawn_vein(chunk_data, vein_size, center_y, center_x, vein_name, rng: random.Random):
+    blocks_placed = 0
 
-#     # 建立一個「已經被感染」的方塊坐標清單，起點是中心
-#     # 使用 set 是為了方便快速判斷某格是不是已經變成鐵礦了
-#     infected_blocks = set()
-#     infected_blocks.add((center_x, center_y))
+    infected_blocks = {(center_x, center_y)}
 
-#     # 先把中心點放下去
-#     if chunk_data[center_y][center_x] in ["stone", "deepslate"]:
-#         chunk_data[center_y][center_x] = vein_name
-#         blocks_placed += 1
+    if chunk_data[center_y][center_x] not in {
+        "stone",
+        "deepslate",
+    }:
+        return
 
-#     # 🎯 建立一個安全計數器，防止無限迴圈
-#     attempts = 0
-#     max_attempts = vein_size * 5
+    chunk_data[center_y][center_x] = vein_name
+    blocks_placed = 1
 
-#     # 用 while 確保一定要放滿指定格數
-#     while blocks_placed < vein_size and attempts < max_attempts:
-#         attempts += 1
+    attempts = 0
+    max_attempts = vein_size * 5
 
-#         base_x, base_y = random.choice(list(infected_blocks))
+    directions = (
+        (0, 1),
+        (0, -1),
+        (1, 0),
+        (-1, 0),
+    )
 
-#         # 從這個挑選到的「突觸點」隨機抽一個上下左右的方向
-#         dx, dy = random.choice([(0, 1), (0, -1), (1, 0), (-1, 0)])
-#         next_x = max(0, min(map_width - 1, base_x + dx))
-#         next_y = max(0, min(map_height - 1, base_y + dy))
+    while blocks_placed < vein_size and attempts < max_attempts:
+        attempts += 1
 
-#         # 如果下一個位置是石頭，且還沒被感染
-#         if chunk_data[next_y][next_x] in ["stone", "deepslate"] and (next_x, next_y) not in infected_blocks:
-#             # 放下礦石
-#             chunk_data[next_y][next_x] = vein_name
-#             # 把這格加入「被感染清單」，下次也可能從這格突觸
-#             infected_blocks.add((next_x, next_y))
-#             blocks_placed += 1
+        base_x, base_y = rng.choice(tuple(infected_blocks))
+
+        dx, dy = rng.choice(directions)
+
+        next_x = base_x + dx
+        next_y = base_y + dy
+
+        if not (0 <= next_x < config.CHUNK_WIDTH and 0 <= next_y < config.MAP_HEIGHT):
+            continue
+
+        if (next_x, next_y) in infected_blocks:
+            continue
+
+        if chunk_data[next_y][next_x] not in {
+            "stone",
+            "deepslate",
+        }:
+            continue
+
+        chunk_data[next_y][next_x] = vein_name
+        infected_blocks.add((next_x, next_y))
+        blocks_placed += 1
+
 
 """
 ├── _draw_oak()
@@ -802,7 +887,7 @@ def _can_place_tree(plant_world_x, placed_tree_x, tree_spawn_CD):
 
 def _draw_symmetry_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data, rng: random.Random):
     if tree_type not in TREE_PATTERNS:
-        print(f"Unknown tree type: {tree_type}")
+        # print(f"Unknown tree type: {tree_type}")
         return
 
     pattern = TREE_PATTERNS[tree_type]
@@ -829,7 +914,7 @@ def _draw_symmetry_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data,
 
 def _draw_2d_matrix_tree(tree_type, plant_local_x, bottom_y, chunk_x, chunk_data, rng: random.Random):
     if tree_type not in TREE_PATTERNS:
-        print(f"Unknown tree type: {tree_type}")
+        # print(f"Unknown tree type: {tree_type}")
         return
 
     pattern = TREE_PATTERNS[tree_type]

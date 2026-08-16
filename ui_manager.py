@@ -64,13 +64,13 @@ class UI:
             self.interfaces[self.last_crafting_type].clear_grid_and_drop(player, world_manager)
             self.last_crafting_type = None
 
-    def update(self, player, fps, mouse_pos, camera):
+    def update(self, player, fps, mouse_pos, camera, world):
         self.hotbar.update(player)
 
         for interface in self.interfaces.values():
             interface.update(player)
 
-        self.debug.update(player, fps, mouse_pos, camera)
+        self.debug.update(player, fps, mouse_pos, camera, world)
 
     def draw(self, screen, player: Player, fps, mouse_pos, camera):
 
@@ -731,7 +731,7 @@ class FurnaceUI(PlayerInventory):
 
         area, index = self._get_clicked_slot_info(mouse_pos)
         if area is None:
-            if not self.assets.ui_rects["crafting_table"].collidepoint(mouse_pos):
+            if not self.assets.ui_rects["furnace"].collidepoint(mouse_pos):
                 if self.held_item is not None:
                     world_manager.spawn_item_entity(self.held_item, player.rect.centerx, player.rect.top, "inv_drop", player)  # 生成掉落物
                     self.held_item = None
@@ -791,7 +791,7 @@ class DebugScreen:
         self.left_lines = []
         self.right_lines = []
 
-    def update(self, player: Player, fps, mouse_pos: tuple[int, int], camera: Camera):
+    def update(self, player: Player, fps, mouse_pos: tuple[int, int], camera: Camera, world: World):
         self.debug_frame += 1
 
         if self.debug_frame >= 12:
@@ -829,7 +829,7 @@ class DebugScreen:
 
             self.left_lines = [
                 "=== Player ===",
-                f"Pos : ({player_block_x}, {show_player_y})",
+                f"Pos : ({player_block_x}, {player_block_y})",  # show_player_y
                 f"Vel : ({player.vel_x:.2f}, {player.vel_y:.2f})",
                 f"Grounded : {player.is_grounded}",
                 f"Flying : {player.is_flying}",
@@ -837,7 +837,7 @@ class DebugScreen:
                 f"Facing : {'Right' if player.facing == 1 else 'Left'}",
                 "",
                 "=== Block ===",
-                f"Mouse Pos : ({world_mouse_x}, {show_mouse_y})",
+                f"Mouse Pos : ({world_mouse_x}, {world_mouse_y})",  # show_mouse_y
                 f"Mouse : {mouse_block}",
                 f"Standing : {standing_block}",
                 "",
@@ -845,7 +845,7 @@ class DebugScreen:
                 f"FPS : {fps:.0f}",
                 f"Scren Mouse Pos: {mouse_pos}",
                 f"Loaded Chunks : {len(config.chunks)}",
-                # f"Entities : {len(world.entities)}",
+                f"Entities : {len(world.item_entities)}",
                 f"Dirty Chunks : {sum(chunk.is_dirty for chunk in config.chunks.values())}",
             ]
 
@@ -854,9 +854,8 @@ class DebugScreen:
                 f"World : {config.CURRENT_WORLD}",
                 f"Seed : {config.WORLD_SEED}",
                 f"Chunk : {current_chunk}",
-                f"Chunk X : {player_block_x}",
                 f"Local X : {local_x}",
-                f"Biome : {chunk_manager.get_chunk(player_block_x // config.CHUNK_WIDTH).biome_name}",
+                f"Biome : {chunk_manager.get_biome(player.rect.centerx)}",
                 "",
                 "=== Camera ===",
                 f"Scroll : ({camera.scroll_x:.1f}, {camera.scroll_y:.1f})",

@@ -94,7 +94,7 @@ while config.running:
         game_camera.update(player, fluid_manager)
         world.update(mouse_buttons, mouse_pos, player, game_camera, fluid_manager)
         player.update(mouse_pos, game_camera.scroll_x, dt)
-        ui.update(player, fps, mouse_pos, game_camera)
+        ui.update(player, fps, mouse_pos, game_camera, world)
         asset.update()
         fluid_manager.update(pygame.time.get_ticks())
 

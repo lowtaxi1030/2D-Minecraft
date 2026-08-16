@@ -14,7 +14,7 @@ from game_data import materials as m
 RECIPES = [
     {
         "material_group": "wood_planks",
-        "shape": [["$_log"]],
+        "shape": [["$material_log"]],
         "ingredients": {"$material_log": 1},
         "result_type": "$material_planks",
         "result_count": 4,
@@ -97,9 +97,9 @@ RECIPES = [
         "material_group": "tool_material",
         "ingredients": {"$material": 1, "stick": 2},
         "shape": [
-            [None, "$material"],
-            [None, "stick"],
-            [None, "stick"],
+            ["$material"],
+            ["stick"],
+            ["stick"],
         ],
         "result_type": "$material_shovel",
         "result_count": 1,
@@ -114,6 +114,7 @@ RECIPES = [
         ],
         "result_type": "$material_hoe",
         "result_count": 1,
+        "mirrored": True,
     },
     {
         "material_group": "tool_material",
@@ -125,6 +126,7 @@ RECIPES = [
         ],
         "result_type": "$material_spear",
         "result_count": 1,
+        "mirrored": True,
     },
     {
         "material_group": "tool_material",
@@ -198,6 +200,16 @@ RECIPES = [
         ],
         "result_type": "$material_nugget",
         "result_count": 9,
+    },
+    {
+        "ingredients": {"iron_ingot": 2},
+        "shape": [
+            ["iron_ingot", None],
+            [None, "iron_ingot"],
+        ],
+        "result_type": "shears",
+        "result_count": 1,
+        "mirrored": True,
     },
 ]
 
