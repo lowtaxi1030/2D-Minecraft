@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     from asset_manager import AssetManager
     from fluid_manager import FluidManager
     from player import Player
+    from ui_manager import UI
 import json
 
 import pygame
@@ -130,7 +131,7 @@ class Camera:
 
     """"""
 
-    def draw_world(self, screen: pygame.Surface, mouse_pos: tuple[int | float, int | float], draw_hover=True):
+    def draw_world(self, screen: pygame.Surface, mouse_pos: tuple[int | float, int | float], ui: UI, draw_hover=True):
         world_x, world_y = self.screen_to_world(mouse_pos)
         start_x, end_x, start_y, end_y = self.visible_range()
 

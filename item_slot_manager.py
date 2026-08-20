@@ -3,8 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
-
-Item = dict[str, str | int]
+from config import Item
 
 
 class SlotHandler:
@@ -73,6 +72,24 @@ class SlotHandler:
                 held_item = None
 
         return held_item, target_item
+
+    def handle_output_slot_click(self, held_item: Item, result_item: Item):
+        # 只允許拿取，不允許放入
+
+        # 1.如果成品格是空的
+        if result_item is None:
+            pass
+
+        # 2.如果手上沒東西
+        elif held_item is None:
+            held_item, result_item = result_item.copy(), None
+
+        # 3.如果手上已經有東西
+        else:
+            if held_item["type"] == result_item["type"]:
+                held_item, result_item = self._try_merge_stack(held_item, result_item)
+
+        return held_item, result_item
 
     def _try_merge_stack(self, dst_item: Item, src_item: Item):
         """

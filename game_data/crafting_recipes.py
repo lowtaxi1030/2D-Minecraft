@@ -193,6 +193,15 @@ RECIPES = [
         "result_count": 1,
     },
     {
+        "material_group": "brick_material_rev",
+        "ingredients": {"$material": 1},
+        "shape": [
+            ["$material"],
+        ],
+        "result_type": "$material",
+        "result_count": 9,
+    },
+    {
         "material_group": "nugget_material",
         "ingredients": {"$material": 1},
         "shape": [
@@ -200,6 +209,17 @@ RECIPES = [
         ],
         "result_type": "$material_nugget",
         "result_count": 9,
+    },
+    {
+        "material_group": "nugget_material_rev",
+        "ingredients": {"$material": 9},
+        "shape": [
+            ["$material", "$material", "$material"],
+            ["$material", "$material", "$material"],
+            ["$material", "$material", "$material"],
+        ],
+        "result_type": "$material_ingot",
+        "result_count": 1,
     },
     {
         "ingredients": {"iron_ingot": 2},
@@ -210,6 +230,24 @@ RECIPES = [
         "result_type": "shears",
         "result_count": 1,
         "mirrored": True,
+    },
+    {
+        "ingredients": {"coal": 1, "stick": 1},
+        "shape": [
+            ["coal", None],
+            ["stick", None],
+        ],
+        "result_type": "torch",
+        "result_count": 4,
+    },
+    {
+        "ingredients": {"redstone": 1, "stick": 1},
+        "shape": [
+            ["redstone", None],
+            ["stick", None],
+        ],
+        "result_type": "redstone_torch",
+        "result_count": 4,
     },
 ]
 

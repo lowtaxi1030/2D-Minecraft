@@ -32,6 +32,31 @@ RAW_BLOCK_DROPS = {
         "material_group": "ores",
         "$material": 1,
     },
+    # 特別處理
+    "copper_ore": {
+        "drop": "raw_copper",
+        "count": (2, 5),
+    },
+    "redstone_ore": {
+        "drop": "redstone",
+        "count": (4, 5),
+    },
+    "lapis_ore": {
+        "drop": "lapis_lazuli",
+        "count": (4, 9),
+    },
+    "deepslate_copper_ore": {
+        "drop": "raw_copper",
+        "count": (2, 5),
+    },
+    "deepslate_redstone_ore": {
+        "drop": "redstone",
+        "count": (4, 5),
+    },
+    "deepslate_lapis_ore": {
+        "drop": "lapis_lazuli",
+        "count": (4, 9),
+    },
 }
 
 
@@ -74,15 +99,17 @@ def expand_material_drops(pattern: str, drops_data: dict) -> dict[str, dict]:
 
 
 BLOCK_DROPS = {}
+
 for pattern, drops in RAW_BLOCK_DROPS.items():
-    if not (isinstance(drops, dict) and "material_group" in drops):
-        BLOCK_DROPS[pattern] = drops
-for pattern, drops in RAW_BLOCK_DROPS.items():
+    # 1. 如果有 material_group，進行群組展開
     if isinstance(drops, dict) and "material_group" in drops:
-        # 呼叫 expand 展開成一個多個方塊的字典 (例如 {"oak_leaves": {...}, "birch_leaves": {...}})
         expanded_drops = expand_material_drops(pattern, drops)
 
         for key, drop_data in expanded_drops.items():
-            # 🎯 關鍵：如果第一階段已經有特例（如 jungle_leaves），就不被通用模板蓋掉
+            # 優先保留第一階段已定義的特例
             if key not in BLOCK_DROPS:
                 BLOCK_DROPS[key] = drop_data
+
+    # 2. 普通設定或包含 count 的特殊設定 (如 copper_ore, redstone_ore)
+    else:
+        BLOCK_DROPS[pattern] = drops

@@ -161,11 +161,26 @@ class AssetManager:
 
     def _load_ui_assets(self):
         try:
+            # 1. 載入主 UI 背景底圖
             for img in self.UI_IMAGES:
-                self.ui_images[img] = pygame.image.load(f"{str(IMAGE_PATH)}/ui/{img}.png")
+                path = IMAGE_PATH / "ui" / f"{img}.png"
+                if not path.exists():
+                    print(f"error: no such path: {path}")
+                    continue
+                self.ui_images[img] = pygame.image.load(str(path)).convert_alpha()
                 self.ui_images[img] = pygame.transform.scale_by(self.ui_images[img], 3.5)
                 self.ui_rects[img] = self.ui_images[img].get_rect()
                 self.ui_rects[img].center = (config.WIDTH // 2, config.HEIGHT // 2)
+
+            # 2. 載入熔爐專用動態進度條素材 (放在 ui/furnace/ 資料夾下)
+            furnace_ui_path = IMAGE_PATH / "ui" / "furnace"
+            if furnace_ui_path.exists():
+                for path in furnace_ui_path.glob("*.png"):
+                    name = path.stem  # 取得 "burn_progress" 或 "lit_progress"
+                    img_surf = pygame.image.load(str(path)).convert_alpha()
+                    # 必須配合主 UI 放大 3.5 倍，像素尺寸才會精準對齊！
+                    self.ui_images[name] = pygame.transform.scale_by(img_surf, 3.5)
+                    # self.ui_rects[name] = self.ui_images[name].get_rect()
         except FileNotFoundError as e:
             sys.exit(f"找不到 ui 的圖片\n{e}")
 
@@ -215,11 +230,14 @@ class AssetManager:
 
     def block(self, name):
 
-        animation = self.animations.get(name)
-        if animation:
-            return self.animations[name].image
+        if animation := self.animations.get(name):
+            return animation.image
 
-        return self.img_blocks.get(name, self.img_items.get(name))
+        img = self.img_blocks.get(name, self.img_items.get(name))
+
+        if img is not None:
+            return img
+        raise KeyError(f"Image resource '{name}' not found in animations, blocks, or items.")
 
     @staticmethod
     def update_img_pos(img_rect: pygame.Rect, new_pos: tuple = None, y_center=False, screen_center=True, is_bottom=False):

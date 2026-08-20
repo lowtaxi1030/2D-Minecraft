@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     from asset_manager import AssetManager
     from fluid_manager import FluidManager
     from player import Player
+    from ui_manager import UI
 
 import random
 
@@ -13,6 +14,7 @@ import chunk_manager
 import config
 import item_entity
 from camera import Camera
+from furnace_state import FurnaceState
 from game_data.block_drops import BLOCK_DROPS
 from special_blocks import SPECIAL_BLOCKS
 
@@ -39,6 +41,8 @@ class World:
         self.last_pos = (0, 0)
         self.last_mouse_btn = -1
 
+        self.furnaces: dict[config.Pos, FurnaceState] = {}
+
     def update(
         self,
         mouse_buttons: tuple[bool, bool, bool],
@@ -46,9 +50,15 @@ class World:
         player: Player,
         camera: Camera,
         fluid_manager: FluidManager,
+        ui: UI,
     ):
-
+        """世界更新區"""
         self._handle_item_entities(player)
+
+        for furnace in self.furnaces.values():
+            furnace.update()
+
+        """"""
 
         # 沒有按下任何鍵，或是正在合成中
         if not any(mouse_buttons) or player.crafting_type is not None:
@@ -85,7 +95,7 @@ class World:
             self._handle_pick_block(clicked, player)
 
         elif mouse_buttons[2]:
-            if not self._handle_special_block(clicked, player):
+            if not self._handle_special_block(clicked, player, ui):
                 self._handle_place_block(clicked, player, fluid_manager)
         self.last_pos = current_pos
         self.last_mouse_btn = current_btn
@@ -103,7 +113,7 @@ class World:
             clicked_block,
         )
 
-    def _handle_special_block(self, clicked: BlockClick, player: Player) -> bool:
+    def _handle_special_block(self, clicked: BlockClick, player: Player, ui: UI) -> bool:
         # 檢查是不是特殊方塊
         if (special_block_class := SPECIAL_BLOCKS.get(clicked.block)) is None:
             return False
@@ -111,17 +121,23 @@ class World:
         special_block = special_block_class(player)
         special_block.interact()
 
+        if clicked.block == "furnace":
+            pos = (clicked.x, clicked.y)
+            if pos not in self.furnaces:
+                self.furnaces[pos] = FurnaceState()
+            ui.furnace.set_furnace_state(self.furnaces[pos])
+
         return True
 
     def _handle_break_block(self, clicked: BlockClick, player: Player, fluid_manager: FluidManager):
         if clicked.block != "air" and player.can_place_block() and self._can_break(clicked, player, fluid_manager):
-            drop_item_type = self.get_drop_item(clicked.block)
+            drop_item_type, drop_count = self.get_drop_item(clicked.block)
             # print(drop_item_type)
 
-            if player.will_drop_item_entity() and drop_item_type is not None:
+            if player.will_drop_item_entity() and drop_item_type is not None and drop_count > 0:
                 self.item_entities.append(
                     item_entity.ItemEntity(
-                        {"type": drop_item_type, "count": 1},
+                        {"type": drop_item_type, "count": drop_count},
                         clicked.x * config.BLOCK_SIZE,
                         clicked.y * config.BLOCK_SIZE,
                         spawn_reason="break",
@@ -230,48 +246,46 @@ class World:
 
     @staticmethod
     def get_drop_item(block_name: str):
-        # print(block_name)
+        # 1. 若方塊不在 BLOCK_DROPS 中，預設掉落方塊自己本身 (數量 1)
+        if block_name not in BLOCK_DROPS:
+            return block_name, 1
 
-        def pick_weighted_drop(raw_drops):
-            # 1. 如果是字典：代表有設定「權重/比重」
-            if isinstance(raw_drops, dict):
-                items = list(raw_drops.keys())
-                weights = list(raw_drops.values())
-                return random.choices(items, weights=weights, k=1)[0]
+        raw_drops = BLOCK_DROPS[block_name]
 
-            # 2. 如果是清單：代表「等機率隨機抽取」
-            elif isinstance(raw_drops, list):
-                return random.choice(raw_drops)
+        def parse_drop_data(data):
+            """解析掉落項目與數量"""
+            if data is None:
+                return None, 0
 
-            # 3. 如果是單一字串
-            return raw_drops
+            # 特殊掉落配置 (例如包含 drop 與 count 的字典)
+            if isinstance(data, dict) and "drop" in data:
+                item_id = data["drop"]
+                count_data = data.get("count", 1)
 
-        # 一般精確匹配 (例如 "stone", "grass")
-        if block_name in BLOCK_DROPS:
-            raw_drops = BLOCK_DROPS[block_name]
+                # 處理 (2, 5) 這種隨機數量範圍
+                if isinstance(count_data, (tuple, list)):
+                    count = random.randint(count_data[0], count_data[1])
+                else:
+                    count = count_data
 
-            chosen_drop = pick_weighted_drop(raw_drops)
-            return chosen_drop  # 如果配置檔寫 None 就回傳 None
+                return item_id, count
 
-        # 動態模板比對 (例如 {wood}_leaves)
-        for pattern, raw_drops in BLOCK_DROPS.items():
-            if "{wood}" in pattern:
-                prefix, suffix = pattern.split("{wood}", 1)
+            # 帶有權重的機率抽取 (例如 {"apple": 1, "oak_sapling": 5, None: 100})
+            if isinstance(data, dict):
+                items = list(data.keys())
+                weights = list(data.values())
+                chosen = random.choices(items, weights=weights, k=1)[0]
+                return parse_drop_data(chosen)
 
-                if block_name.startswith(prefix) and block_name.endswith(suffix):
-                    # 提取出來的木頭種類 (例如 "birch")
-                    # 處理 suffix 為空字串的情況
-                    end_index = len(block_name) - len(suffix) if suffix else None
-                    wood_type = block_name[len(prefix) : end_index]
+            # 等機率隨機抽取清單
+            if isinstance(data, list):
+                chosen = random.choice(data)
+                return parse_drop_data(chosen)
 
-                    chosen_drop = pick_weighted_drop(raw_drops)
+            # 普通單一字串
+            return data, 1
 
-                    if chosen_drop:
-                        return chosen_drop.replace("{wood}", wood_type)
-                    return None  # 抽到 None 代表不掉落
-
-        # 若字典內完全沒設定，預設掉落方塊自己本身
-        return block_name
+        return parse_drop_data(raw_drops)
 
     def spawn_item_entity(self, item, x, y, spawn_reason, player):
         new_entity = item_entity.ItemEntity(item, x, y, spawn_reason, player, self.assets.block(item["type"]))

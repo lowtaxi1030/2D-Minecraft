@@ -199,47 +199,93 @@ def get_chunk(chunk_x, fluid_manager: FluidManager = None) -> Chunk:
 
 
 def make_map(map_width, map_height, current_chunk_i):
-    rng = random.Random(config.WORLD_SEED + current_chunk_i * 1000003)
+    total_start = time.perf_counter()
 
-    t0 = time.perf_counter()
+    rng = random.Random(
+        config.WORLD_SEED + current_chunk_i * 1000003
+    )
 
-    chunk_world_x = current_chunk_i * config.CHUNK_WIDTH
-    biome_name = get_biome(chunk_world_x)
+    biome_name = get_biome(current_chunk_i)
+
+    start = time.perf_counter()
     height_map = _make_terrain(current_chunk_i)
+    terrain_time = time.perf_counter() - start
 
-    t1 = time.perf_counter()
-    chunk_data = _make_base_terrain(map_width, map_height, current_chunk_i, biome_name, height_map, rng)
+    start = time.perf_counter()
+    chunk_data = _make_base_terrain(
+        map_width,
+        map_height,
+        current_chunk_i,
+        biome_name,
+        height_map,
+        rng,
+    )
+    base_time = time.perf_counter() - start
 
-    t2 = time.perf_counter()
-    chunk_data = _generate_caves(current_chunk_i, chunk_data, height_map)
+    start = time.perf_counter()
+    chunk_data = _generate_caves(
+        current_chunk_i,
+        chunk_data,
+        height_map,
+    )
+    caves_time = time.perf_counter() - start
 
-    t3 = time.perf_counter()
-    chunk_data = _generate_cave_entrances(current_chunk_i, chunk_data, height_map, rng)
+    start = time.perf_counter()
+    chunk_data = _generate_cave_entrances(
+        current_chunk_i,
+        chunk_data,
+        height_map,
+        rng,
+    )
+    entrances_time = time.perf_counter() - start
 
-    t4 = time.perf_counter()
-    chunk_data = _generate_trees(current_chunk_i, biome_name, chunk_data, height_map, rng)
+    start = time.perf_counter()
+    chunk_data = _generate_trees(
+        current_chunk_i,
+        biome_name,
+        chunk_data,
+        height_map,
+        rng,
+    )
+    trees_time = time.perf_counter() - start
 
-    t5 = time.perf_counter()
-    chunk_data = _cleanup_terrain(current_chunk_i, chunk_data, height_map)
+    start = time.perf_counter()
+    chunk_data = _cleanup_terrain(
+        current_chunk_i,
+        chunk_data,
+        height_map,
+    )
+    cleanup_time = time.perf_counter() - start
 
-    t6 = time.perf_counter()
-    chunk_data = _generate_underground_fluids(current_chunk_i, chunk_data, height_map)
+    start = time.perf_counter()
+    chunk_data = _generate_underground_fluids(
+        current_chunk_i,
+        chunk_data,
+        height_map,
+    )
+    fluids_time = time.perf_counter() - start
 
-    t7 = time.perf_counter()
-    chunk_data = _generate_veins(current_chunk_i, chunk_data, rng)
+    start = time.perf_counter()
+    chunk_data = _generate_veins(
+        current_chunk_i,
+        chunk_data,
+        rng,
+    )
+    veins_time = time.perf_counter() - start
 
-    t8 = time.perf_counter()
+    total_time = time.perf_counter() - total_start
 
     print(
-        f"[Chunk {current_chunk_i:3d}] 總耗時: {t8-t0:.4f}s | "
-        f"Terrain: {t1-t0:.4f}s | "
-        f"Base: {t2-t1:.4f}s | "
-        f"Caves: {t3-t2:.4f}s | "
-        f"Entrances: {t4-t3:.4f}s | "
-        f"Trees: {t5-t4:.4f}s | "
-        f"Cleanup: {t6-t5:.4f}s | "
-        f"Fluids: {t7-t6:.4f}s | "
-        f"Veins: {t8-t7:.4f}s"
+        f"[Chunk {current_chunk_i:>3}] "
+        f"總耗時: {total_time:.4f}s | "
+        f"Terrain: {terrain_time:.4f}s | "
+        f"Base: {base_time:.4f}s | "
+        f"Caves: {caves_time:.4f}s | "
+        f"Entrances: {entrances_time:.4f}s | "
+        f"Trees: {trees_time:.4f}s | "
+        f"Cleanup: {cleanup_time:.4f}s | "
+        f"Fluids: {fluids_time:.4f}s | "
+        f"Veins: {veins_time:.4f}s"
     )
 
     return chunk_data, biome_name
@@ -561,8 +607,8 @@ def _generate_veins(chunk_x, chunk_data, rng: random.Random):
             "min_y": 90,
             "max_y": 220,
             "scale": 12.0,
-            "threshold": 0.78,
-            "spawn_chance": 0.02,
+            "threshold": 0.77,
+            "spawn_chance": 0.08,
             "vein_size": (1, 6),
             "target": "stone",
         },
@@ -572,8 +618,8 @@ def _generate_veins(chunk_x, chunk_data, rng: random.Random):
             "min_y": 80,
             "max_y": 220,
             "scale": 12.0,
-            "threshold": 0.78,
-            "spawn_chance": 0.02,
+            "threshold": 0.77,
+            "spawn_chance": 0.08,
             "vein_size": (2, 8),
             "target": "stone",
         },
@@ -583,7 +629,7 @@ def _generate_veins(chunk_x, chunk_data, rng: random.Random):
             "min_y": 90,
             "max_y": 220,
             "scale": 30.0,
-            "threshold": 0.815,
+            "threshold": 0.78,
             "spawn_chance": 0.01,
             "vein_size": (1, 6),
             "target": "stone",
@@ -652,8 +698,8 @@ def _generate_veins(chunk_x, chunk_data, rng: random.Random):
             "min_y": 223,
             "max_y": 298,
             "scale": 12.0,
-            "threshold": 0.78,
-            "spawn_chance": 0.02,
+            "threshold": 0.77,
+            "spawn_chance": 0.08,
             "vein_size": (1, 6),
             "target": "deepslate",
         },
@@ -663,8 +709,8 @@ def _generate_veins(chunk_x, chunk_data, rng: random.Random):
             "min_y": 223,
             "max_y": 298,
             "scale": 12.0,
-            "threshold": 0.78,
-            "spawn_chance": 0.02,
+            "threshold": 0.77,
+            "spawn_chance": 0.08,
             "vein_size": (2, 8),
             "target": "deepslate",
         },
@@ -674,7 +720,7 @@ def _generate_veins(chunk_x, chunk_data, rng: random.Random):
             "min_y": 223,
             "max_y": 298,
             "scale": 30.0,
-            "threshold": 0.815,
+            "threshold": 0.78,
             "spawn_chance": 0.01,
             "vein_size": (1, 6),
             "target": "deepslate",

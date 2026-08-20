@@ -1,7 +1,11 @@
 import random
 from pathlib import Path
 
-GAME_VERSION = "V0.26.8.7"  # 8是合成
+GAME_VERSION = "V0.26.8.10"
+
+# Types
+Item = dict[str, str | int]
+Pos = tuple[int, int]
 
 
 BASE_DIR = Path(__file__).parent
@@ -30,6 +34,8 @@ Timer_Speed = 1
 
 SLOT_SIZE = 70
 PADDING = 5
+
+MAX_STACK = 64
 
 game_state = "PLAYING"
 running = True

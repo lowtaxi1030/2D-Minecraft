@@ -30,6 +30,9 @@ def show_text(
     alpha=255,
     line_gap=5,
     use_cache=True,
+    shadow=True,
+    shadow_color=Colors.BLACK,
+    shadow_offset=(2, 2),
 ) -> p.Rect | None:
     # ---------- Font Cache ----------
     font_key = (font_type, size)
@@ -37,7 +40,7 @@ def show_text(
     if font_key not in font_cache:
         if font_type == "":
             font_cache[font_key] = p.font.Font(
-                str(root / "Minecraft3.ttf"),
+                str(root / "Minecraft3.ttf"),  # Monocraft
                 size,
             )
         elif font_type == "None":
@@ -51,6 +54,7 @@ def show_text(
     text_list = [text] if isinstance(text, str) else text
 
     surfaces = []
+    shadow_surfaces = []
     relative_rects = []
 
     temp_y = 0
@@ -83,6 +87,22 @@ def show_text(
 
         surfaces.append(surf)
 
+        if shadow:
+            shadow_cache_key = (line, shadow_color, size, font_type, alpha, "shadow")  # 加上標籤避免跟主要文字快取衝突
+
+            if use_cache and shadow_cache_key in text_cache:
+                shadow_surf = text_cache[shadow_cache_key]
+            else:
+                shadow_surf = font.render(line, True, shadow_color)
+                if alpha < 255:
+                    shadow_surf.set_alpha(alpha)
+                if use_cache:
+                    text_cache[shadow_cache_key] = shadow_surf
+                    if len(text_cache) > 300:
+                        text_cache.popitem(last=False)
+
+            shadow_surfaces.append(shadow_surf)
+
         rect = surf.get_rect()
         rect.top = temp_y
         relative_rects.append(rect)
@@ -114,6 +134,9 @@ def show_text(
             first_rect = draw_rect
 
         if show:
+            if shadow:
+                shadow_rect = draw_rect.move(shadow_offset[0], shadow_offset[1])
+                screen.blit(shadow_surfaces[i], shadow_rect)
             screen.blit(surf, draw_rect)
 
     return first_rect

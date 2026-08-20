@@ -5,7 +5,6 @@ import pygame
 import asset_manager
 import camera
 import config
-import game_data.recipes as recipes
 import menu_manager
 import save_manager
 import tool
@@ -13,6 +12,7 @@ import ui_manager
 import world_manager
 from craft_manager import CraftingManager
 from fluid_manager import FluidManager
+from game_data import crafting_recipes
 from player import Player
 
 save = save_manager.SaveManager()
@@ -44,7 +44,7 @@ save.load_world(player)
 game_camera = camera.Camera(asset, player)
 fluid_manager = FluidManager(config.chunks)
 
-recipes.register_recipes(crafting_manager)
+crafting_recipes.register_recipes(crafting_manager)
 # print("Recipes registered:", len(crafting_manager.recipes))
 # print("Registered recipes:")
 # for recipe in crafting_manager.recipes:
@@ -74,7 +74,7 @@ while config.running:
         world_surface = pygame.Surface((surface_width, surface_height))
         world_surface.fill(tool.Colors.CYAN)
 
-        game_camera.draw_world(world_surface, mouse_pos)
+        game_camera.draw_world(world_surface, mouse_pos, ui)
 
         dropped_item = None
 
@@ -92,7 +92,7 @@ while config.running:
 
         # 更新
         game_camera.update(player, fluid_manager)
-        world.update(mouse_buttons, mouse_pos, player, game_camera, fluid_manager)
+        world.update(mouse_buttons, mouse_pos, player, game_camera, fluid_manager, ui)
         player.update(mouse_pos, game_camera.scroll_x, dt)
         ui.update(player, fps, mouse_pos, game_camera, world)
         asset.update()
