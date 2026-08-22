@@ -1,7 +1,7 @@
 import random
 from pathlib import Path
 
-GAME_VERSION = "V0.26.8.10"
+GAME_VERSION = "V0.26.101"
 
 # Types
 Item = dict[str, str | int]
@@ -16,7 +16,7 @@ current_width, current_height = 1000, 600
 ORG_FOV = 70
 fov = 70
 BLOCK_SIZE = 50
-camera_zoom = 1.0
+SPRINT_ZOOM_MULTIPLIER = 0.9
 
 CHUNK_WIDTH = 16
 MAP_HEIGHT = 300
@@ -26,7 +26,7 @@ BASE_LINE = 80
 chunks = {}
 height_map = []
 
-CURRENT_WORLD = "test2"  # 可以隨意換成任何合法名字
+CURRENT_WORLD = ""  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
 BIOME_NOISE_SCALE = 500
 

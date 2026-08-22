@@ -50,7 +50,7 @@ class AssetManager:
             "furnace",
             # "loom",
             # "stonecutter",
-            # "chest",
+            "chest",
         ]
 
     def load(self):

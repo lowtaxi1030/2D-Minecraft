@@ -51,16 +51,6 @@ RECIPES = [
         "result_count": 1,
     },
     {
-        "ingredients": {"cobblestone": 8},
-        "shape": [
-            ["cobblestone", "cobblestone", "cobblestone"],
-            ["cobblestone", None, "cobblestone"],
-            ["cobblestone", "cobblestone", "cobblestone"],
-        ],
-        "result_type": "furnace",
-        "result_count": 1,
-    },
-    {
         "material_group": "wood_planks",
         "ingredients": {"$material_planks": 2},
         "shape": [
@@ -248,6 +238,27 @@ RECIPES = [
         ],
         "result_type": "redstone_torch",
         "result_count": 4,
+    },
+    {
+        "ingredients": {"cobblestone": 8},
+        "shape": [
+            ["cobblestone", "cobblestone", "cobblestone"],
+            ["cobblestone", None, "cobblestone"],
+            ["cobblestone", "cobblestone", "cobblestone"],
+        ],
+        "result_type": "furnace",
+        "result_count": 1,
+    },
+    {
+        "material_group": "wood_planks",
+        "ingredients": {"$material_planks": 8},
+        "shape": [
+            ["$material_planks", "$material_planks", "$material_planks"],
+            ["$material_planks", None, "$material_planks"],
+            ["$material_planks", "$material_planks", "$material_planks"],
+        ],
+        "result_type": "chest",
+        "result_count": 1,
     },
 ]
 

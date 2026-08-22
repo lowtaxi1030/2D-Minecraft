@@ -39,7 +39,7 @@ world = world_manager.World(asset)
 
 last_chunk = None
 
-save.load_world(player)
+save.load_world(player, world)
 
 game_camera = camera.Camera(asset, player)
 fluid_manager = FluidManager(config.chunks)
@@ -74,7 +74,7 @@ while config.running:
         world_surface = pygame.Surface((surface_width, surface_height))
         world_surface.fill(tool.Colors.CYAN)
 
-        game_camera.draw_world(world_surface, mouse_pos, ui)
+        game_camera.draw_world(world_surface, mouse_pos, world)
 
         dropped_item = None
 
@@ -131,7 +131,7 @@ while config.running:
 
         menu.update(events, mouse_pos)
         menu.draw(screen)
-        game_camera.zoom = config.ORG_FOV / config.fov
+        # game_camera.zoom = config.ORG_FOV / config.fov
 
     elif config.game_state == "CONTROLS_OPTION":
         screen.blit(config.pause_background, (0, 0))
@@ -161,4 +161,4 @@ while config.running:
 
 pygame.quit()
 
-save.save_world(player)
+save.save_world(player, world)

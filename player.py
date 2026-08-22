@@ -24,7 +24,7 @@ class Player:
         self.gravity = 40
         self.player_walk_speed = 4.3  # blocks per second
         self.cheat_speed = 30  # blocks per second
-        self.player_run_speed = 10.0  # blocks per second  正常是player_walk_speed * 1.3，之後條回來
+        self.player_run_speed = self.player_walk_speed * 1.3  # blocks per second  10
         self.player_flying_speed = 10.0  # blocks per second
         self.player_flying_run_speed = 20.0  # blocks per second
 
@@ -33,7 +33,7 @@ class Player:
         self.auto_jump = True
         self.is_flying = False
 
-        self.crafting_type = None
+        self.inv_type = None
         # self.crafting_types = [None, "inventory", "crafting_table"]
 
         self.just_switched_mode = False
@@ -71,7 +71,7 @@ class Player:
     def handle_event(self, event, keys):
 
         if event.type == pygame.KEYDOWN:
-            if not self.crafting_type:
+            if not self.inv_type:
                 if event.key == pygame.K_m:
                     self.mode_index = (self.mode_index + 1) % len(self.all_modes)
                     self.mode = self.all_modes[self.mode_index]
@@ -113,10 +113,14 @@ class Player:
                         return self.drop_selected_item()
 
             if event.key == pygame.K_e:
-                if self.crafting_type is None:
-                    self.crafting_type = "inventory"
+                if self.inv_type is None:
+                    self.inv_type = "inventory"
                 else:
-                    self.crafting_type = None
+                    self.inv_type = None
+
+        if event.type == pygame.KEYUP:
+            if event.key in [pygame.K_d, pygame.K_RIGHT, pygame.K_a, pygame.K_LEFT]:
+                self.is_running = False
 
         if event.type == pygame.MOUSEWHEEL:
             self.selected_hotbar_index -= event.y
@@ -130,7 +134,7 @@ class Player:
         """處理鍵盤輸入（左右移動、跳躍）"""
 
         keys = pygame.key.get_pressed()
-        if not self.crafting_type:
+        if not self.inv_type:
             if self.mode == "spectator" or self.is_flying:
                 self.vel_x = 0
                 self.vel_y = 0

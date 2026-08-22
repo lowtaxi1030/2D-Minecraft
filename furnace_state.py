@@ -129,3 +129,28 @@ class FurnaceState:
             self.output_item = {"type": res_type, "count": res_count}
         else:
             self.output_item["count"] += res_count
+
+    """存檔用"""
+
+    def to_dict(self):
+        return {
+            "input_item": self.input_item,
+            "fuel_item": self.fuel_item,
+            "output_item": self.output_item,
+            "cook_progress": self.cook_progress,
+            "cook_time": self.cook_time,
+            "burn_time_left": self.burn_time_left,
+            "burn_time": self.burn_time,
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        state = cls()
+        state.input_item = data.get("input_item")
+        state.fuel_item = data.get("fuel_item")
+        state.output_item = data.get("output_item")
+        state.cook_progress = data.get("cook_progress", 0)
+        state.cook_time = data.get("cook_time", 0)
+        state.burn_time_left = data.get("burn_time_left", 0)
+        state.burn_time = data.get("burn_time", 0)
+        return state

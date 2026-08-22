@@ -10,5 +10,5 @@ class Furnace:
         self.is_burning = False  # 有在燒東西，之後改名
 
     def interact(self):
-        self.player.crafting_type = "furnace"
+        self.player.inv_type = "furnace"
         # print("player is interacting furnace")

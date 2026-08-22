@@ -2,11 +2,14 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from player import Player
+    from world_manager import World
 
 import json
 import os
 
 import config
+from chest_state import ChestState
+from furnace_state import FurnaceState
 
 
 class SaveManager:
@@ -22,12 +25,12 @@ class SaveManager:
     #     }
 
     # 儲存
-    def save_world(self, player: Player):
+    def save_world(self, player: Player, world: World):
 
-        self.save_level(player)
+        self.save_level(player, world)
         self.save_loaded_chunks()
 
-    def save_level(self, player: Player):
+    def save_level(self, player: Player, world: World):
         with self.level_path().open("w", encoding="utf-8") as f:
             json.dump(
                 {
@@ -38,6 +41,8 @@ class SaveManager:
                         "hotbar": player.hotbar,
                         "inventory": player.inventory,
                     },
+                    "furnaces": {self._pos_to_key(pos): state.to_dict() for pos, state in world.furnaces.items()},
+                    "chests": {self._pos_to_key(pos): state.to_dict() for pos, state in world.chests.items()},
                 },
                 f,
                 indent=4,
@@ -56,10 +61,10 @@ class SaveManager:
             chunk.is_dirty = False
 
     # 載入
-    def load_world(self, player):
-        self.load_level(player)
+    def load_world(self, player: Player, world: World):
+        self.load_level(player, world)
 
-    def load_level(self, player: Player):
+    def load_level(self, player: Player, world: World):
         file_path = self.level_path()
 
         if not file_path.exists():
@@ -76,6 +81,11 @@ class SaveManager:
         player.rect.y = player_data.get("y", 20 * config.BLOCK_SIZE)
         player.hotbar = player_data.get("hotbar", [None] * 9)
         player.inventory = player_data.get("inventory", [None] * 27)
+
+        world.furnaces = {
+            self._key_to_pos(key): FurnaceState.from_dict(state_dict) for key, state_dict in level_data.get("furnaces", {}).items()
+        }
+        world.chests = {self._key_to_pos(key): ChestState.from_dict(state_dict) for key, state_dict in level_data.get("chests", {}).items()}
 
         return True
 
@@ -104,3 +114,13 @@ class SaveManager:
 
     def level_path(self):
         return self.info_dir / "level.json"
+
+    @staticmethod
+    def _pos_to_key(pos):
+        x, y = pos
+        return f"{x}_{y}"
+
+    @staticmethod
+    def _key_to_pos(key):
+        x_str, y_str = key.split("_")
+        return (int(x_str), int(y_str))

@@ -14,8 +14,10 @@ import chunk_manager
 import config
 import item_entity
 from camera import Camera
+from chest_state import ChestState
 from furnace_state import FurnaceState
 from game_data.block_drops import BLOCK_DROPS
+from item.__init__ import NON_PLACEABLE_KEYWORDS
 from special_blocks import SPECIAL_BLOCKS
 
 
@@ -42,6 +44,7 @@ class World:
         self.last_mouse_btn = -1
 
         self.furnaces: dict[config.Pos, FurnaceState] = {}
+        self.chests: dict[config.Pos, ChestState] = {}
 
     def update(
         self,
@@ -61,7 +64,7 @@ class World:
         """"""
 
         # 沒有按下任何鍵，或是正在合成中
-        if not any(mouse_buttons) or player.crafting_type is not None:
+        if not any(mouse_buttons) or player.inv_type is not None:
             # 鬆開所有按鍵時，把記錄的按鍵與位置重置
             self.last_mouse_btn = -1
             self.last_pos = None
@@ -127,6 +130,12 @@ class World:
                 self.furnaces[pos] = FurnaceState()
             ui.furnace.set_furnace_state(self.furnaces[pos])
 
+        if clicked.block == "chest":
+            pos = (clicked.x, clicked.y)
+            if pos not in self.chests:
+                self.chests[pos] = ChestState()
+            ui.chest.set_chest_state(self.chests[pos])
+
         return True
 
     def _handle_break_block(self, clicked: BlockClick, player: Player, fluid_manager: FluidManager):
@@ -186,6 +195,10 @@ class World:
             return False
 
         if hand_item is None:
+            return False
+
+        item_type = hand_item["type"]
+        if any(keyword in item_type for keyword in NON_PLACEABLE_KEYWORDS):
             return False
 
         if player.rect.colliderect(clicked.rect) or player.mode == "spectator":
@@ -307,4 +320,9 @@ class World:
 
             item.draw(screen, scroll_x, scroll_y)
 
-    # def _break_block(): ...
+    def get_block_display_name(self, x, y, block_name):
+        if block_name == "furnace":
+            furance = self.furnaces.get((x, y))
+            if furance is not None and furance.burn_time_left > 0:
+                return "furnace_on"
+        return block_name

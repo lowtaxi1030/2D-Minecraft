@@ -1,11 +1,12 @@
+from .chest import Chest
 from .crafting_table import CraftingTable
 from .furnace import Furnace
 
 SPECIAL_BLOCKS = {
     "crafting_table": CraftingTable,
     "furnace": Furnace,
+    "chest": Chest,
     # 做好後陸續加入
-    # "chest": Chest,
     # "bed": Bed,
     # "door": Door,
     # "trapdoor": Trapdoor,

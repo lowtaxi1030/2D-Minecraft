@@ -14,6 +14,7 @@ import config
 import craft_manager
 import tool
 import ui_obs as ui
+from chest_state import ChestState
 from furnace_state import FurnaceState
 from item_slot_manager import SlotHandler
 
@@ -39,11 +40,13 @@ class UI:
         self.inventory = InventoryUI(assets)
         self.crafting_table = CraftingTableUI(assets)
         self.furnace = FurnaceUI(assets)
+        self.chest = ChestUI(assets)
 
         self.interfaces: dict[str, Interfaces] = {
             "inventory": self.inventory,
             "crafting_table": self.crafting_table,
             "furnace": self.furnace,
+            "chest": self.chest,
         }
 
         self.debug = DebugScreen(assets)
@@ -58,9 +61,9 @@ class UI:
     def handle_events(self, event, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
         self.hotbar.handle_events(event, player, mouse_pos)
 
-        if player.crafting_type is not None:
-            self.interfaces[player.crafting_type].handle_events(event, player, mouse_pos, world_manager, crafting_manager)
-            self.last_crafting_type = player.crafting_type
+        if player.inv_type is not None:
+            self.interfaces[player.inv_type].handle_events(event, player, mouse_pos, world_manager, crafting_manager)
+            self.last_crafting_type = player.inv_type
 
         elif self.last_crafting_type is not None:
             self.interfaces[self.last_crafting_type].clear_grid_and_drop(player, world_manager)
@@ -76,8 +79,8 @@ class UI:
 
     def draw(self, screen, player: Player, fps, mouse_pos, camera):
 
-        if player.crafting_type is not None:
-            self.interfaces[player.crafting_type].draw(screen, player)
+        if player.inv_type is not None:
+            self.interfaces[player.inv_type].draw(screen, player)
         else:
             self.hotbar.draw(screen, player)
 
@@ -377,7 +380,7 @@ class BaseInventory(PlayerInventory):
 
         # 格子有東西，但跟拖曳的物品同種類 -> 可以拖曳進去
         if slot_item["type"] == self.drag_start_item["type"]:
-            if slot_item["count"] < 64:
+            if slot_item["count"] < config.MAX_STACK:
                 return True
 
         # 格子裡是「不同的物品」 -> 不可覆蓋！
@@ -424,21 +427,31 @@ class BaseInventory(PlayerInventory):
         if not (self.drag_start_item and self.dragged_slots):
             return
 
+        plan = self._calculate_drag_distribution()
+
+        if plan["aborted"]:
+            self._revert_dragged_slots(player)
+            self.held_item = self.drag_start_item.copy()
+        else:
+            self._apply_drag_distribution(player, plan)
+
+    def _calculate_drag_distribution(self):
+        """回傳一份「這次拖曳應該長什麼樣子」的計畫 (plan)"""
+
+        plan = {"aborted": False, "slot_updates": {}, "final_held_item": None}
+
         total_count = self.drag_start_item["count"]
         slot_count = len(self.dragged_slots)
-
         per_slot_count = total_count // slot_count
         remainder = total_count % slot_count
 
-        # 如果分下來每格連 1 個都沒有：先把先前已經寫入的格子還原成拖曳前的原始內容，
-        # 再把整份初始拖曳物品還原到手上，避免格子裡殘留前幾輪多分配出來的量
         if per_slot_count == 0:
-            self._revert_dragged_slots(player)
-            self.held_item = self.drag_start_item.copy()
-            return
+
+            plan["aborted"] = True
+            return plan
 
         item_type = self.drag_start_item["type"]
-        leftover_from_stacks = 0  # 紀錄爆堆疊上限(>64)後溢出的數量
+        leftover_from_stacks = 0
 
         for area, index in self.dragged_slots:
             # 一律用「這格第一次被拖曳碰到當下」的快照當基準，
@@ -457,14 +470,22 @@ class BaseInventory(PlayerInventory):
                 target_count = config.MAX_STACK
 
             new_item = {"type": item_type, "count": target_count}
-            self._update_slot(player, area, index, new_item)
+            plan["slot_updates"][(area, index)] = new_item
 
         # 修正：手上總剩餘數量 = 均分餘數 + 爆堆疊溢出的數量
         final_held_count = remainder + leftover_from_stacks
         if final_held_count > 0:
-            self.held_item = {"type": item_type, "count": final_held_count}
+            plan["final_held_item"] = {"type": item_type, "count": final_held_count}
         else:
-            self.held_item = None
+            plan["final_held_item"] = None
+
+        return plan
+
+    def _apply_drag_distribution(self, player: Player, plan):
+        for (area, index), new_item in plan["slot_updates"].items():
+            self._update_slot(player, area, index, new_item)
+
+        self.held_item = plan["final_held_item"]
 
     def _revert_dragged_slots(self, player: Player):
         """把本次拖曳寫過的格子還原成拖曳開始前的原始內容"""
@@ -599,8 +620,6 @@ class InventoryUI(BaseInventory):
             self.preview_item = preview_result
         else:
             self.preview_item = None
-
-    """好用工具"""
 
     def _get_clicked_slot_info(self, mouse_pos):
         # --- 1. 檢查合成欄區域 ---
@@ -1135,6 +1154,78 @@ class FurnaceUI(BaseInventory):
             arrow_y = self.assets.ui_rects["furnace"].top + self.ARROW_OFFSET[1]
 
             screen.blit(cropped_arrow, (arrow_x, arrow_y))
+
+
+class ChestUI(BaseInventory):
+    def __init__(self, assets: AssetManager):
+        super().__init__(assets, "chest")
+        self.chest_state = None
+
+        self.CHEST_SPACING = 63
+
+        self.CHEST_OFFSET = (20, 56)
+
+        self.chest_pos = (
+            self.assets.ui_rects["chest"].left + self.CHEST_OFFSET[0],
+            self.assets.ui_rects["chest"].top + self.CHEST_OFFSET[1],
+        )
+
+    def set_chest_state(self, state: ChestState):
+        """用來切換目前 UI 正在顯示/操作哪一個熔爐的資料"""
+        self.chest_state = state
+
+    def _get_clicked_slot_info(self, mouse_pos):
+        col, row = self._get_clicked_slot(mouse_pos, self.chest_pos[0], self.chest_pos[1])
+        if mouse_pos[0] >= self.chest_pos[0] and mouse_pos[1] >= self.chest_pos[1]:
+            if 0 <= col < self.chest_state.width and 0 <= row < self.chest_state.height:
+                return "chest", row * self.chest_state.width + col
+
+        return super()._get_clicked_slot_info(mouse_pos)
+
+    def _get_slot(self, player: Player, area, index):
+        if area == "chest":
+            return self.chest_state.grids[index]
+        return super()._get_slot(player, area, index)
+
+    def _update_slot(self, player: Player, area, index, item):
+        if area == "chest":
+            self.chest_state.grids[index] = item
+            return
+        super()._update_slot(player, area, index, item)
+
+    def update(self, player):
+        super().update(player)
+
+        self.chest_pos = (
+            self.assets.ui_rects["chest"].left + self.CHEST_OFFSET[0],
+            self.assets.ui_rects["chest"].top + self.CHEST_OFFSET[1],
+        )
+
+    def draw(self, screen: pygame.Surface, player: Player):
+        super().draw(screen, player)
+
+        self._draw_chest_items(screen)
+        self._draw_held_item(screen)
+
+    def _draw_chest_items(self, screen: pygame.Surface):
+        for i, grid in enumerate(self.chest_state.grids):
+            if grid is None:
+                continue
+            col, row = i % 9, i // 9
+            item_center_x = self.chest_pos[0] + col * self.CHEST_SPACING + config.SLOT_SIZE // 2
+            item_center_y = self.chest_pos[1] + row * self.CHEST_SPACING + config.SLOT_SIZE // 2
+            # if i == 0:
+            #     draw_item(screen, self.assets, {"type": "iron_block", "count": 64}, item_center_x, item_center_y)
+            draw_item(screen, self.assets, grid, item_center_x, item_center_y)
+
+    def _draw_held_item(self, screen: pygame.Surface):
+        # print("[from: _draw_held_item]", self.held_item)
+        if self.held_item is None:
+            return
+
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+
+        draw_item(screen, self.assets, self.held_item, mouse_x, mouse_y)
 
 
 class DebugScreen:

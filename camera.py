@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from asset_manager import AssetManager
     from fluid_manager import FluidManager
     from player import Player
-    from ui_manager import UI
+    from world_manager import World
 import json
 
 import pygame
@@ -32,6 +32,15 @@ class Camera:
         self.render_rect = pygame.Rect(0, 0, 0, 0)
 
     def update(self, player: Player, fluid_manager: FluidManager):
+        base_zoom = config.ORG_FOV / config.fov
+
+        sprint_multiplier = config.SPRINT_ZOOM_MULTIPLIER if player.is_running else 1.0
+        target_zoom = base_zoom * sprint_multiplier
+
+        if abs(target_zoom - self.zoom) > 0.001:
+            self.zoom += (target_zoom - self.zoom) * 0.1
+        else:
+            self.zoom = target_zoom
 
         view_width = config.current_width / self.zoom
         view_height = config.current_height / self.zoom
@@ -131,7 +140,7 @@ class Camera:
 
     """"""
 
-    def draw_world(self, screen: pygame.Surface, mouse_pos: tuple[int | float, int | float], ui: UI, draw_hover=True):
+    def draw_world(self, screen: pygame.Surface, mouse_pos: tuple[int | float, int | float], world: World, draw_hover=True):
         world_x, world_y = self.screen_to_world(mouse_pos)
         start_x, end_x, start_y, end_y = self.visible_range()
 
@@ -144,12 +153,13 @@ class Camera:
 
                 if block_name != "air":
                     # print(block_name)
-                    img = self.assets.block(block_name)  # .get_img(block_name, "block")
+                    display_block_name = world.get_block_display_name(x_pos, y_pos, block_name)
+                    img = self.assets.block(display_block_name)  # .get_img(block_name, "block")
                     if img:
                         screen.blit(img, (pixel_x, pixel_y))
                     else:
                         # 印出警報但讓遊戲繼續跑，這樣就算未來漏掉新方塊的圖，也不會直接 Crash！
-                        print(f"⚠️ 找不到方塊圖檔：'{block_name}'")
+                        print(f"⚠️ 找不到方塊圖檔：'{display_block_name}'")
 
                 if (world_x, world_y) == (x_pos, y_pos) and draw_hover:
                     block_rect = pygame.Rect(
@@ -160,9 +170,7 @@ class Camera:
                     )
                     pygame.draw.rect(screen, tool.Colors.BLACK, block_rect, max(1, int(config.BLOCK_SIZE) // 20))
 
-    def draw(self, screen, world_surface):
-        scaled = pygame.transform.scale_by(world_surface, self.zoom)
-
+    def draw(self, screen: pygame.Surface, world_surface: pygame.Surface):
+        scaled = pygame.transform.smoothscale(world_surface, (config.current_width, config.current_height))
         self.render_rect = scaled.get_rect(center=screen.get_rect().center)
-
         screen.blit(scaled, self.render_rect)
