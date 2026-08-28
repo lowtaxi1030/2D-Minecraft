@@ -8,9 +8,15 @@ NON_PLACEABLE_KEYWORDS = [
     "_chestplate",
     "_leggings",
     "_boots",
+    "_ingot",
+    "_nugget",
+]
+
+NON_PLACEABLE_TAGS = [
     "diamond",
+    "emerald",
+    "coal",
+    "stick",
     "raw_iron",
     "raw_gold",
-    "coal",
-    "stick",  # 也可以放不能放的材料名稱
 ]

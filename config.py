@@ -1,7 +1,7 @@
 import random
 from pathlib import Path
 
-GAME_VERSION = "V0.26.10.1"
+GAME_VERSION = "V0.26.10.3"
 
 # Types
 Item = dict[str, str | int]
@@ -26,9 +26,9 @@ BASE_LINE = 80
 chunks = {}
 height_map = []
 
-CURRENT_WORLD = ""  # 可以隨意換成任何合法名字
+CURRENT_WORLD = "biome_test"  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
-BIOME_NOISE_SCALE = 500
+BIOME_NOISE_SCALE = 700
 
 Timer_Speed = 1
 

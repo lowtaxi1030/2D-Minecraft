@@ -112,7 +112,7 @@ class FluidManager:
                 next_fluid.add((x, y))
                 return
 
-            if below_level is not None and below_level > level:
+            if below_level is not None and below_level != 0:
                 self._set_block(x, y + 1, "water_flow")  # 用強水位覆蓋掉地下的弱水
                 next_fluid.add((x, y + 1))
                 has_changed = True

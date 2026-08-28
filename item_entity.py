@@ -22,7 +22,7 @@ class ItemEntity:
         "craft"    --合成出來的東西因背包沒有空間而跑出來\n
         "death"    --玩家死亡掉落\n
         "mob"      --生物掉落\n
-        "chest"    --箱子噴出\n
+        "container"    --箱子、熔爐等噴出\n
         "command"  --指令生成\n
         """
         self.spawn_reason = spawn_reason
@@ -76,8 +76,8 @@ class ItemEntity:
             case "mob":
                 self._init_mob()
 
-            case "chest":
-                self._init_chest()
+            case "container":
+                self._init_container()
 
             case "command":
                 self._init_command()
@@ -114,8 +114,11 @@ class ItemEntity:
     def _init_mob(self):
         pass
 
-    def _init_chest(self):
-        pass
+    def _init_container(self):
+        speed = random.randint(2, 5)
+        self.vel_x = random.choice([speed, -speed])
+        self.vel_y = -3
+        self.pickup_delay = 60
 
     def _init_command(self):
         pass

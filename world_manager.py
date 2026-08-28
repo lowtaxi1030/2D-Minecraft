@@ -17,7 +17,7 @@ from camera import Camera
 from chest_state import ChestState
 from furnace_state import FurnaceState
 from game_data.block_drops import BLOCK_DROPS
-from item.__init__ import NON_PLACEABLE_KEYWORDS
+from item.__init__ import NON_PLACEABLE_KEYWORDS, NON_PLACEABLE_TAGS
 from special_blocks import SPECIAL_BLOCKS
 
 
@@ -45,6 +45,19 @@ class World:
 
         self.furnaces: dict[config.Pos, FurnaceState] = {}
         self.chests: dict[config.Pos, ChestState] = {}
+
+        self.containers = {
+            "furnace": {
+                "container": self.furnaces,
+                "state": FurnaceState,
+                "ui_attr": "furnace",  # 對應 ui.furnace
+            },
+            "chest": {
+                "container": self.chests,
+                "state": ChestState,
+                "ui_attr": "chest",  # 對應 ui.chest
+            },
+        }
 
     def update(
         self,
@@ -117,24 +130,23 @@ class World:
         )
 
     def _handle_special_block(self, clicked: BlockClick, player: Player, ui: UI) -> bool:
-        # 檢查是不是特殊方塊
         if (special_block_class := SPECIAL_BLOCKS.get(clicked.block)) is None:
             return False
-        # 執行interact
+
         special_block = special_block_class(player)
         special_block.interact()
 
-        if clicked.block == "furnace":
-            pos = (clicked.x, clicked.y)
-            if pos not in self.furnaces:
-                self.furnaces[pos] = FurnaceState()
-            ui.furnace.set_furnace_state(self.furnaces[pos])
+        if clicked.block in self.containers:
+            config_entry = self.containers[clicked.block]
+            container_dict = config_entry["container"]
+            state_class = config_entry["state"]
 
-        if clicked.block == "chest":
             pos = (clicked.x, clicked.y)
-            if pos not in self.chests:
-                self.chests[pos] = ChestState()
-            ui.chest.set_chest_state(self.chests[pos])
+            if pos not in container_dict:
+                container_dict[pos] = state_class()
+
+            target_ui = getattr(ui, config_entry["ui_attr"])
+            target_ui.set_state(container_dict[pos])
 
         return True
 
@@ -155,6 +167,7 @@ class World:
                     )
                 )
 
+            # fluid 專區
             fluid = fluid_manager.get_fluid_type(clicked.block)
 
             if clicked.block.endswith("_source"):
@@ -165,7 +178,18 @@ class World:
             for f in fluid_manager.FLUID_PROPERTIES.keys():
                 fluid_manager.wake_fluid(f, clicked.x, clicked.y, fluid_manager.active_fluids)
 
-            # print(fluid_manager.active_fluids["water"])
+            # container 專區
+            pos = (clicked.x, clicked.y)
+            if clicked.block in self.containers:
+                container_dict = self.containers[clicked.block]["container"]
+                self._drop_container_contents(pos, container_dict, player)
+
+    def _drop_container_contents(self, pos: tuple[int, int], container_dict, player: Player):
+        if (state := container_dict.pop(pos, None)) is None:
+            return
+        for item in state.get_all_items():
+            if item is not None:
+                self.spawn_item_entity(item, pos[0] * config.BLOCK_SIZE, pos[1] * config.BLOCK_SIZE, "container", player)
 
     def _handle_pick_block(self, clicked: BlockClick, player: Player):
         if clicked.block != "air":
@@ -198,7 +222,10 @@ class World:
             return False
 
         item_type = hand_item["type"]
-        if any(keyword in item_type for keyword in NON_PLACEABLE_KEYWORDS):
+        if any(keyword == item_type for keyword in NON_PLACEABLE_TAGS):
+            return False
+
+        elif any(keyword in item_type for keyword in NON_PLACEABLE_KEYWORDS):
             return False
 
         if player.rect.colliderect(clicked.rect) or player.mode == "spectator":

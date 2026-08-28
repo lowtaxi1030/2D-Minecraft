@@ -130,6 +130,9 @@ class FurnaceState:
         else:
             self.output_item["count"] += res_count
 
+    def get_all_items(self):
+        return [self.input_item, self.fuel_item, self.output_item]
+
     """存檔用"""
 
     def to_dict(self):

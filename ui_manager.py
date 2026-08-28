@@ -77,14 +77,14 @@ class UI:
 
         self.debug.update(player, fps, mouse_pos, camera, world)
 
-    def draw(self, screen, player: Player, fps, mouse_pos, camera):
+    def draw(self, screen, player: Player):
 
         if player.inv_type is not None:
             self.interfaces[player.inv_type].draw(screen, player)
         else:
             self.hotbar.draw(screen, player)
 
-        self.debug.draw(screen, player, fps, mouse_pos, camera)
+        self.debug.draw(screen)
 
 
 def draw_item(screen: pygame.Surface, assets: AssetManager, item, center_x, center_y):
@@ -921,7 +921,7 @@ class FurnaceUI(BaseInventory):
             self.assets.ui_rects["furnace"].top + self.OUTPUT_OFFSET[1],
         )
 
-    def set_furnace_state(self, state: FurnaceState):
+    def set_state(self, state: FurnaceState):
         """用來切換目前 UI 正在顯示/操作哪一個熔爐的資料"""
         self.furnace_state = state
 
@@ -1170,7 +1170,7 @@ class ChestUI(BaseInventory):
             self.assets.ui_rects["chest"].top + self.CHEST_OFFSET[1],
         )
 
-    def set_chest_state(self, state: ChestState):
+    def set_state(self, state: ChestState):
         """用來切換目前 UI 正在顯示/操作哪一個熔爐的資料"""
         self.chest_state = state
 
@@ -1300,7 +1300,7 @@ class DebugScreen:
                 f"Seed : {config.WORLD_SEED}",
                 f"Chunk : {current_chunk}",
                 f"Local X : {local_x}",
-                f"Biome : {chunk_manager.get_biome(player.rect.centerx)}",
+                f"Biome : {chunk_manager.get_biome(player.rect.centerx // config.BLOCK_SIZE)}",
                 "",
                 "=== Camera ===",
                 f"Scroll : ({camera.scroll_x:.1f}, {camera.scroll_y:.1f})",
@@ -1330,7 +1330,7 @@ class DebugScreen:
             use_cache=False,
         )
 
-    def draw(self, screen, player, fps, mouse_pos, camera):
+    def draw(self, screen: pygame.Surface):
         if not config.show_debug_screen:
             return
         self._draw_debug(screen)

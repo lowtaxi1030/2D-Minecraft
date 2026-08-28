@@ -24,7 +24,7 @@ class Player:
         self.gravity = 40
         self.player_walk_speed = 4.3  # blocks per second
         self.cheat_speed = 30  # blocks per second
-        self.player_run_speed = self.player_walk_speed * 1.3  # blocks per second  10
+        self.player_run_speed = 10  # blocks per second  10 or self.player_walk_speed * 1.3
         self.player_flying_speed = 10.0  # blocks per second
         self.player_flying_run_speed = 20.0  # blocks per second
 

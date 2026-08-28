@@ -10,4 +10,4 @@ class Chest:
 
     def interact(self):
         self.player.inv_type = "chest"
-        print("player is interacting chest")
+        # print("player is interacting chest")

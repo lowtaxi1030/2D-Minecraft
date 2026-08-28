@@ -108,7 +108,7 @@ while config.running:
         player.draw(world_surface, game_camera.scroll_x, game_camera.scroll_y)
         world.draw(world_surface, game_camera.scroll_x, game_camera.scroll_y, game_camera.zoom)
         game_camera.draw(screen, world_surface)
-        ui.draw(screen, player, fps, mouse_pos, game_camera)
+        ui.draw(screen, player)
 
         if current_chunk != last_chunk:
             game_camera._load_visible_chunks(player, fluid_manager)

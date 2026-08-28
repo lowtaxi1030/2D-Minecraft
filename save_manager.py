@@ -17,13 +17,6 @@ class SaveManager:
         self.world_dir = config.BASE_DIR / "saves" / config.CURRENT_WORLD / "chunks"
         self.info_dir = config.BASE_DIR / "saves" / config.CURRENT_WORLD
 
-    #     self.level_data = {
-    #         "seed": config.WORLD_SEED,
-    #         "spawn_x": 0,
-    #         "spawn_y": 20,
-    #         "player": {"x": 0, "y": 20, "hotbar": [None] * 9, "inventory": [None] * 27},
-    #     }
-
     # 儲存
     def save_world(self, player: Player, world: World):
 
@@ -82,11 +75,15 @@ class SaveManager:
         player.hotbar = player_data.get("hotbar", [None] * 9)
         player.inventory = player_data.get("inventory", [None] * 27)
 
-        world.furnaces = {
-            self._key_to_pos(key): FurnaceState.from_dict(state_dict) for key, state_dict in level_data.get("furnaces", {}).items()
-        }
-        world.chests = {self._key_to_pos(key): ChestState.from_dict(state_dict) for key, state_dict in level_data.get("chests", {}).items()}
+        world.furnaces.clear()
+        world.furnaces.update(
+            {self._key_to_pos(key): FurnaceState.from_dict(state_dict) for key, state_dict in level_data.get("furnaces", {}).items()}
+        )
 
+        world.chests.clear()
+        world.chests.update(
+            {self._key_to_pos(key): ChestState.from_dict(state_dict) for key, state_dict in level_data.get("chests", {}).items()}
+        )
         return True
 
     def load_chunk(self, chunk_x):

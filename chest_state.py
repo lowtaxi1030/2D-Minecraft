@@ -6,6 +6,10 @@ class ChestState:
         self.grids: list[config.Item | None] = [None] * 27
         self.width = 9
         self.height = 3
+
+    def get_all_items(self):
+        return self.grids
+
     def to_dict(self):
         return {"grids": self.grids, "width": self.width, "height": self.height}
 
