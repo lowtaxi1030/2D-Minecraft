@@ -72,38 +72,37 @@ class Player:
 
         if event.type == pygame.KEYDOWN:
             if not self.inv_type:
-                if event.key == pygame.K_m:
-                    self.mode_index = (self.mode_index + 1) % len(self.all_modes)
-                    self.mode = self.all_modes[self.mode_index]
-                    if self.mode in ["creative", "survival"]:
-                        self.vel_x = 0
-                        self.vel_y = 0
-                    if self.mode == "survival":
-                        self.is_flying = False
-                    self.just_switched_mode = True
+                # if event.key == pygame.K_m:
+                #     self.mode_index = (self.mode_index + 1) % len(self.all_modes)
+                #     self.mode = self.all_modes[self.mode_index]
+                #     if self.mode in ["creative", "survival"]:
+                #         self.vel_x = 0
+                #         self.vel_y = 0
+                #     if self.mode == "survival":
+                #         self.is_flying = False
+                #     self.just_switched_mode = True
 
                 if pygame.K_1 <= event.key <= pygame.K_9:
                     self.selected_hotbar_index = event.key - pygame.K_1
 
-                if self.mode != "spectator":
-                    if event.key == pygame.K_d:
-                        self.is_running = self.check_double_press(pygame.K_d)
-                    if event.key == pygame.K_RIGHT:
-                        self.is_running = self.check_double_press(pygame.K_RIGHT)
-                    if event.key == pygame.K_a:
-                        self.is_running = self.check_double_press(pygame.K_a)
-                    if event.key == pygame.K_LEFT:
-                        self.is_running = self.check_double_press(pygame.K_LEFT)
-                    if self.mode == "creative":
-                        if event.key == pygame.K_SPACE:
-                            if self.check_double_press(pygame.K_SPACE):
-                                self.is_flying = not self.is_flying
-                        if event.key == pygame.K_w:
-                            if self.check_double_press(pygame.K_w):
-                                self.is_flying = not self.is_flying
-                        if event.key == pygame.K_UP:
-                            if self.check_double_press(pygame.K_UP):
-                                self.is_flying = not self.is_flying
+                if event.key == pygame.K_d:
+                    self.is_running = self.check_double_press(pygame.K_d)
+                if event.key == pygame.K_RIGHT:
+                    self.is_running = self.check_double_press(pygame.K_RIGHT)
+                if event.key == pygame.K_a:
+                    self.is_running = self.check_double_press(pygame.K_a)
+                if event.key == pygame.K_LEFT:
+                    self.is_running = self.check_double_press(pygame.K_LEFT)
+                if self.mode == "creative":
+                    if event.key == pygame.K_SPACE:
+                        if self.check_double_press(pygame.K_SPACE):
+                            self.is_flying = not self.is_flying
+                    if event.key == pygame.K_w:
+                        if self.check_double_press(pygame.K_w):
+                            self.is_flying = not self.is_flying
+                    if event.key == pygame.K_UP:
+                        if self.check_double_press(pygame.K_UP):
+                            self.is_flying = not self.is_flying
 
                 if self.can_drop_item():
                     if keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]:

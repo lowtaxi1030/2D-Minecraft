@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from asset_manager import AssetManager
     from fluid_manager import FluidManager
+    from grass_spread_manager import GrassSpreadManager
     from player import Player
     from ui_manager import UI
 
@@ -14,11 +15,11 @@ import chunk_manager
 import config
 import item_entity
 from camera import Camera
-from chest_state import ChestState
-from furnace_state import FurnaceState
 from game_data.block_drops import BLOCK_DROPS
 from item.__init__ import NON_PLACEABLE_KEYWORDS, NON_PLACEABLE_TAGS
 from special_blocks import SPECIAL_BLOCKS
+from states.chest_state import ChestState
+from states.furnace_state import FurnaceState
 
 
 class BlockClick:
@@ -26,6 +27,7 @@ class BlockClick:
         self.x = x
         self.y = y
         self.block = block
+        self.base_name = ""
         self.rect = pygame.Rect(
             self.x * int(config.BLOCK_SIZE),
             self.y * int(config.BLOCK_SIZE),
@@ -66,9 +68,12 @@ class World:
         player: Player,
         camera: Camera,
         fluid_manager: FluidManager,
+        grass_spread_manager: GrassSpreadManager,
         ui: UI,
     ):
         """世界更新區"""
+        grass_spread_manager.update()
+
         self._handle_item_entities(player)
 
         for furnace in self.furnaces.values():
@@ -100,6 +105,7 @@ class World:
             return
 
         current_pos = (clicked.x, clicked.y)
+        clicked.base_name = self.get_block_base_name(clicked.block)
 
         if current_pos == self.last_pos and current_btn == self.last_mouse_btn:
             return
@@ -151,8 +157,8 @@ class World:
         return True
 
     def _handle_break_block(self, clicked: BlockClick, player: Player, fluid_manager: FluidManager):
-        if clicked.block != "air" and player.can_place_block() and self._can_break(clicked, player, fluid_manager):
-            drop_item_type, drop_count = self.get_drop_item(clicked.block)
+        if clicked.base_name != "air" and player.can_place_block() and self._can_break(clicked, player, fluid_manager):
+            drop_item_type, drop_count = self.get_drop_item(clicked.base_name)
             # print(drop_item_type)
 
             if player.will_drop_item_entity() and drop_item_type is not None and drop_count > 0:
@@ -194,7 +200,7 @@ class World:
     def _handle_pick_block(self, clicked: BlockClick, player: Player):
         if clicked.block != "air":
             if player.can_pick_block():
-                player.pick_item(clicked.block)
+                player.pick_item(clicked.base_name)
 
     def _handle_place_block(self, clicked: BlockClick, player: Player, fluid_manager: FluidManager):
 
@@ -215,7 +221,7 @@ class World:
     def _can_place(self, clicked: BlockClick, player: Player, fluid_manager: FluidManager):
         hand_item = player.hotbar[player.selected_hotbar_index]
 
-        if clicked.block is None:
+        if clicked.block is None or clicked.base_name is None:
             return False
 
         if hand_item is None:
@@ -352,4 +358,16 @@ class World:
             furance = self.furnaces.get((x, y))
             if furance is not None and furance.burn_time_left > 0:
                 return "furnace_on"
+
+        if "leav" in block_name and block_name.endswith("_natural"):
+            block_name = block_name[:-8]
+
+        return block_name
+
+    @staticmethod
+    def get_block_base_name(block_name: str):
+
+        if "leav" in block_name and block_name.endswith("_natural"):
+            block_name = block_name[:-8]
+
         return block_name

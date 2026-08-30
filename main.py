@@ -13,6 +13,7 @@ import world_manager
 from craft_manager import CraftingManager
 from fluid_manager import FluidManager
 from game_data import crafting_recipes
+from grass_spread_manager import GrassSpreadManager
 from player import Player
 
 save = save_manager.SaveManager()
@@ -42,6 +43,7 @@ last_chunk = None
 save.load_world(player, world)
 
 game_camera = camera.Camera(asset, player)
+grass_spread_manager = GrassSpreadManager(config.chunks)
 fluid_manager = FluidManager(config.chunks)
 
 crafting_recipes.register_recipes(crafting_manager)
@@ -92,7 +94,7 @@ while config.running:
 
         # 更新
         game_camera.update(player, fluid_manager)
-        world.update(mouse_buttons, mouse_pos, player, game_camera, fluid_manager, ui)
+        world.update(mouse_buttons, mouse_pos, player, game_camera, fluid_manager, grass_spread_manager, ui)
         player.update(mouse_pos, game_camera.scroll_x, dt)
         ui.update(player, fps, mouse_pos, game_camera, world)
         asset.update()
@@ -137,6 +139,18 @@ while config.running:
         screen.blit(config.pause_background, (0, 0))
 
         menu.update(events, mouse_pos)
+        menu.draw(screen)
+
+    elif config.game_state == "CONTROLS_OPTION":
+        screen.blit(config.pause_background, (0, 0))
+
+        menu.update(events, mouse_pos)
+        menu.draw(screen)
+
+    elif config.game_state == "GAME_OPTION":
+        screen.blit(config.pause_background, (0, 0))
+
+        menu.update(events, mouse_pos, player)
         menu.draw(screen)
 
     for event in events:

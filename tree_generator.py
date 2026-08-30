@@ -44,23 +44,40 @@ class TreeGenerator:
             "oak": {
                 "height": (6, 8),
                 "trunk_width": 1,
+                "trunk_top_gap": 2,
                 "leaves": [[3, 3, 5, 5]],
                 "fast_leaf_rate": 0.8,
                 "is_2d_matrix": False,
             },
-            "birch": {"height": (6, 8), "trunk_width": 1, "leaves": [[1, 3, 3, 5, 5]], "fast_leaf_rate": 0.8, "is_2d_matrix": False},
-            "spruce": {
-                "height": (10, 14),
+            "birch": {
+                "height": (6, 8),
                 "trunk_width": 1,
-                "leaves": [[1, 3, 1, 3, 5, 3, 5, 3, 5], [1, 3, 3, 3]],
+                "trunk_top_gap": 3,
+                "leaves": [[1, 3, 3, 5, 5]],
                 "fast_leaf_rate": 0.8,
                 "is_2d_matrix": False,
             },
-            "jungle": {"height": (10, 16), "trunk_width": 1, "leaves": [[3, 3, 5, 5]], "fast_leaf_rate": 0.8, "is_2d_matrix": False},
+            "spruce": {
+                "height": (10, 14),
+                "trunk_width": 1,
+                "trunk_top_gap": 4,
+                "leaves": [[1, 3, 1, 3, 5, 3, 5, 3, 5], [1, 3, 3, 3]],
+                "fast_leaf_rate": 1.0,
+                "is_2d_matrix": False,
+            },
+            "jungle": {
+                "height": (10, 16),
+                "trunk_width": 1,
+                "leaves": [[3, 3, 5, 5]],
+                "trunk_top_gap": 2,
+                "fast_leaf_rate": 0.8,
+                "is_2d_matrix": False,
+            },
             "dark_oak": {
                 "height": (9, 12),
                 "trunk_width": 2,
                 "leaves": self.DARK_OAK_LEAF_PATTERNS,
+                "trunk_top_gap": 6,
                 "fast_leaf_rate": 0.85,
                 "is_2d_matrix": True,
             },
@@ -93,13 +110,16 @@ class TreeGenerator:
         pattern = self.TREE_PATTERNS[tree_type]
         tree_height = rng.randint(*pattern["height"])
         fast_leaf_rate = pattern["fast_leaf_rate"]
+        trunk_top_gap = pattern.get("trunk_top_gap", 0)
         result = []
 
         # 畫樹幹
-        for y in range(bottom_y, bottom_y - tree_height, -1):
+        trunk_positions = set()
+        for y in range(bottom_y, bottom_y - tree_height + trunk_top_gap, -1):
             for w in range(pattern["trunk_width"]):
                 if block := self._generate_trunk_blocks(tree_type, world_x + w, y):
                     result.append(block)
+                    trunk_positions.add((block[0], block[1]))
 
         # 畫樹冠
         top_y = bottom_y - tree_height + 1
@@ -107,7 +127,7 @@ class TreeGenerator:
 
         for i, width in enumerate(leaves_pattern):
             leaf_y = top_y + i
-            result.extend(self._place_leaf_rectangle(tree_type, world_x, leaf_y, width, 1, rng, fast_leaf_rate))
+            result.extend(self._place_leaf_rectangle(tree_type, world_x, leaf_y, width, 1, rng, fast_leaf_rate, trunk_positions))
 
         return result
 
@@ -115,13 +135,16 @@ class TreeGenerator:
         pattern = self.TREE_PATTERNS[tree_type]
         tree_height = rng.randint(*pattern["height"])
         fast_leaf_rate = pattern["fast_leaf_rate"]
+        trunk_top_gap = pattern.get("trunk_top_gap", 0)
         result = []
 
         # 畫樹幹
-        for y in range(bottom_y, bottom_y - tree_height, -1):
+        trunk_positions = set()
+        for y in range(bottom_y, bottom_y - tree_height + trunk_top_gap, -1):
             for w in range(pattern["trunk_width"]):
                 if block := self._generate_trunk_blocks(tree_type, world_x + w, y):
                     result.append(block)
+                    trunk_positions.add((block[0], block[1]))
 
         # 畫樹冠（2D 矩陣）
         top_y = bottom_y - tree_height + 1
@@ -133,12 +156,12 @@ class TreeGenerator:
                 leaf_x = world_x + dx - len(row) // 2
                 if cell == 1:
                     is_fast_leaf = rng.random() < fast_leaf_rate
-                    if block := self._generate_leaves_blocks(tree_type, leaf_x, leaf_y, is_fast_leaf):
+                    if block := self._generate_leaves_blocks(tree_type, leaf_x, leaf_y, is_fast_leaf, trunk_positions):
                         result.append(block)
 
         return result
 
-    def _place_leaf_rectangle(self, tree_type, center_x, center_y, width, height, rng: random.Random, fast_leaf_rate=0.8):
+    def _place_leaf_rectangle(self, tree_type, center_x, center_y, width, height, rng: random.Random, fast_leaf_rate=0.8, occupied=None):
         top = center_y - height // 2
         left = -(width // 2)
         right = width // 2
@@ -148,7 +171,7 @@ class TreeGenerator:
             for lx_offset in range(left, right + 1) if width > 1 else [0]:
                 leaf_world_x = center_x + lx_offset
                 is_fast_leaf = rng.random() < fast_leaf_rate
-                if block := self._generate_leaves_blocks(tree_type, leaf_world_x, ly, is_fast_leaf):
+                if block := self._generate_leaves_blocks(tree_type, leaf_world_x, ly, is_fast_leaf, occupied):
                     result.append(block)
 
         return result
@@ -158,8 +181,10 @@ class TreeGenerator:
             return None
         return (trunk_world_x, y, f"{tree_type}_log")
 
-    def _generate_leaves_blocks(self, tree_type, leaf_world_x, y, is_fast_leaf=True):
+    def _generate_leaves_blocks(self, tree_type, leaf_world_x, y, is_fast_leaf=True, occupied=None):
         if not (0 <= y < config.MAP_HEIGHT):
             return None
-        leaf = f"{tree_type}_leaves_fast" if is_fast_leaf else f"{tree_type}_leaves"
+        if occupied is not None and (leaf_world_x, y) in occupied:
+            return None
+        leaf = f"{tree_type}_leaves_fast_natural" if is_fast_leaf else f"{tree_type}_leaves_natural"
         return (leaf_world_x, y, leaf)

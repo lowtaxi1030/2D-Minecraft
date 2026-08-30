@@ -24,8 +24,8 @@ class CategoryNotCurrectError(Exception):
 
 class AssetManager:
     def __init__(self):
-        self.img_blocks = {}
-        self.img_items = {}
+        self.img_blocks: dict[str, pygame.Surface] = {}
+        self.img_items: dict[str, pygame.Surface] = {}
 
         self.hotbar_bg = None
         self.select_frame = None
@@ -67,16 +67,8 @@ class AssetManager:
             # 取得不含副檔名的名稱，例如 "grass", "coal ore"
             name = path.stem
 
-            # 載入、優化並縮放圖片
-
-            if name in self.LEAVES_COLORS:
-                org_img = self._load_and_tint_imgs(str(path), self.LEAVES_COLORS[name])
-
-            elif name[:-5] in self.LEAVES_COLORS:
-                org_img = self._load_and_tint_imgs(str(path), self.LEAVES_COLORS[name[:-5]])
-
-            else:
-                org_img = pygame.image.load(str(path)).convert_alpha()
+            if not (name.startswith("water_") or name.startswith("lava_")):
+                continue
 
             if name.startswith("water_"):
                 self.animations[name] = self._load_animation(str(path), tint_color=(30, 120, 240))
@@ -94,27 +86,12 @@ class AssetManager:
 
                 org_img = self.animations[name].image
 
-            if name.startswith("lava_"):
-                self.animations[name] = self._load_animation(str(path))
-
-                org_img = self.animations[name].image
-
             # 2. 存縮放後的圖
             scaled_img = tool.scale_img(org_img, config.BLOCK_SIZE)
             self.img_blocks[name] = scaled_img
 
-        for path in ITEMS_PATH.rglob("*.png"):
-            # 取得不含副檔名的名稱，例如 "grass", "coal ore"
-            name = path.stem
-
-            org_img = pygame.image.load(str(path)).convert_alpha()
-
-            # 存縮放後的圖
-            scaled_img = tool.scale_img(org_img, config.BLOCK_SIZE)
-            self.img_items[name] = scaled_img
-
         # 處理泥土背景
-        self.bg_dirt = self.img_blocks["dirt"].copy()
+        self.bg_dirt = self.block("dirt").copy()
         self.bg_dirt = tool.scale_img(self.bg_dirt, 40)
 
     def _load_animation(self, path: str, tint_color: tuple[int, ...] = None, rev: bool = False):
@@ -228,7 +205,7 @@ class AssetManager:
 
     """小工具"""
 
-    def block(self, name):
+    def block(self, name: str):
 
         if animation := self.animations.get(name):
             return animation.image
@@ -237,7 +214,14 @@ class AssetManager:
 
         if img is not None:
             return img
-        raise KeyError(f"Image resource '{name}' not found in animations, blocks, or items.")
+
+        if (BLOCKS_PATH / f"{name}.png").exists():
+            return self._get_img(name, "block")
+
+        if (ITEMS_PATH / f"{name}.png").exists():
+            return self._get_img(name, "item")
+
+        raise KeyError(f"Image resource '{name}' not found in animations, blocks, or items.\npath:{BLOCKS_PATH / (name + '.png')}")
 
     @staticmethod
     def update_img_pos(img_rect: pygame.Rect, new_pos: tuple = None, y_center=False, screen_center=True, is_bottom=False):
@@ -265,7 +249,7 @@ class AssetManager:
         if y_center:
             img_rect.centery = config.current_height // 2
 
-    def get_img(self, type: str, category: str):
+    def _get_img(self, type: str, category: str):
         """
         category: 可以是"block"、"item"
         """
@@ -282,7 +266,9 @@ class AssetManager:
         else:
             raise CategoryNotCurrectError(f"no such category called '{category}'")
 
-        img_path = path / f"{type}.png"
+        if not (img_path := path / f"{type}.png").exists():
+            print(f"unfind image: {img_path}")
+            return None
 
         # --- 2. 若快取沒有，才執行載入與處理 (Cache Miss) ---
         name = img_path.stem
@@ -317,6 +303,7 @@ class AssetManager:
             # 2. 存縮放後的圖
             scaled_img = tool.scale_img(org_img, config.BLOCK_SIZE)
             self.img_blocks[name] = scaled_img
+            return scaled_img
 
         elif category == "item":
             # 取得不含副檔名的名稱，例如 "grass", "coal ore"
@@ -327,3 +314,4 @@ class AssetManager:
             # 存縮放後的圖
             scaled_img = tool.scale_img(org_img, config.BLOCK_SIZE)
             self.img_items[name] = scaled_img
+            return scaled_img

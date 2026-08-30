@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from asset_manager import AssetManager
+    from player import Player
 
 import pygame
 
@@ -16,8 +17,9 @@ class MenuManager:
         self.option_menu = OptionMenu(assets)
         self.video_menu = VideoMenu(assets)
         self.controls_menu = ControlsMenu(assets)
+        self.game_menu = GameMenu(assets)
 
-    def update(self, events, mouse_pos):
+    def update(self, events, mouse_pos, player: Player = None):
         if config.game_state == "PAUSE":
             self.pause_menu.update(events, mouse_pos)
         elif config.game_state == "OPTION":
@@ -30,6 +32,8 @@ class MenuManager:
             pass
         elif config.game_state == "VIDEO_OPTION":
             self.video_menu.update(events, mouse_pos)
+        elif config.game_state == "GAME_OPTION":
+            self.game_menu.update(events, mouse_pos, player)
 
     def draw(self, screen):
         # 1. 🎯 鋪滿暗色泥土背景（Minecraft 經典風格）
@@ -47,6 +51,8 @@ class MenuManager:
             self.controls_menu.draw(screen)
         elif config.game_state == "VIDEO_OPTION":
             self.video_menu.draw(screen)
+        elif config.game_state == "GAME_OPTION":
+            self.game_menu.draw(screen)
 
 
 class BaseMenu:
@@ -179,14 +185,26 @@ class OptionMenu:
             hover_text_color=tool.Colors.MC_YELLOW,
         )
 
+        self.game_button = ui.ImageTextButton(
+            name="game_option",
+            image=self.assets.setting_button_img,
+            text="Game Settings",
+            text_color=tool.Colors.WHITE,
+            pos=(
+                self.center_x - (self.btn_w // 2) + self.spacing_x,
+                self.start_y + self.spacing_y + (self.btn_h // 2),
+            ),
+            hover_text_color=tool.Colors.MC_YELLOW,
+        )
+
         self.lang_button = ui.ImageTextButton(
             name="lang_option",
             image=self.assets.setting_button_img,
             text="Lang Settings",
             text_color=tool.Colors.WHITE,
             pos=(
-                self.center_x - (self.btn_w // 2) + self.spacing_x,
-                self.start_y + self.spacing_y + (self.btn_h // 2),
+                self.center_x - (self.btn_w // 2) - self.spacing_x,
+                self.start_y + self.spacing_y * 2 + (self.btn_h // 2),
             ),
             hover_text_color=tool.Colors.MC_YELLOW,
         )
@@ -200,7 +218,7 @@ class OptionMenu:
             hover_text_color=tool.Colors.MC_YELLOW,
         )
 
-        self.all_uis = [self.video_button, self.controls_button, self.audio_button, self.lang_button, self.done_button]
+        self.all_uis = [self.video_button, self.controls_button, self.audio_button, self.game_button, self.lang_button, self.done_button]
 
     def layout(self):
         self.video_button.rect.center = (self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2))
@@ -209,9 +227,13 @@ class OptionMenu:
             self.center_x - (self.btn_w // 2) - self.spacing_x,
             self.start_y + self.spacing_y + (self.btn_h // 2),
         )
-        self.lang_button.rect.center = (
+        self.game_button.rect.center = (
             self.center_x + (self.btn_w // 2) + self.spacing_x,
             self.start_y + self.spacing_y + (self.btn_h // 2),
+        )
+        self.lang_button.rect.center = (
+            self.center_x - (self.btn_w // 2) - self.spacing_x,
+            self.start_y + self.spacing_y * 2 + (self.btn_h // 2),
         )
         self.done_button.rect.center = (self.center_x, config.current_height - 60)  # 👈 確保 Done 大按鈕也完美黏在底部
 
@@ -221,7 +243,10 @@ class OptionMenu:
         for ob in self.all_uis:
             ob.update(events, mouse_pos)
 
-        # 之後太多時放在 _handle_event裡面
+        self._handle_event(events, mouse_pos)
+        self.layout()
+
+    def _handle_event(self, events, mouse_pos):
         if self.done_button.is_clicked:
             config.game_state = "PAUSE"
 
@@ -231,10 +256,9 @@ class OptionMenu:
         if self.controls_button.is_clicked:
             config.game_state = "CONTROLS_OPTION"
 
-        self._handle_event(events, mouse_pos)
-        self.layout()
+        if self.game_button.is_clicked:
+            config.game_state = "GAME_OPTION"
 
-    def _handle_event(self, events, mouse_pos):
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
@@ -242,48 +266,6 @@ class OptionMenu:
 
     def draw(self, screen):
         ui.show_text(screen, "Options", tool.Colors.WHITE, 0, 50, 40, screen_center=True)
-
-        for ob in self.all_uis:
-            ob.draw(screen)
-
-
-class ControlsMenu:
-    def __init__(self, assets: AssetManager):
-        self.assets = assets
-
-        self.btn_w, self.btn_h = 350, 40  # 按鈕標準尺寸
-        self.switch_base_w, self.switch_base_h = self.assets.swich_base_rect.size  # 開關底座尺寸
-        self.center_x = config.current_width // 2
-        self.start_y = 150  # 從上方 150 像素開始畫按鈕
-        self.spacing_x = 60  # 左右按鈕的間距
-        self.spacing_y = 60  # 上下按鈕的間距
-
-        self.modes = ["survival", "creative", "spectator"]  # , "adventure" 之後再用
-        self.mode_index = 0  # 預設是生存模式
-
-        self.alto_jump = ui.ImageButton(
-            name="alto_jump",  # 視野廣角
-            image=self.assets.swich_base_img,
-            pos=(self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2)),
-        )
-        self.mode_switch = ui.ImageButton(
-            name="mode_switch",  # 視野廣角
-            image=self.assets.setting_button_img,
-            pos=(self.center_x + (self.btn_w // 2) + self.spacing_x, self.start_y + (self.btn_h // 2)),
-        )
-        self.all_uis = [self.alto_jump, self.mode_switch]
-
-    def layout(self):
-        self.center_x = config.current_width // 2
-
-        self.alto_jump.rect.center = (self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2))
-        self.mode_switch.rect.center = (self.center_x + (self.btn_w // 2) + self.spacing_x, self.start_y + (self.btn_h // 2))
-
-    def update(self, events, mouse_pos):
-        self.layout()
-
-    def draw(self, screen):
-        ui.show_text(screen, "Controls", tool.Colors.WHITE, 0, 50, 40, screen_center=True)
 
         for ob in self.all_uis:
             ob.draw(screen)
@@ -392,3 +374,122 @@ class VideoMenu:
             center=True,
             size=30,
         )
+
+
+class ControlsMenu:
+    def __init__(self, assets: AssetManager):
+        self.assets = assets
+
+        self.btn_w, self.btn_h = 350, 40  # 按鈕標準尺寸
+        self.switch_base_w, self.switch_base_h = self.assets.swich_base_rect.size  # 開關底座尺寸
+        self.center_x = config.current_width // 2
+        self.start_y = 150  # 從上方 150 像素開始畫按鈕
+        self.spacing_x = 60  # 左右按鈕的間距
+        self.spacing_y = 60  # 上下按鈕的間距
+        self.all_uis = []
+
+    def layout(self): ...
+
+    def update(self, events, mouse_pos):
+        self.center_x = config.current_width // 2
+
+        self._handle_event(events, mouse_pos)
+        self.layout()
+
+    def _handle_event(self, events, mouse_pos):
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    config.game_state = "OPTION"
+
+    def draw(self, screen):
+        ui.show_text(screen, "Controls", tool.Colors.WHITE, 0, 50, 40, screen_center=True)
+
+        for ob in self.all_uis:
+            ob.draw(screen)
+
+
+class GameMenu:
+    def __init__(self, assets: AssetManager):
+        self.assets = assets
+
+        self.btn_w, self.btn_h = 350, 40  # 按鈕標準尺寸
+
+        self.center_x = config.current_width // 2
+        self.start_y = 150  # 從上方 150 像素開始畫按鈕
+        self.spacing_x = 60  # 左右按鈕的間距
+        self.spacing_y = 60  # 上下按鈕的間距
+
+        self.modes = ["survival", "creative", "spectator"]  # , "adventure" 之後再用
+        self.mode_index = 0  # 預設是生存模式
+        self.mode = self.modes[self.mode_index]
+
+        # self.alto_jump = ui.ImageButton(
+        #     name="alto_jump",  # 視野廣角
+        #     image=self.assets.swich_base_img,
+        #     pos=(self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2)),
+        # )
+
+        self.mode_switch = ui.ImageTextButton(
+            name="mode_switch",  # 視野廣角
+            image=self.assets.setting_button_img,
+            pos=(self.center_x + (self.btn_w // 2) + self.spacing_x, self.start_y + (self.btn_h // 2)),
+            text="",  # 給update處理
+            text_color=tool.Colors.WHITE,
+            hover_text_color=tool.Colors.MC_YELLOW,
+        )
+
+        self.back_btn = ui.ImageTextButton(
+            name="back",
+            image=self.assets.setting_button_img,
+            text="Back",
+            text_color=tool.Colors.WHITE,
+            pos=(self.center_x, config.current_height - 60),
+            hover_text_color=tool.Colors.MC_YELLOW,
+        )
+        self.all_uis = [self.mode_switch, self.back_btn]  # , self.alto_jump
+
+    def layout(self):
+        # self.alto_jump.rect.center = (self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2))
+        self.mode_switch.rect.center = (self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2))
+
+        self._update_mode()
+        self.back_btn.rect.center = (self.center_x, config.current_height - 60)
+
+    def _update_mode(self):
+        self.mode_switch.change_base_text(f"mode: {self.modes[self.mode_index]}", force=True)
+        self.mode = self.modes[self.mode_index]
+
+    def update(self, events, mouse_pos, player: Player = None):
+        self.center_x = config.current_width // 2
+
+        for ob in self.all_uis:
+            ob.update(events, mouse_pos)
+
+        self._handle_event(events, mouse_pos, player)
+        self.layout()
+
+    def _handle_event(self, events, mouse_pos, player: Player):
+        if self.mode_switch.is_clicked:
+            self.mode_index += 1
+            self.mode_index %= len(self.modes)
+
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    config.game_state = "OPTION"
+
+        if self.back_btn.is_clicked:
+            config.game_state = "OPTION"
+            player.mode = self.mode
+            player.vel_x = 0
+            player.vel_y = 0
+            if player.mode == "survival":
+                player.is_flying = False
+            player.just_switched_mode = True
+
+    def draw(self, screen):
+        ui.show_text(screen, "Game", tool.Colors.WHITE, 0, 50, 40, screen_center=True)
+
+        for ob in self.all_uis:
+            ob.draw(screen)

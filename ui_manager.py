@@ -14,9 +14,9 @@ import config
 import craft_manager
 import tool
 import ui_obs as ui
-from chest_state import ChestState
-from furnace_state import FurnaceState
 from item_slot_manager import SlotHandler
+from states.chest_state import ChestState
+from states.furnace_state import FurnaceState
 
 pygame.init()
 clock = pygame.time.Clock()

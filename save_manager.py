@@ -8,8 +8,8 @@ import json
 import os
 
 import config
-from chest_state import ChestState
-from furnace_state import FurnaceState
+from states.chest_state import ChestState
+from states.furnace_state import FurnaceState
 
 
 class SaveManager:
