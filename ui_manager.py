@@ -1267,10 +1267,11 @@ class DebugScreen:
                 ).replace("_", " ")
             )
 
-            mouse_block = chunk_manager.get_block(
+            raw_mouse_block = chunk_manager.get_block(
                 world_mouse_x * config.BLOCK_SIZE,
                 world_mouse_y * config.BLOCK_SIZE,
-            ).replace("_", " ")
+            )
+            mouse_block = world.get_block_base_name(raw_mouse_block).replace("_", " ")
 
             self.left_lines = [
                 "=== Player ===",
@@ -1288,7 +1289,8 @@ class DebugScreen:
                 "",
                 "=== Performance ===",
                 f"FPS : {fps:.0f}",
-                f"Scren Mouse Pos: {mouse_pos}",
+                f"Screen Mouse Pos: {mouse_pos}",
+                f"Player Screen Pos: ({player.rect.centerx - camera.scroll_x:.0f}, {player.rect.centery - camera.scroll_y:.0f})",
                 f"Loaded Chunks : {len(config.chunks)}",
                 f"Entities : {len(world.item_entities)}",
                 f"Dirty Chunks : {sum(chunk.is_dirty for chunk in config.chunks.values())}",

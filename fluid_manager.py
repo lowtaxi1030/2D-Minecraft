@@ -119,7 +119,7 @@ class FluidManager:
                 # 注意：這裡不要 return！讓它繼續往下走 Step 3，向左右擴散開來！
 
         # Step3: 判斷能不能左右流
-        new_level = level + 1
+        new_level = 2 if self._parse_fluid(self._get_block(x, y), "water") == 0 else level + 1
 
         # 只有當水位還沒達到最大值時，才能繼續向左右擴散
         # print("[DEBUG](fluid_manager): Step3")
@@ -144,6 +144,19 @@ class FluidManager:
                         next_fluid.add((nx, y))
 
                         has_changed = True
+
+        if 0 < level <= 2:
+            left_block = self._get_block(x - 1, y)
+            right_block = self._get_block(x + 1, y)
+
+            # 2. 檢查左右兩邊是否都是源頭
+            left_is_source = self._parse_fluid(left_block, "water") == 0
+            right_is_source = self._parse_fluid(right_block, "water") == 0
+
+            # 3. 兩邊都是源頭，直接把它取代為源頭方塊！
+            if left_is_source and right_is_source:
+                new_block = self._make_fluid("water", level=0, dir=0)
+                self._set_block(x, y, new_block)
 
         if has_changed:
             next_fluid.add((x, y))
@@ -195,7 +208,7 @@ class FluidManager:
                 has_changed = True
 
         # Step3: 判斷能不能左右流
-        new_level = level + 1
+        new_level = 2 if self._parse_fluid(self._get_block(x, y), "lava") == 0 else level + 1
 
         # 只有當水位還沒達到最大值時，才能繼續向左右擴散
         # print("[DEBUG](fluid_manager): Step3")
@@ -219,6 +232,19 @@ class FluidManager:
                         next_fluid.add((nx, y))
 
                         has_changed = True
+
+        if 0 < level <= 2:
+            left_block = self._get_block(x - 1, y)
+            right_block = self._get_block(x + 1, y)
+
+            # 2. 檢查左右兩邊是否都是源頭
+            left_is_source = self._parse_fluid(left_block, "lava") == 0
+            right_is_source = self._parse_fluid(right_block, "lava") == 0
+
+            # 3. 兩邊都是源頭，直接把它取代為源頭方塊！
+            if left_is_source and right_is_source:
+                new_block = self._make_fluid("lava", level=0, dir=0)
+                self._set_block(x, y, new_block)
 
         if has_changed:
             next_fluid.add((x, y))

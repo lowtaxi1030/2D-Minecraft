@@ -8,7 +8,7 @@ class GrassSpreadManager:
         self.chunks = chunks
         self.TICKS_PER_ATTEMPT = 20  # 每嘗試一次，間隔幾個tick
         self.tick_counter = 0  # 新增：記錄目前累積了幾個tick
-        self.attempts_per_chunk = 3  # 每次抽幾顆
+        self.attempts_per_chunk = 5  # 每次抽幾顆
 
     def update(self):
         self.tick_counter += 1

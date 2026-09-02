@@ -1,7 +1,12 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from chunk_manager import Chunk
+
 import random
 from pathlib import Path
 
-GAME_VERSION = "V0.26.10.3"  # 10是箱子
+GAME_VERSION = "V0.26.11"
 
 # Types
 Item = dict[str, str | int]
@@ -23,10 +28,10 @@ MAP_HEIGHT = 300
 
 BASE_LINE = 80
 
-chunks = {}
+chunks: dict[int, Chunk] = {}
 height_map = []
 
-CURRENT_WORLD = "tree_test"  # 可以隨意換成任何合法名字
+CURRENT_WORLD = ""  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
 BIOME_NOISE_SCALE = 700
 

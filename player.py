@@ -1,3 +1,8 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from camera import Camera
+
 import pygame
 
 import chunk_manager
@@ -187,7 +192,7 @@ class Player:
             else:
                 self.is_running = False
 
-    def update(self, mouse_pos: tuple[int, int], scroll_x: int, dt: int):
+    def update(self, mouse_pos: tuple[int, int], dt: int, game_camera: Camera):
         # 處理按鍵問題
 
         # self.is_running &= not self.is_flying  # (另一種寫法，可以嘗試)
@@ -207,6 +212,32 @@ class Player:
             or chunk_manager.get_block(right_x * config.BLOCK_SIZE, bottom_y * config.BLOCK_SIZE) != "air"
         ) and self.mode != "spectator"
 
+        head_stuck = not tool.is_passable(chunk_manager.get_block(self.rect.centerx, top_y))
+        feet_stuck = not tool.is_passable(chunk_manager.get_block(self.rect.centerx, bottom_y))
+
+        self.is_fully_stuck = head_stuck and feet_stuck
+
+        self.rect.x += self.vel_x * config.BLOCK_SIZE * dt
+
+        if not self.is_fully_stuck:
+            self._collide_x(is_swich_mode=self.just_switched_mode)
+        # 應用重力
+        if self.mode != "spectator" and not self.is_flying:
+            self.vel_y += self.gravity * dt
+
+        # 預設玩家在空中
+        self.is_grounded = False
+
+        self._collide_y(dt)
+
+        world_mouse_x, _ = game_camera.screen_to_world(mouse_pos)
+
+        if world_mouse_x < self.rect.centerx:
+            self.facing = -1
+        elif world_mouse_x > self.rect.centerx:
+            self.facing = 1
+
+    def _get_collision_range(self):
         center_grid_x = self.rect.centerx // config.BLOCK_SIZE
         center_grid_y = self.rect.centery // config.BLOCK_SIZE
 
@@ -216,25 +247,11 @@ class Player:
         start_y = max(0, center_grid_y - 2)
         end_y = min(config.MAP_HEIGHT, center_grid_y + 3)
 
-        self.rect.x += self.vel_x * config.BLOCK_SIZE * dt
+        return start_x, end_x, start_y, end_y
 
-        self._collide_x(start_x, end_x, start_y, end_y, is_swich_mode=self.just_switched_mode)
-        # 應用重力
-        if self.mode != "spectator" and not self.is_flying:
-            self.vel_y += self.gravity * dt
-
-        # 預設玩家在空中
-        self.is_grounded = False
-
-        self._collide_y(start_x, end_x, start_y, end_y, dt)
-
-        if mouse_pos[0] < self.rect.centerx - scroll_x:
-            self.facing = -1
-        elif mouse_pos[0] > self.rect.centerx - scroll_x:
-            self.facing = 1
-
-    def _collide_x(self, start_x, end_x, start_y, end_y, is_swich_mode=False):
+    def _collide_x(self, is_swich_mode=False):
         # 檢查玩家周圍的方塊
+        start_x, end_x, start_y, end_y = self._get_collision_range()
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
                 block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
@@ -265,17 +282,19 @@ class Player:
                         self.rect.left = block_rect.right
                         self._try_auto_jump(block_rect)
 
-    def _collide_y(self, start_x, end_x, start_y, end_y, dt):
-        rem_y = abs(self.vel_y)  # 還剩下多少 Y 距離要走
-        sign_y = 1 if self.vel_y > 0 else -1
+    def _collide_y(self, dt):
+        move_y = self.vel_y * config.BLOCK_SIZE * dt
+        rem_y = abs(move_y)  # 還剩下多少 Y 距離要走
+        sign_y = 1 if move_y > 0 else -1
 
-        # 🎯 參考你最得意的碎步架構
         while rem_y > 0:
             current_step = min(4, rem_y)  # 每次最多試探 4 像素
             self.rect.y += current_step * sign_y
             rem_y -= current_step
 
             hit_y = False
+            start_x, end_x, start_y, end_y = self._get_collision_range()
+            # print(f"[GROUND HIT]\nvel_y before collision: {self.vel_y}\nmove_y before collision: {move_y}")
             for y_pos in range(start_y, end_y):
                 for x_pos in range(start_x, end_x):
                     block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
@@ -298,13 +317,13 @@ class Player:
                             self.rect.top = block_rect.bottom
 
                         self.vel_y = 0  # 速度煞車歸零
+                        # print(f"vel_y after collision: {self.vel_y}")
                         hit_y = True
                         break
                 if hit_y:
                     break
 
             if hit_y:
-                # 🎯 撞到了就直接完全報廢這幀剩下的碎步，絕對不會過度疊加移動
                 break
 
     def draw(self, screen: pygame.Surface, scroll_x, scroll_y):

@@ -47,7 +47,7 @@ BIOMES = {
         "surface": "grass",
         "dirt": "dirt",
         "tree": "oak",
-        "tree_rate": 0.15,
+        "tree_rate": 0.3,
         "height": 12,
     },
     "birch_forest": {
@@ -55,7 +55,10 @@ BIOMES = {
         "humidity": -0.5,
         "surface": "grass",
         "dirt": "dirt",
-        "tree": "birch",
+        "tree": {
+            "birch": 0.8,
+            "tall_birch": 0.2,
+        },
         "tree_rate": 0.15,
         "height": 12,
     },
@@ -93,7 +96,7 @@ BIOMES = {
         "surface_cover": "snow",
         "dirt": "dirt",
         "tree": "spruce",
-        "tree_rate": 0.05,
+        "tree_rate": 0.01,
         "height": 10,
     },
     "snow_forest": {
@@ -105,6 +108,18 @@ BIOMES = {
         "tree": "spruce",
         "tree_rate": 0.15,
         "height": 10,
+    },
+    "taiga": {
+        "temp": 0.1,
+        "humidity": 0.5,
+        "surface": "grass",
+        "dirt": "dirt",
+        "tree": {
+            "spruce": 0.8,
+            "big_spruce": 0.2,
+        },
+        "tree_rate": 0.1,
+        "height": 12,
     },
     "jungle": {
         "temp": 0.8,
@@ -835,6 +850,9 @@ def _generate_trees(chunk_x: int, biome: dict, chunk_data: list, height_map: lis
             if not tree_generator._can_place_tree(plant_world_x, placed_tree_x, tree_spawn_CD):
                 continue
 
+            if _has_nearby_log(plant_world_x, tree_spawn_CD):
+                continue
+
             surface_y = height_map[plant_local_x]
 
             # 確定地表方塊匹配生態系
@@ -844,16 +862,16 @@ def _generate_trees(chunk_x: int, biome: dict, chunk_data: list, height_map: lis
             placed_tree_x.append(plant_world_x)
 
             # 1. 呼叫 TreeGenerator 拿這棵樹的所有方塊清單
-            tree_blocks = tree_generator.generate(tree_type, plant_world_x, surface_y, rng)
+            tree_blocks = tree_generator.generate(_choose_tree_type(biome, rng), plant_world_x, surface_y, rng)
 
             # 2. 將方塊寫入當前 chunk_data 內
             for wx, wy, block_name in tree_blocks:
                 target_chunk_x = wx // config.CHUNK_WIDTH
-                local_x = wx - (chunk_x * config.CHUNK_WIDTH)
+                target_local_x = wx % config.CHUNK_WIDTH
 
                 # 確保寫入的目標在該 Chunk 的本地 X 範圍與地圖高內
                 if target_chunk_x == chunk_x:
-                    chunk_data[wy][local_x] = block_name
+                    chunk_data[wy][target_local_x] = block_name
                 elif target_chunk_x in config.chunks:
                     set_block(wx, wy, block_name)
                 else:
@@ -864,3 +882,36 @@ def _generate_trees(chunk_x: int, biome: dict, chunk_data: list, height_map: lis
             break
 
     return chunk_data
+
+
+def _has_nearby_log(candidate_world_x, radius):
+    for wx in range(candidate_world_x - radius, candidate_world_x + radius + 1):
+        chunk_x = wx // config.CHUNK_WIDTH
+        local_x = wx % config.CHUNK_WIDTH
+
+        # 情況1：鄰居已經生成過 -> 直接讀 config.chunks，絕對不要呼叫 get_block/get_chunk（會觸發生成）
+        if chunk_x in config.chunks:
+            for y in range(config.MAP_HEIGHT):
+                if config.chunks[chunk_x].blocks[y][local_x].endswith("_log"):
+                    return True
+
+        # 情況2：鄰居還沒生成，但已經有排隊要塞的方塊（可能是隔壁樹冠延伸過來的）
+        if chunk_x in pending_chunk_changes:
+            for pwx, _, block_name in pending_chunk_changes[chunk_x]:
+                if pwx == wx and block_name.endswith("_log"):
+                    return True
+
+    return False
+
+
+def _choose_tree_type(biome, rng: random.Random):
+    tree_type = biome.get("tree")
+    if isinstance(tree_type, dict):
+        total_weight = sum(tree_type.values())
+        rand_val = rng.uniform(0, total_weight)
+        cumulative_weight = 0.0
+        for t_type, weight in tree_type.items():
+            cumulative_weight += weight
+            if rand_val <= cumulative_weight:
+                return t_type
+    return tree_type

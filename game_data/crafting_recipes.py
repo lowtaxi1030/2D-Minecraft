@@ -260,6 +260,16 @@ RECIPES = [
         "result_type": "chest",
         "result_count": 1,
     },
+    {
+        "ingredients": {"black_wool": 2, "dark_oak_planks": 1, "oak_planks": 2, "birch_planks": 1, "spruce_planks": 2, "jungle_planks": 1},
+        "shape": [
+            ["oak_planks", "dark_oak_planks", "oak_planks"],
+            ["spruce_planks", "birch_planks", "spruce_planks"],
+            ["black_wool", "jungle_planks", "black_wool"],
+        ],
+        "result_type": "rick",
+        "result_count": 64,
+    },
 ]
 
 

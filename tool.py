@@ -336,4 +336,10 @@ def is_passable(block: str | None) -> bool:
     if block.startswith("water") or block.startswith("lava"):
         return True
 
+    if block.endswith("_sapling"):
+        return True
+
+    if block == "rick":
+        return True
+
     return False

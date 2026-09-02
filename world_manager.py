@@ -2,8 +2,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from asset_manager import AssetManager
+    from environment_systems import EnvironmentSystems
     from fluid_manager import FluidManager
-    from grass_spread_manager import GrassSpreadManager
     from player import Player
     from ui_manager import UI
 
@@ -68,11 +68,22 @@ class World:
         player: Player,
         camera: Camera,
         fluid_manager: FluidManager,
-        grass_spread_manager: GrassSpreadManager,
+        environment_systems: EnvironmentSystems,
         ui: UI,
     ):
         """世界更新區"""
-        grass_spread_manager.update()
+        decayed_leaves = environment_systems.update()
+
+        for world_x, world_y, leaf_type in decayed_leaves:
+            drop_item_type, drop_count = self.get_drop_item(self.get_block_base_name(leaf_type))
+            if drop_item_type is not None and drop_count > 0:
+                self.spawn_item_entity(
+                    {"type": drop_item_type, "count": drop_count},
+                    world_x * config.BLOCK_SIZE,
+                    world_y * config.BLOCK_SIZE,
+                    "break",  # 或另外開一個 spawn_reason，看你要不要讓衰變掉落有不同的噴出手感
+                    player,
+                )
 
         self._handle_item_entities(player)
 
@@ -237,7 +248,7 @@ class World:
         if player.rect.colliderect(clicked.rect) or player.mode == "spectator":
             return False
 
-        if fluid_manager.is_fluid(clicked.block) and not fluid_manager.is_fluid(hand_item["type"]):
+        if fluid_manager.is_fluid(clicked.block):
             return True
 
         if clicked.block != "air":
