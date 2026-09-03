@@ -1,5 +1,6 @@
 import os
 
+import opensimplex
 import pygame
 
 import asset_manager
@@ -54,6 +55,7 @@ crafting_recipes.register_recipes(crafting_manager)
 
 
 dt = 1
+opensimplex.noise2(0, 0)  # 逼 numba 先暖機
 
 while config.running:
     events = pygame.event.get()
