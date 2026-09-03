@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 import json
 import os
 
+import chunk_manager
 import config
 from states.chest_state import ChestState
 from states.furnace_state import FurnaceState
@@ -61,12 +62,14 @@ class SaveManager:
         file_path = self.level_path()
 
         if not file_path.exists():
+            chunk_manager.reseed_world()
             return False
 
         with file_path.open("r", encoding="utf-8") as f:
             level_data = json.load(f)
 
         config.WORLD_SEED = level_data.get("seed", config.WORLD_SEED)
+        chunk_manager.reseed_world()
 
         player_data = level_data.get("player")
 

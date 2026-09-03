@@ -37,13 +37,21 @@ class SaplingGrowthManager:
             block = self._get_block(world_x, y)
             if block != "air":
                 # 找到地表了！檢查是不是樹苗
-                if "_sapling" in block:
+                if block.endswith("_sapling"):
                     if random.random() > self.grow_chance:
-                        continue
+                        break
                     sapling_type = self._get_tree_type(block)
                     tree_blocks = self.tree_generator.generate(sapling_type, world_x, y + 1, random)
-                    for bx, by, block_name in tree_blocks:
-                        self._set_block(bx, by, block_name)
+                    can_grow = True
+                    for bx, by, _ in tree_blocks:
+                        block = self._get_block(bx, by)
+                        if block != "air" and not block.endswith("_sapling"):
+                            can_grow = False
+                            break
+                    if can_grow:
+                        for bx, by, block_type in tree_blocks:
+                            self._set_block(bx, by, block_type)
+
                 # 只要遇到了地表第一個實體方塊（無論是樹苗、草地還是石頭），就可以結束這行的搜尋了
                 break
 

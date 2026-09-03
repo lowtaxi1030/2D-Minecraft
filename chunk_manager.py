@@ -9,12 +9,18 @@ import os
 import random
 import time
 
+import numpy as np
 import opensimplex
 
 import config
 import save_manager
 import tool
 from tree_generator import TreeGenerator
+
+
+def reseed_world():
+    opensimplex.seed(config.WORLD_SEED)
+
 
 save = save_manager.SaveManager()
 tree_generator = TreeGenerator()
@@ -342,9 +348,6 @@ def get_biome(world_x: int) -> str:
 def _make_terrain(chunk_x):
     config.height_map = []
 
-    # 💡 提示：設定一個隨機種子，讓每次地形都不一樣
-    opensimplex.seed(config.WORLD_SEED)
-
     for local_x in range(config.CHUNK_WIDTH):
         world_x = chunk_x * config.CHUNK_WIDTH + local_x
 
@@ -518,18 +521,24 @@ def _cleanup_terrain(chunk_x, chunk_data, height_map):
 
 
 def _generate_underground_fluids(chunk_x, chunk_data, height_map):
-    for local_x in range(config.CHUNK_WIDTH):
-        world_x = chunk_x * config.CHUNK_WIDTH + local_x
-        surface_y = height_map[local_x]
+    base_world_x = chunk_x * config.CHUNK_WIDTH
 
-        # --- 深度設定 ---
-        # 1. 地下水範圍 (淺/中層)
+    # 一次算好整個chunk寬度 × 整個地圖高度的noise網格
+    lava_x = np.array([(base_world_x + local_x + 500) / 30.0 for local_x in range(config.CHUNK_WIDTH)])
+    lava_y = np.array([(y + 500) / 20.0 for y in range(config.MAP_HEIGHT)])
+    lava_noise_grid = opensimplex.noise2array(lava_x, lava_y)
+    # print(lava_noise_grid.shape)
+
+    water_x = np.array([(base_world_x + local_x) / 30.0 for local_x in range(config.CHUNK_WIDTH)])
+    water_y = np.array([y / 25.0 for y in range(config.MAP_HEIGHT)])
+    water_noise_grid = opensimplex.noise2array(water_x, water_y)
+
+    for local_x in range(config.CHUNK_WIDTH):
+        surface_y = height_map[local_x]
         min_water_y = surface_y + 15
         max_water_y = config.MAP_HEIGHT - 50
-
-        # 2. 岩漿範圍 (深層 ~ 基岩上方)
-        min_lava_y = max(surface_y + 35, 75)  # 至少要在 Y=75 之後才開始有岩漿
-        max_lava_y = config.MAP_HEIGHT - 3  # 留幾格給基岩
+        min_lava_y = max(surface_y + 35, 75)
+        max_lava_y = config.MAP_HEIGHT - 3
 
         for y in range(config.MAP_HEIGHT):
             if chunk_data[y][local_x] == "bedrock":
@@ -537,34 +546,22 @@ def _generate_underground_fluids(chunk_x, chunk_data, height_map):
 
             current_block = chunk_data[y][local_x]
 
-            # --------------------------------------------------
-            # 🌋 🔥 岩漿生成邏輯 (優先判定深層)
-            # --------------------------------------------------
             if min_lava_y <= y <= max_lava_y:
-                # 採用不同的噪聲種子/偏移量 (如 world_x + 500) 避免水脈跟岩漿形狀完全重疊
-                lava_noise = opensimplex.noise2((world_x + 500) / 30.0, (y + 500) / 20.0)
-
-                # 越接近地底深處，岩漿生成的門檻越低 (越來越多岩漿)
+                lava_noise = lava_noise_grid[y][local_x]  # 改成查表，不再現場算
                 lava_depth_factor = (y - min_lava_y) / (max_lava_y - min_lava_y)
-                lava_threshold = 0.75 - lava_depth_factor * 0.2  # 最深處門檻降到約 0.55
+                lava_threshold = 0.75 - lava_depth_factor * 0.2
 
-                if lava_noise > lava_threshold:
-                    if current_block in ["air", "stone", "deepslate"]:
-                        chunk_data[y][local_x] = "lava_source"
-                        continue  # 這裡生成了岩漿，這格就跳過，不繼續塗成水
+                if lava_noise > lava_threshold and current_block in ["air", "stone", "deepslate"]:
+                    chunk_data[y][local_x] = "lava_source"
+                    continue
 
-            # --------------------------------------------------
-            # 💧 🌊 地下水生成邏輯 (中/淺層)
-            # --------------------------------------------------
             if min_water_y <= y <= max_water_y:
-                water_vein_noise = opensimplex.noise2(world_x / 30.0, y / 25.0)
-
+                water_vein_noise = water_noise_grid[y][local_x]  # 改成查表
                 water_depth_factor = (y - min_water_y) / max(max_water_y - min_water_y, 1)
                 water_threshold = 0.7 - water_depth_factor * 0.15
 
-                if water_vein_noise > water_threshold:
-                    if current_block in ["air", "dirt", "stone"]:
-                        chunk_data[y][local_x] = "water_source"
+                if water_vein_noise > water_threshold and current_block in ["air", "dirt", "stone"]:
+                    chunk_data[y][local_x] = "water_source"
 
     return chunk_data
 

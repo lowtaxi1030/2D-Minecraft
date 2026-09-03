@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 import random
 from pathlib import Path
 
-GAME_VERSION = "V0.26.11"
+GAME_VERSION = "V0.26.11.2"
 
 # Types
 Item = dict[str, str | int]
