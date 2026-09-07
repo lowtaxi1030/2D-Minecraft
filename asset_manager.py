@@ -39,6 +39,16 @@ class AssetManager:
             "dark_oak_leaves": (35, 85, 25),  # 黑橡木深綠色
         }
 
+        self.GRASS_COLORS = {
+            "plains": (145, 189, 89),  # 平原：經典草綠色
+            "forest": (121, 192, 90),  # 森林：鮮綠色
+            "jungle": (89, 201, 60),  # 熱帶雨林：翠綠/亮綠色
+            "desert": (191, 183, 85),  # 沙漠/稀樹草原：枯黃色
+            "taiga": (134, 184, 127),  # 針葉林：帶灰色調的冷綠色
+            "dark_forest": (80, 136, 30),  # 暗黑森林：深橄欖綠
+            "spruce_forest": (128, 180, 151),  # 雪地：冷青綠色
+        }
+
         self.animations = {}
 
         self.ui_images = {}
@@ -315,3 +325,28 @@ class AssetManager:
             scaled_img = tool.scale_img(org_img, config.BLOCK_SIZE)
             self.img_items[name] = scaled_img
             return scaled_img
+
+    def get_biome_grass(self, biome_name: str) -> pygame.Surface:
+        cache_key = f"grass_{biome_name}"
+
+        if cache_key in self.img_blocks:
+            return self.img_blocks[cache_key]
+
+        # 1. 拿取基本的泥土底圖作為基底
+        combined_img = self.block("dirt").copy()
+
+        # 2. 載入「只有頂層草皮」的灰階圖片，並進行染色
+        tint_color = self.GRASS_COLORS.get(biome_name, self.GRASS_COLORS["plains"])
+        raw_top_path = str(BLOCKS_PATH / "grass_top.png")  # 👈 只包含草皮的灰階透明圖
+
+        tinted_top = self._load_and_tint_imgs(raw_top_path, tint_color)
+        scale_ratio = config.BLOCK_SIZE / tinted_top.get_width()
+
+        scaled_top = pygame.transform.scale(tinted_top, (int(config.BLOCK_SIZE), int(tinted_top.get_height() * scale_ratio)))
+
+        # 3. 把染好色的草皮直接貼在泥土上方 (blit)
+        combined_img.blit(scaled_top, (0, 0))
+
+        # 4. 存入快取
+        self.img_blocks[cache_key] = combined_img
+        return combined_img

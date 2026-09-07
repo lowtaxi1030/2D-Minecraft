@@ -149,7 +149,7 @@ class Hotbar:
                     item_center_x = first_slot_center_x + (i * self.SLOT_SPACING)
                     item_center_y = self.assets.select_frame_rect.centery
                     draw_item(screen, self.assets, item, item_center_x, item_center_y)
-            item = player.hotbar[player.selected_hotbar_index]
+            item = player.held_item
 
             if item is not None:
 
@@ -1273,6 +1273,8 @@ class DebugScreen:
             )
             mouse_block = world.get_block_base_name(raw_mouse_block).replace("_", " ")
 
+            top_y = tool.clamp(0, config.MAP_HEIGHT - 1, int(player.rect.top // config.BLOCK_SIZE))
+
             self.left_lines = [
                 "=== Player ===",
                 f"Pos : ({player_block_x}, {show_player_y})",  # show_player_y
@@ -1281,6 +1283,9 @@ class DebugScreen:
                 f"Flying : {player.is_flying}",
                 f"Mode : {player.mode}",
                 f"Facing : {'Right' if player.facing == 1 else 'Left'}",
+                f"Is Submerged: {player.is_submerged}",
+                f"Head Block: {chunk_manager.get_block(player.rect.centerx, (top_y - 1) * config.BLOCK_SIZE)}",
+                f"Is Swmming: {player.is_swimming}",
                 "",
                 "=== Block ===",
                 f"Mouse Pos : ({world_mouse_x}, {show_mouse_y})",  # show_mouse_y

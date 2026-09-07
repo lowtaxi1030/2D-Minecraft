@@ -75,7 +75,7 @@ class World:
         decayed_leaves = environment_systems.update()
 
         for world_x, world_y, leaf_type in decayed_leaves:
-            drop_item_type, drop_count = self.get_drop_item(self.get_block_base_name(leaf_type))
+            drop_item_type, drop_count = self.get_drop_item(self.get_block_base_name(leaf_type), player.held_item)
             if drop_item_type is not None and drop_count > 0:
                 self.spawn_item_entity(
                     {"type": drop_item_type, "count": drop_count},
@@ -169,7 +169,7 @@ class World:
 
     def _handle_break_block(self, clicked: BlockClick, player: Player, fluid_manager: FluidManager):
         if clicked.base_name != "air" and player.can_place_block() and self._can_break(clicked, player, fluid_manager):
-            drop_item_type, drop_count = self.get_drop_item(clicked.base_name)
+            drop_item_type, drop_count = self.get_drop_item(clicked.base_name, player.held_item)
             # print(drop_item_type)
 
             if player.will_drop_item_entity() and drop_item_type is not None and drop_count > 0:
@@ -216,7 +216,7 @@ class World:
     def _handle_place_block(self, clicked: BlockClick, player: Player, fluid_manager: FluidManager):
 
         if self._can_place(clicked, player, fluid_manager):
-            current_item = player.hotbar[player.selected_hotbar_index]
+            current_item = player.held_item
             self._place_block(clicked, current_item["type"], player)
 
             player.remove_selected_item(1)
@@ -230,7 +230,7 @@ class World:
                 fluid_manager.wake_fluid(f, clicked.x, clicked.y, fluid_manager.active_fluids)
 
     def _can_place(self, clicked: BlockClick, player: Player, fluid_manager: FluidManager):
-        hand_item = player.hotbar[player.selected_hotbar_index]
+        hand_item = player.held_item
 
         if clicked.block is None or clicked.base_name is None:
             return False
@@ -302,10 +302,15 @@ class World:
             self.item_entities.remove(item)
 
     @staticmethod
-    def get_drop_item(block_name: str):
+    def get_drop_item(block_name: str, tool_item: config.Item | None) -> tuple[str | None, int]:
         # 1. 若方塊不在 BLOCK_DROPS 中，預設掉落方塊自己本身 (數量 1)
         if block_name not in BLOCK_DROPS:
             return block_name, 1
+
+        if tool_item is not None:
+
+            if tool_item["type"] == "shears" and "leav" in block_name:
+                return block_name, 1
 
         raw_drops = BLOCK_DROPS[block_name]
 

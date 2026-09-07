@@ -154,7 +154,13 @@ class Camera:
                 if block_name != "air":
                     # print(block_name)
                     display_block_name = world.get_block_display_name(x_pos, y_pos, block_name)
-                    img = self.assets.block(display_block_name)  # .get_img(block_name, "block")
+                    if block_name == "grass":
+                        chunk_x = x_pos // config.CHUNK_WIDTH
+                        chunk = chunk_manager.get_chunk(chunk_x)
+                        img = self.assets.get_biome_grass(chunk.biome_name)
+                    else:
+                        img = self.assets.block(display_block_name)  # .get_img(block_name, "block")
+
                     if img:
                         screen.blit(img, (pixel_x, pixel_y))
                     else:

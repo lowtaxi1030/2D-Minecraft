@@ -13,46 +13,38 @@ import ui_obs as ui
 
 class MenuManager:
     def __init__(self, assets: AssetManager):
+        self.menus = {
+            "PAUSE": PauseMenu(assets),
+            "OPTION": OptionMenu(assets),
+            "VIDEO_OPTION": VideoMenu(assets),
+            "CONTROLS_OPTION": ControlsMenu(assets),
+            "GAME_OPTION": GameMenu(assets),
+        }
+
         self.pause_menu = PauseMenu(assets)
         self.option_menu = OptionMenu(assets)
         self.video_menu = VideoMenu(assets)
         self.controls_menu = ControlsMenu(assets)
         self.game_menu = GameMenu(assets)
 
-    def update(self, events, mouse_pos, player: Player = None):
-        if config.game_state == "PAUSE":
-            self.pause_menu.update(events, mouse_pos)
-        elif config.game_state == "OPTION":
-            self.option_menu.update(events, mouse_pos)
-        elif config.game_state == "CONTROLS_OPTION":
-            self.controls_menu.update(events, mouse_pos)
-        elif config.game_state == "AUDIO_OPTION":
-            pass
-        elif config.game_state == "LANG_OPTION":
-            pass
-        elif config.game_state == "VIDEO_OPTION":
-            self.video_menu.update(events, mouse_pos)
-        elif config.game_state == "GAME_OPTION":
-            self.game_menu.update(events, mouse_pos, player)
+    def update(self, events, mouse_pos, player=None):
+        menu = self.menus.get(config.game_state)
+        if menu:
+            if isinstance(menu, GameMenu):
+                menu.update(events, mouse_pos, player)
+            else:
+                menu.update(events, mouse_pos)
+
 
     def draw(self, screen):
         # 1. 🎯 鋪滿暗色泥土背景（Minecraft 經典風格）
         # for y_pos in range(config.current_height // 40 + 2):
         #     for x_pos in range(config.current_width // 40 + 2):
         #         screen.blit(self.assets.bg_dirt_img, (x_pos * 40, y_pos * 40))
-
-        tool.screen_vague(20)
-
-        if config.game_state == "PAUSE":
-            self.pause_menu.draw(screen)
-        if config.game_state == "OPTION":
-            self.option_menu.draw(screen)
-        elif config.game_state == "CONTROLS_OPTION":
-            self.controls_menu.draw(screen)
-        elif config.game_state == "VIDEO_OPTION":
-            self.video_menu.draw(screen)
-        elif config.game_state == "GAME_OPTION":
-            self.game_menu.draw(screen)
+        menu = self.menus.get(config.game_state)
+        if menu:
+            tool.screen_vague(20)
+            menu.draw(screen)
 
 
 class BaseMenu:

@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 import random
 from pathlib import Path
 
-GAME_VERSION = "V0.26.11.2"
+GAME_VERSION = "V0.26.11.2"  # 11是樹苗
 
 # Types
 Item = dict[str, str | int]
@@ -31,7 +31,7 @@ BASE_LINE = 80
 chunks: dict[int, Chunk] = {}
 height_map = []
 
-CURRENT_WORLD = ""  # 可以隨意換成任何合法名字
+CURRENT_WORLD = "test1"  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
 BIOME_NOISE_SCALE = 700
 
@@ -50,3 +50,7 @@ show_debug_screen = False
 pause_background = None
 
 TYPES_OF_WOOD = ["oak", "birch", "spruce", "jungle", "acacia", "dark_oak"]
+PLANTABLE_BLOCKS = ["dirt", "grass", "moss_block"]  # 之後加上灰壤
+TYPES_OF_FLUID = ["water", "lava"]
+
+ALL_MENUS = ["PAUSE", "OPTION", "VIDEO_OPTION", "CONTROLS_OPTION", "GAME_OPTION"]

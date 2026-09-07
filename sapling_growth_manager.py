@@ -7,13 +7,14 @@ if TYPE_CHECKING:
 import random
 
 import config
+import tool
 
 
 class SaplingGrowthManager:
     def __init__(self, chunks, tree_generator: TreeGenerator):
         self.chunks = chunks
         self.tree_generator = tree_generator
-        self.TICKS_PER_ATTEMPT = 10
+        self.TICKS_PER_ATTEMPT = 30
         self.attempts_per_chunk = 10
         self.tick_counter = 0
 
@@ -35,30 +36,39 @@ class SaplingGrowthManager:
         # 從天空中（Y=0）由上往下找第一個非空氣方塊（即地表）
         for y in range(config.MAP_HEIGHT):
             block = self._get_block(world_x, y)
-            if block != "air":
-                # 找到地表了！檢查是不是樹苗
-                if block.endswith("_sapling"):
-                    if random.random() > self.grow_chance:
+            if block.endswith("_sapling"):
+                below = self._get_block(world_x, y + 1)
+                if below is None or below not in config.PLANTABLE_BLOCKS:
+                    continue
+                if random.random() > self.grow_chance:
+                    continue
+                sapling_type = self._get_tree_type(block)
+                tree_blocks = self.tree_generator.generate(sapling_type, world_x, y + 1, random)
+                can_grow = True
+                for bx, by, _ in tree_blocks:
+                    block = self._get_block(bx, by)
+                    if not self._can_grow_into(block):
+                        can_grow = False
                         break
-                    sapling_type = self._get_tree_type(block)
-                    tree_blocks = self.tree_generator.generate(sapling_type, world_x, y + 1, random)
-                    can_grow = True
-                    for bx, by, _ in tree_blocks:
-                        block = self._get_block(bx, by)
-                        if block != "air" and not block.endswith("_sapling"):
-                            can_grow = False
-                            break
-                    if can_grow:
-                        for bx, by, block_type in tree_blocks:
-                            self._set_block(bx, by, block_type)
+                if can_grow:
+                    for bx, by, block_type in tree_blocks:
+                        self._set_block(bx, by, block_type)
 
-                # 只要遇到了地表第一個實體方塊（無論是樹苗、草地還是石頭），就可以結束這行的搜尋了
                 break
 
     def _get_tree_type(self, sapling_block: str):
         if sapling_block.endswith("_sapling"):
             return sapling_block[:-8]
         return sapling_block
+
+    @staticmethod
+    def _can_grow_into(block_name):
+        if tool.is_passable(block_name):
+            return True
+
+        if block_name == "snow":
+            return True
+        return False
 
     def _get_block(self, world_x: int, world_y: int) -> str | None:
         chunk_x = world_x // config.CHUNK_WIDTH

@@ -1,4 +1,4 @@
-from grass_spread_manager import GrassSpreadManager
+from grass_manager import GrassManager
 from leaf_decay_system import LeafDecaySystem
 from sapling_growth_manager import SaplingGrowthManager
 from tree_generator import TreeGenerator
@@ -7,7 +7,7 @@ tree_generator = TreeGenerator()
 
 class EnvironmentSystems:
     def __init__(self, chunks):
-        self.grass = GrassSpreadManager(chunks)
+        self.grass = GrassManager(chunks)
         self.leaf_decay = LeafDecaySystem(chunks)
         self.sapling_growth = SaplingGrowthManager(chunks, tree_generator)
 

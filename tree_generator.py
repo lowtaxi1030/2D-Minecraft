@@ -81,6 +81,14 @@ class TreeGenerator:
                 "fast_leaf_rate": 0.8,
                 "is_2d_matrix": False,
             },
+            "cactus": {
+                "height": (2, 3),
+                "trunk_width": 1,
+                "trunk_top_gap": 0,
+                "leaves": None,
+                "fast_leaf_rate": 0.0,
+                "is_2d_matrix": False,
+            },
             "tall_birch": {
                 "height": (12, 15),
                 "trunk_width": 1,
@@ -170,7 +178,7 @@ class TreeGenerator:
 
         # 畫樹冠
         top_y = bottom_y - tree_height + 1
-        leaves_pattern = rng.choice(pattern["leaves"])
+        leaves_pattern = rng.choice(pattern["leaves"]) if pattern["leaves"] is not None else []
 
         for i, width in enumerate(leaves_pattern):
             leaf_y = top_y + i
@@ -229,6 +237,8 @@ class TreeGenerator:
     def _generate_trunk_blocks(self, block_type, trunk_world_x, y):
         if not (0 <= y < config.MAP_HEIGHT):
             return None
+        if block_type == "cactus":
+            return (trunk_world_x, y, "cactus")
         return (trunk_world_x, y, f"{block_type}_log")
 
     def _generate_leaves_blocks(self, block_type, leaf_world_x, y, is_fast_leaf=True, occupied=None):

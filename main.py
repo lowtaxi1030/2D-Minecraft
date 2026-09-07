@@ -71,6 +71,7 @@ while config.running:
 
     elif config.game_state == "PLAYING":
         current_chunk = player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
+        game_camera.update(player, fluid_manager)
 
         surface_width = int(config.current_width / game_camera.zoom)
         surface_height = int(config.current_height / game_camera.zoom)
@@ -87,7 +88,7 @@ while config.running:
 
         player.just_switched_mode = False
         for event in events:
-            item = player.handle_event(event, keys)
+            item = player.handle_event(event, keys, fluid_manager)
 
             if item is not None:
                 dropped_item = item
@@ -95,9 +96,9 @@ while config.running:
             ui.handle_events(event, player, mouse_pos, world, crafting_manager)
 
         # 更新
-        game_camera.update(player, fluid_manager)
+        """任何一幀裡，只要牽涉到「滑鼠螢幕座標 → 世界座標」的換算，都必須使用「跟這一幀實際顯示畫面一致」的那個 zoom 值"""
+        player.update(mouse_pos, dt, game_camera, fluid_manager)
         world.update(mouse_buttons, mouse_pos, player, game_camera, fluid_manager, environment_systems, ui)
-        player.update(mouse_pos, dt, game_camera)
         # print("[from: main.py] UPDATE END:", player.vel_y, player.is_grounded)
         ui.update(player, fps, mouse_pos, game_camera, world)
         asset.update()
@@ -119,40 +120,8 @@ while config.running:
             game_camera._load_visible_chunks(player, fluid_manager)
             last_chunk = current_chunk
 
-    elif config.game_state == "PAUSE":
+    elif config.game_state in menu.menus:
         screen.blit(config.pause_background, (0, 0))
-
-        menu.update(events, mouse_pos)
-        menu.draw(screen)
-
-    elif config.game_state == "OPTION":
-        screen.blit(config.pause_background, (0, 0))
-
-        menu.update(events, mouse_pos)
-        menu.draw(screen)
-
-    elif config.game_state == "VIDEO_OPTION":
-        screen.blit(config.pause_background, (0, 0))
-
-        menu.update(events, mouse_pos)
-        menu.draw(screen)
-        # game_camera.zoom = config.ORG_FOV / config.fov
-
-    elif config.game_state == "CONTROLS_OPTION":
-        screen.blit(config.pause_background, (0, 0))
-
-        menu.update(events, mouse_pos)
-        menu.draw(screen)
-
-    elif config.game_state == "CONTROLS_OPTION":
-        screen.blit(config.pause_background, (0, 0))
-
-        menu.update(events, mouse_pos)
-        menu.draw(screen)
-
-    elif config.game_state == "GAME_OPTION":
-        screen.blit(config.pause_background, (0, 0))
-
         menu.update(events, mouse_pos, player)
         menu.draw(screen)
 

@@ -39,6 +39,7 @@ class CR:  # ColoredRect
 
 
 Color = tuple[int, int, int]
+AlphaColor = tuple[int, int, int, int]
 
 
 class Colors:
@@ -132,6 +133,43 @@ class Colors:
     def two_color_change(color1: Color, color2: Color, condition: bool):
         """condition 為 True 時回傳 color1, 為 False 時回傳 color2"""
         return color1 if condition else color2
+
+
+class GradientColor:
+    def __init__(
+        self,
+        start_color: Color | AlphaColor,
+        end_color: Color | AlphaColor,
+        layers: int,
+    ):
+        self.start_color = start_color
+        self.end_color = end_color
+        self.layers = layers
+
+        base = p.Surface((layers, 1))
+
+        t = 0
+        for i in range(layers):
+            if layers > 1:
+                t = i / (layers - 1)
+            else:
+                t = 0
+            r = int(self.start_color[0] * (1 - t) + self.end_color[0] * t)
+            g = int(self.start_color[1] * (1 - t) + self.end_color[1] * t)
+            b = int(self.start_color[2] * (1 - t) + self.end_color[2] * t)
+            a = 255
+            if len(self.start_color) > 3 and len(self.end_color) > 3:
+                a = int(self.start_color[3] * (1 - t) + self.end_color[3] * t)
+                base.set_at((i, 0), (r, g, b, a))
+            else:
+                base.set_at((i, 0), (r, g, b))
+
+        self.surface: p.Surface = base
+
+    def draw(self, screen: p.Surface, rect: p.Rect):
+        """將漸層圖片拉伸並繪製到目標區域"""
+        scaled_surface = p.transform.scale(self.surface, (rect.width, rect.height))
+        screen.blit(scaled_surface, rect)
 
 
 def screen_vague(vague: int):
@@ -343,3 +381,14 @@ def is_passable(block: str | None) -> bool:
         return True
 
     return False
+
+
+def hex_to_rgb(hex_str: str) -> tuple[int, int, int]:
+    """將 16 進位顏色碼 (如 "#59C93C" 或 "59C93C") 轉為 (R, G, B) 10 進位 Tuple"""
+    hex_str = hex_str.lstrip("#")
+    return tuple(int(hex_str[i : i + 2], 16) for i in (0, 2, 4))
+
+
+# 測試你的顏色碼：
+# color = hex_to_rgb("#86B87F")
+# print(color)

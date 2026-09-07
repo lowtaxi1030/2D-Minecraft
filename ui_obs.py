@@ -5,10 +5,7 @@ import pygame as p
 
 import asset_manager as assets
 import config
-from tool import Colors
-
-Color = tuple[int, int, int]
-AlphaColor = tuple[int, int, int, int]
+from tool import AlphaColor, Color, Colors
 
 text_cache = OrderedDict()
 font_cache = {}
@@ -644,3 +641,6 @@ class ImageTextButton(ImageButton):
             screen_center=self.screen_center,
             font_type=self.font_type,
         )
+
+
+UI = Button | TextButton | ImageButton | ImageTextButton

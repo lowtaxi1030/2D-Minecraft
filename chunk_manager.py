@@ -44,7 +44,7 @@ BIOMES = {
         "surface": "grass",
         "dirt": "dirt",
         "tree": "oak",
-        "tree_rate": 0.03,
+        "tree_rate": 0.005,
         "height": 8,
     },
     "forest": {
@@ -73,18 +73,9 @@ BIOMES = {
         "humidity": 0.2,
         "surface": "sand",
         "dirt": "sand",
-        "tree": None,
-        "tree_rate": 0,
+        "tree": "cactus",
+        "tree_rate": 0.01,
         "height": 5,
-    },
-    "mountain": {
-        "temp": 0.0,
-        "humidity": -0.2,
-        "surface": "grass",
-        "dirt": "dirt",
-        "tree": "spruce",
-        "tree_rate": 0.02,
-        "height": 35,
     },
     "stone_mountain": {
         "temp": 0.1,
@@ -95,17 +86,7 @@ BIOMES = {
         "tree_rate": 0.02,
         "height": 35,
     },
-    "snow": {
-        "temp": 0.2,
-        "humidity": 0.3,
-        "surface": "grass",
-        "surface_cover": "snow",
-        "dirt": "dirt",
-        "tree": "spruce",
-        "tree_rate": 0.01,
-        "height": 10,
-    },
-    "snow_forest": {
+    "spruce_forest": {
         "temp": 0.3,
         "humidity": 0.8,
         "surface": "grass",
@@ -121,8 +102,8 @@ BIOMES = {
         "surface": "grass",
         "dirt": "dirt",
         "tree": {
-            "spruce": 0.8,
-            "big_spruce": 0.2,
+            "spruce": 0.7,
+            "big_spruce": 0.3,
         },
         "tree_rate": 0.1,
         "height": 12,
@@ -378,7 +359,17 @@ def _make_base_terrain(map_width, map_height, chunk_x, biome_name, height_map, r
     stone_limits = []
     for x in range(map_width):
         world_x = chunk_x * config.CHUNK_WIDTH + x
-        offset = opensimplex.noise2(world_x / 80.0, 500) * 5
+        # 原始的 noise2 回傳範圍是 -1.0 ~ 1.0
+        raw_noise = opensimplex.noise2(world_x / 80.0, 500)
+
+        # 1. 先將範圍轉成 0.0 ~ 1.0
+        normalized_noise = (raw_noise + 1) / 2.0
+
+        # 2. 取 2 次方或 3 次方（次方數越高，平地越平、山峰越陡）
+        steep_noise = normalized_noise**2.5
+
+        # 3. 再轉回 -1.0 ~ 1.0 並套用 offset
+        offset = (steep_noise * 2 - 1) * 5
         stone_limits.append(int(config.MAP_HEIGHT - 80 + offset))
 
     for x in range(map_width):

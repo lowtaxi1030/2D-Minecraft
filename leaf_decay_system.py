@@ -7,10 +7,10 @@ class LeafDecaySystem:
     def __init__(self, chunks):
         self.chunks = chunks
         self.TICKS_PER_ATTEMPT = 10
-        self.attempts_per_chunk = 10
+        self.attempts_per_chunk = 20
         self.tick_counter = 0
         self.LOG_CHECK_RADIUS = 4  # 附近多近有原木就不衰變
-        self.DECAY_CHANCE = 0.5
+        self.DECAY_CHANCE = 0.7
 
     def update(self):
         self.tick_counter += 1

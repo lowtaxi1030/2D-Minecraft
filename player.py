@@ -2,6 +2,9 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from camera import Camera
+    from fluid_manager import FluidManager
+
+# import math
 
 import pygame
 
@@ -33,10 +36,26 @@ class Player:
         self.player_flying_speed = 10.0  # blocks per second
         self.player_flying_run_speed = 20.0  # blocks per second
 
+        self.buoyancy = 37
+        self.swim_rise_accel = -20
+        self.swim_sink_accel = 20
+        self.water_drag = 0.5
+        self.swim_speed = 4.3  # blocks per second
+        self.swim_accel_x = self.swim_speed / 0.5
+        self.is_submerged = False
+        self.max_swim_speed = 10.0  # blocks per second
+
+        self.wants_to_rise = False
+        self.wants_to_sink = False
+        self.wants_to_swim = False
+
         self.is_stuck = False
         self.is_running = False
         self.auto_jump = True
         self.is_flying = False
+
+        self.desired_swimming = False
+        self.is_swimming = False
 
         self.inv_type = None
         # self.crafting_types = [None, "inventory", "crafting_table"]
@@ -52,11 +71,20 @@ class Player:
         # 如果格子是空的，就直接用 None 表示
         self.hotbar = [None] * 9  # 熱鍵列，長度為9
         self.inventory = [None] * 27  # 主背包長度為9X3=27
-        self.MAX_STACK = 64
 
         self.selected_hotbar_index = 0
+        # self.held_item = self.hotbar[self.selected_hotbar_index]
 
         self.facing = 1  # 向右
+        self.move_direction = 0
+
+    @property
+    def held_item(self):
+        return self.hotbar[self.selected_hotbar_index]
+
+    @held_item.setter
+    def held_item(self, value):
+        self.hotbar[self.selected_hotbar_index] = value
 
     def check_double_press(self, key):
         current_time = pygame.time.get_ticks()
@@ -73,31 +101,29 @@ class Player:
         self.last_press_time[key] = current_time
         return is_double
 
-    def handle_event(self, event, keys):
+    def handle_event(self, event, keys, fluid_manager: FluidManager):
 
         if event.type == pygame.KEYDOWN:
             if not self.inv_type:
-                # if event.key == pygame.K_m:
-                #     self.mode_index = (self.mode_index + 1) % len(self.all_modes)
-                #     self.mode = self.all_modes[self.mode_index]
-                #     if self.mode in ["creative", "survival"]:
-                #         self.vel_x = 0
-                #         self.vel_y = 0
-                #     if self.mode == "survival":
-                #         self.is_flying = False
-                #     self.just_switched_mode = True
-
                 if pygame.K_1 <= event.key <= pygame.K_9:
                     self.selected_hotbar_index = event.key - pygame.K_1
 
+                # for _key in [pygame.K_d, pygame.K_RIGHT, pygame.K_a, pygame.K_LEFT]:
+                #     is_double = self.check_double_press(_key)
+                #     self._handle_run_and_swim(is_double)
+
                 if event.key == pygame.K_d:
-                    self.is_running = self.check_double_press(pygame.K_d)
+                    is_double = self.check_double_press(pygame.K_d)
+                    self._handle_run_and_swim(is_double, fluid_manager)
                 if event.key == pygame.K_RIGHT:
-                    self.is_running = self.check_double_press(pygame.K_RIGHT)
+                    is_double = self.check_double_press(pygame.K_RIGHT)
+                    self._handle_run_and_swim(is_double, fluid_manager)
                 if event.key == pygame.K_a:
-                    self.is_running = self.check_double_press(pygame.K_a)
+                    is_double = self.check_double_press(pygame.K_a)
+                    self._handle_run_and_swim(is_double, fluid_manager)
                 if event.key == pygame.K_LEFT:
-                    self.is_running = self.check_double_press(pygame.K_LEFT)
+                    is_double = self.check_double_press(pygame.K_LEFT)
+                    self._handle_run_and_swim(is_double, fluid_manager)
                 if self.mode == "creative":
                     if event.key == pygame.K_SPACE:
                         if self.check_double_press(pygame.K_SPACE):
@@ -134,6 +160,15 @@ class Player:
             if self.selected_hotbar_index <= -1:
                 self.selected_hotbar_index = 8
 
+    def _handle_run_and_swim(self, is_double: bool, fluid_manager: FluidManager):
+        water_surface_y = self._get_water_surface_y(fluid_manager)
+        if self.is_submerged and water_surface_y is not None and self.rect.top > water_surface_y:
+            self.wants_to_swim = is_double
+            self.is_running = False
+        else:
+            self.is_running = is_double
+            self.wants_to_swim = False
+
     def handle_input(self):
         """處理鍵盤輸入（左右移動、跳躍）"""
 
@@ -159,20 +194,47 @@ class Player:
                 if keys[pygame.K_DOWN] or keys[pygame.K_s]:
                     self.vel_y += self.player_flying_run_speed if self.is_running else self.player_flying_speed  # 往下飛是正
             elif self.mode != "spectator":
-                self.vel_x = 0
+                if not self.is_submerged:
+                    self.vel_x = 0
 
                 if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                    self.vel_x = -self.player_flying_speed if self.is_flying else -self.current_speed
+                    if self.is_flying:
+                        self.vel_x = -self.player_flying_speed
+                    elif self.is_submerged:
+                        self.move_direction = -1  # 只記錄意圖，不碰vel_x
+                    else:
+                        self.vel_x = -self.current_speed
                 elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                    self.vel_x = self.player_flying_speed if self.is_flying else self.current_speed
-                if (keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]) and self.is_grounded:
-                    if not self.is_flying:
-                        self.vel_y = self.jump_strength
-                        self.is_grounded = False
+                    if self.is_flying:
+                        self.vel_x = self.player_flying_speed
+                    elif self.is_submerged:
+                        self.move_direction = 1  # 只記錄意圖，不碰vel_x
+                    else:
+                        self.vel_x = self.current_speed
+                elif self.is_submerged:
+                    self.move_direction = 0  # 泡水時沒按鍵，意圖歸零(讓update()去逐漸減速，不是瞬間停)
+                if keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]:
+                    if self.is_grounded and not self.is_submerged:
+                        if not self.is_flying:
+                            self.vel_y = self.jump_strength
+                            self.is_grounded = False
+                    if self.is_submerged:
+                        self.wants_to_rise = True
+                else:
+                    self.wants_to_rise = False
+
+                if self.is_submerged and (keys[pygame.K_DOWN] or keys[pygame.K_s] or keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]):
+                    self.wants_to_sink = True
+                else:
+                    self.wants_to_sink = False
+
         else:
             self.vel_x = 0
 
     def _try_auto_jump(self, block_rect):
+
+        if self.is_submerged or self.is_flying:
+            return
 
         if self.auto_jump and self.is_grounded and not self.is_flying:
             height_difference = self.rect.bottom - block_rect.top
@@ -192,10 +254,54 @@ class Player:
             else:
                 self.is_running = False
 
-    def update(self, mouse_pos: tuple[int, int], dt: int, game_camera: Camera):
-        # 處理按鍵問題
+    def _is_submerged(self, x_pos: int, fluid_manager: FluidManager):
+        """
+        x_pos: 玩家的 x 座標 (像素)
+        """
+        # 計算玩家中心點的格子座標
+        center_grid_x = x_pos // config.BLOCK_SIZE
+        bottom_grid_y = tool.clamp(0, config.MAP_HEIGHT - 1, (self.rect.bottom - 1) // config.BLOCK_SIZE)
 
-        # self.is_running &= not self.is_flying  # (另一種寫法，可以嘗試)
+        # 取得玩家中心點所在的方塊名稱
+        block_name = chunk_manager.get_block(center_grid_x * config.BLOCK_SIZE, bottom_grid_y * config.BLOCK_SIZE)
+
+        # 判斷該方塊是否為水或熔岩
+        return fluid_manager.is_fluid(block_name)
+
+    def _get_water_surface_y(self, fluid_manager: FluidManager):
+        # 玩家目前的格子座標
+        grid_x = self.rect.centerx // config.BLOCK_SIZE
+        grid_y = self.rect.centery // config.BLOCK_SIZE
+
+        # 從玩家位置往上找，直到不是水為止
+        while grid_y > 0:
+            block_name = chunk_manager.get_block(grid_x * config.BLOCK_SIZE, grid_y * config.BLOCK_SIZE)
+            if not fluid_manager.is_fluid(block_name):
+                # 上一格就是水面
+                return (grid_y + 1) * config.BLOCK_SIZE
+            grid_y -= 1
+
+        return None  # 沒找到水面
+
+    def update(self, mouse_pos: tuple[int, int], dt: int, game_camera: Camera, fluid_manager: FluidManager):
+
+        self.is_submerged = any(self._is_submerged(x, fluid_manager) for x in [self.rect.left, self.rect.centerx, self.rect.right])
+
+        # keys = pygame.key.get_pressed()
+        # still_moving = keys[pygame.K_a] or keys[pygame.K_d] or keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
+
+        self.desired_swimming = self._get_desired_swimming_state(fluid_manager)
+
+        old_bottom = self.rect.bottom
+        test_rect = self.rect.copy()
+        test_rect.size =  (new_size := self._get_pose_size())
+        test_rect.bottom = old_bottom
+        if self._can_change_pose(test_rect):
+            self.rect.size = new_size
+            self.rect.bottom = old_bottom
+            self.is_swimming = self.desired_swimming
+        else:
+            self.desired_swimming = True
 
         """處理重力、移動位置、以及與地圖方塊的碰撞偵測"""
         self.current_speed = self.player_run_speed if self.is_running else self.player_walk_speed  # self.cheat_speed
@@ -206,10 +312,10 @@ class Player:
         bottom_y = tool.clamp(0, config.MAP_HEIGHT - 1, int((self.rect.bottom - 1) // config.BLOCK_SIZE))
 
         self.is_stuck = (
-            chunk_manager.get_block(left_x * config.BLOCK_SIZE, top_y * config.BLOCK_SIZE) != "air"
-            or chunk_manager.get_block(left_x * config.BLOCK_SIZE, bottom_y * config.BLOCK_SIZE) != "air"
-            or chunk_manager.get_block(right_x * config.BLOCK_SIZE, top_y * config.BLOCK_SIZE) != "air"
-            or chunk_manager.get_block(right_x * config.BLOCK_SIZE, bottom_y * config.BLOCK_SIZE) != "air"
+            not tool.is_passable(chunk_manager.get_block(left_x * config.BLOCK_SIZE, top_y * config.BLOCK_SIZE))
+            or not tool.is_passable(chunk_manager.get_block(left_x * config.BLOCK_SIZE, bottom_y * config.BLOCK_SIZE))
+            or not tool.is_passable(chunk_manager.get_block(right_x * config.BLOCK_SIZE, top_y * config.BLOCK_SIZE))
+            or not tool.is_passable(chunk_manager.get_block(right_x * config.BLOCK_SIZE, bottom_y * config.BLOCK_SIZE))
         ) and self.mode != "spectator"
 
         head_stuck = not tool.is_passable(chunk_manager.get_block(self.rect.centerx, top_y))
@@ -217,29 +323,106 @@ class Player:
 
         self.is_fully_stuck = head_stuck and feet_stuck
 
+        if self.is_submerged and not self.is_flying:
+            self._apply_swim_horizontal_physics(dt)
+
         self.rect.x += self.vel_x * config.BLOCK_SIZE * dt
 
         if not self.is_fully_stuck:
             self._collide_x(is_swich_mode=self.just_switched_mode)
         # 應用重力
         if self.mode != "spectator" and not self.is_flying:
-            self.vel_y += self.gravity * dt
+            if self.is_submerged:
+                self._apply_swim_vertical_physics(dt)
+            else:
+                self.vel_y += self.gravity * dt
 
         # 預設玩家在空中
         self.is_grounded = False
 
         self._collide_y(dt)
 
-        world_mouse_x, _ = game_camera.screen_to_world(mouse_pos)
-
-        if world_mouse_x < self.rect.centerx:
+        screen_player_x = self.rect.centerx - game_camera.scroll_x
+        if mouse_pos[0] < screen_player_x:
             self.facing = -1
-        elif world_mouse_x > self.rect.centerx:
+        elif mouse_pos[0] > screen_player_x:
             self.facing = 1
 
-    def _get_collision_range(self):
-        center_grid_x = self.rect.centerx // config.BLOCK_SIZE
-        center_grid_y = self.rect.centery // config.BLOCK_SIZE
+    def _get_pose_size(self):
+        if self.desired_swimming:
+            return (config.BLOCK_SIZE * 2 * 0.875, config.BLOCK_SIZE * 0.875)
+        else:
+            return (config.BLOCK_SIZE * 0.875, config.BLOCK_SIZE * 2 * 0.875)
+
+    def _can_change_pose(self, target_pose_rect: pygame.Rect):
+        # 找出 target_pose_rect 覆蓋到的方塊範圍
+        start_x, end_x, start_y, end_y = self._get_collision_range()
+
+        # 逐一檢查這些方塊
+        for y_pos in range(start_y, end_y):
+            for x_pos in range(start_x, end_x):
+                block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
+                if tool.is_passable(block_name) or self.mode == "spectator":
+                    continue
+
+                block_rect = pygame.Rect(
+                    x_pos * config.BLOCK_SIZE,
+                    y_pos * config.BLOCK_SIZE,
+                    config.BLOCK_SIZE,
+                    config.BLOCK_SIZE,
+                )
+
+                # 如果 target_pose_rect 與方塊有碰撞，就不能改變姿勢
+                if target_pose_rect.colliderect(block_rect):
+                    return False
+
+        # 全部都沒有碰撞
+        return True
+
+    def _change_pose(self, target_pose_rect: pygame.Rect): ...
+
+    def _apply_swim_horizontal_physics(self, dt):
+        if self.move_direction != 0:
+            self.vel_x += self.move_direction * self.swim_accel_x * dt
+        self.vel_x *= 1 - self.water_drag * dt
+        max_speed = self.swim_speed * (1.5 if self.is_swimming else 1.0)
+        self.vel_x = tool.clamp(-max_speed, max_speed, self.vel_x)
+
+    def _apply_swim_vertical_physics(self, dt):
+        self.vel_y += (self.gravity - self.buoyancy) * dt
+        if self.wants_to_rise:
+            self.vel_y += self.swim_rise_accel * dt
+        if self.wants_to_sink:
+            self.vel_y += self.swim_sink_accel * dt
+        self.vel_y *= 1 - self.water_drag * dt
+        self.vel_y = tool.clamp(-self.max_swim_speed, self.max_swim_speed, self.vel_y)
+
+    def _can_swim(self, fluid_manager: FluidManager):
+        water_surface_y = self._get_water_surface_y(fluid_manager)
+        return self.wants_to_swim and self.is_submerged and water_surface_y is not None and self.rect.top > water_surface_y
+
+    def _get_desired_swimming_state(self, fluid_manager: FluidManager):
+
+        if self.is_flying:
+            return False
+
+        if self._can_swim(fluid_manager):
+            self.last_is_swim = True
+            return True
+
+        if self.is_swimming and self.is_submerged:
+            # 保持游泳模式，不要強制站起來
+            self.last_is_swim = True
+            return True
+
+        return False
+
+    def _get_collision_range(self, target_rect: pygame.Rect = None):
+        if target_rect is None:
+            target_rect = self.rect
+
+        center_grid_x = target_rect.centerx // config.BLOCK_SIZE
+        center_grid_y = target_rect.centery // config.BLOCK_SIZE
 
         start_x = center_grid_x - 2
         end_x = center_grid_x + 3
@@ -355,15 +538,15 @@ class Player:
 
     def remove_selected_item(self, count: int):
         if self.should_consume_block():
-            self.hotbar[self.selected_hotbar_index]["count"] -= count
-            if self.hotbar[self.selected_hotbar_index]["count"] <= 0:
-                self.hotbar[self.selected_hotbar_index] = None
+            self.held_item["count"] -= count
+            if self.held_item["count"] <= 0:
+                self.held_item = None
 
     def pick_item(self, item_type: str | None):
         if item_type == "air":
             return
 
-        # print("目前手上", self.selected_hotbar_index, self.hotbar[self.selected_hotbar_index])
+        # print("目前手上", self.selected_hotbar_index, self.held_item)
 
         # 步驟一：先巡一遍 Hotbar，如果有相同的物品，就把指標切換過去
         for i, item in enumerate(self.hotbar):
@@ -379,13 +562,13 @@ class Player:
                 if self._move_hand_item_to_inventory():
                     # 情況 A：成功把手上物品移入背包（或本來就是空手）
                     # print("拿出", self.inventory[i])
-                    self.hotbar[self.selected_hotbar_index] = self.inventory[i]
+                    self.held_item = self.inventory[i]
                     self.inventory[i] = None
                 else:
                     # 情況 B：背包滿了！直接將手上物品與背包內的 A 做「等價交換」！
-                    # print(f"背包已滿，直接交換手上的 {self.hotbar[self.selected_hotbar_index]['type']} 與背包中的 {item_type}")
-                    temp = self.hotbar[self.selected_hotbar_index]
-                    self.hotbar[self.selected_hotbar_index] = self.inventory[i]
+                    # print(f"背包已滿，直接交換手上的 {self.held_item['type']} 與背包中的 {item_type}")
+                    temp = self.held_item
+                    self.held_item = self.inventory[i]
                     self.inventory[i] = temp
 
                 return
@@ -394,14 +577,14 @@ class Player:
         for i, item in enumerate(self.hotbar):
             if item is None:
                 self.selected_hotbar_index = i
-                self.hotbar[self.selected_hotbar_index] = {"type": item_type, "count": 1}
+                self.held_item = {"type": item_type, "count": 1}
                 return
 
         # 步驟四：這時才逼不得已覆蓋目前選中的這一格。
-        self.hotbar[self.selected_hotbar_index] = {"type": item_type, "count": 1}
+        self.held_item = {"type": item_type, "count": 1}
 
     def _move_hand_item_to_inventory(self):
-        hand = self.hotbar[self.selected_hotbar_index]
+        hand = self.held_item
 
         if hand is None:
             return True
@@ -411,11 +594,10 @@ class Player:
         for i, item in enumerate(self.inventory):
             if item is None:
                 self.inventory[i] = hand
-                self.hotbar[self.selected_hotbar_index] = None
+                self.held_item = None
                 # print("放到 inventory", i)
                 return True
 
-        # self.hotbar[self.selected_hotbar_index] = None
         return False
 
     """掉落物相關"""
@@ -433,7 +615,7 @@ class Player:
         return count
 
     def drop_selected_item(self, drop_all=False):
-        current_item = self.hotbar[self.selected_hotbar_index]
+        current_item = self.held_item
         if current_item is not None:
             dropped_item = {
                 "type": current_item["type"],
@@ -441,11 +623,11 @@ class Player:
             }
 
             if drop_all:
-                self.hotbar[self.selected_hotbar_index] = None
+                self.held_item = None
             else:
                 current_item["count"] -= 1
                 if current_item["count"] == 0:
-                    self.hotbar[self.selected_hotbar_index] = None
+                    self.held_item = None
 
             return dropped_item
         else:
@@ -453,8 +635,8 @@ class Player:
 
     def _try_merge_slots(self, slots, item_type: str, count: int):
         for _, item in enumerate(slots):
-            if item is not None and item["type"] == item_type and item["count"] < self.MAX_STACK:
-                can_place_num = self.MAX_STACK - item["count"]
+            if item is not None and item["type"] == item_type and item["count"] < config.MAX_STACK:
+                can_place_num = config.MAX_STACK - item["count"]
                 put_num = min(count, can_place_num)
                 item["count"] += put_num
                 count -= put_num
@@ -470,7 +652,7 @@ class Player:
 
         for index, item in enumerate(slots):
             if item is None:
-                put_num = min(count, self.MAX_STACK)
+                put_num = min(count, config.MAX_STACK)
 
                 slots[index] = {"type": item_type, "count": put_num}
 
