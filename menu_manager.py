@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -8,7 +10,7 @@ import pygame
 
 import config
 import tool
-import ui_obs as ui
+import ui_obs2 as ui
 
 
 class MenuManager:
@@ -34,7 +36,6 @@ class MenuManager:
                 menu.update(events, mouse_pos, player)
             else:
                 menu.update(events, mouse_pos)
-
 
     def draw(self, screen):
         # 1. 🎯 鋪滿暗色泥土背景（Minecraft 經典風格）
@@ -373,7 +374,7 @@ class ControlsMenu:
         self.assets = assets
 
         self.btn_w, self.btn_h = 350, 40  # 按鈕標準尺寸
-        self.switch_base_w, self.switch_base_h = self.assets.swich_base_rect.size  # 開關底座尺寸
+        self.switch_base_w, self.switch_base_h = self.assets.switch_base_rect.size  # 開關底座尺寸
         self.center_x = config.current_width // 2
         self.start_y = 150  # 從上方 150 像素開始畫按鈕
         self.spacing_x = 60  # 左右按鈕的間距
@@ -431,6 +432,15 @@ class GameMenu:
             hover_text_color=tool.Colors.MC_YELLOW,
         )
 
+        self.hitbox_switch = ui.ImageTextButton(
+            name="hitbox_switch",  # 視野廣角
+            image=self.assets.setting_button_img,
+            pos=(self.center_x + (self.btn_w // 2) + self.spacing_x, self.start_y + (self.btn_h // 2)),
+            text="",  # 給update處理
+            text_color=tool.Colors.WHITE,
+            hover_text_color=tool.Colors.MC_YELLOW,
+        )
+
         self.back_btn = ui.ImageTextButton(
             name="back",
             image=self.assets.setting_button_img,
@@ -439,11 +449,15 @@ class GameMenu:
             pos=(self.center_x, config.current_height - 60),
             hover_text_color=tool.Colors.MC_YELLOW,
         )
-        self.all_uis = [self.mode_switch, self.back_btn]  # , self.alto_jump
+        self.all_uis = [self.mode_switch, self.hitbox_switch, self.back_btn]  # , self.alto_jump
 
     def layout(self):
         # self.alto_jump.rect.center = (self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2))
         self.mode_switch.rect.center = (self.center_x - (self.btn_w // 2) - self.spacing_x, self.start_y + (self.btn_h // 2))
+        self.hitbox_switch.rect.center = (
+            self.center_x - (self.btn_w // 2) - self.spacing_x,
+            self.start_y + (self.btn_h // 2) + self.spacing_y,
+        )
 
         self._update_mode()
         self.back_btn.rect.center = (self.center_x, config.current_height - 60)

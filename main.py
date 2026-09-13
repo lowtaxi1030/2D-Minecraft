@@ -9,13 +9,13 @@ import config
 import menu_manager
 import save_manager
 import tool
-import ui_manager
 import world_manager
 from craft_manager import CraftingManager
 from environment_systems import EnvironmentSystems
 from fluid_manager import FluidManager
 from game_data import crafting_recipes
 from player import Player
+from ui import ui_manager
 
 save = save_manager.SaveManager()
 crafting_manager = CraftingManager()
@@ -70,7 +70,7 @@ while config.running:
         pass
 
     elif config.game_state == "PLAYING":
-        current_chunk = player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
+        current_chunk = player.hitbox.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
         game_camera.update(player, fluid_manager)
 
         surface_width = int(config.current_width / game_camera.zoom)
@@ -105,7 +105,7 @@ while config.running:
         fluid_manager.update(pygame.time.get_ticks())
 
         if dropped_item is not None:
-            world.spawn_item_entity(dropped_item, player.rect.centerx, player.rect.top, "drop", player)
+            world.spawn_item_entity(dropped_item, player.hitbox.centerx, player.hitbox.top, "drop", player)
 
         # print(player.rect.x, player.rect.y)
         # print(game_camera.scroll_x, game_camera.scroll_y)

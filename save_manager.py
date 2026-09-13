@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -30,8 +32,8 @@ class SaveManager:
                 {
                     "seed": config.WORLD_SEED,
                     "player": {
-                        "x": player.rect.x,
-                        "y": player.rect.y,
+                        "x": player.hitbox.x,
+                        "y": player.hitbox.y,
                         "hotbar": player.hotbar,
                         "inventory": player.inventory,
                     },
@@ -73,8 +75,8 @@ class SaveManager:
 
         player_data = level_data.get("player")
 
-        player.rect.x = player_data.get("x", 0)
-        player.rect.y = player_data.get("y", 20 * config.BLOCK_SIZE)
+        player.hitbox.x = player_data.get("x", 0)
+        player.hitbox.y = player_data.get("y", 20 * config.BLOCK_SIZE)
         player.hotbar = player_data.get("hotbar", [None] * 9)
         player.inventory = player_data.get("inventory", [None] * 27)
 

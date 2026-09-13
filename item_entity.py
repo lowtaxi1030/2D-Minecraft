@@ -1,8 +1,10 @@
-import random
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from player import Player
+import random
 
 import pygame
 
@@ -186,7 +188,7 @@ class ItemEntity:
             center_grid_x = self.rect.centerx // config.BLOCK_SIZE
             center_grid_y = self.rect.centery // config.BLOCK_SIZE
 
-            if self.rect.centerx > player.rect.centerx:
+            if self.rect.centerx > player.hitbox.centerx:
                 step = -1
 
             self.rect.x += step
@@ -212,7 +214,7 @@ class ItemEntity:
         self.rect.y = original_y
 
     def _apply_attraction(self, player: Player):
-        player_pos = pygame.math.Vector2(player.rect.center)
+        player_pos = pygame.math.Vector2(player.hitbox.center)
         self_pos = pygame.math.Vector2(self.rect.center)
         direction = player_pos - self_pos
 
@@ -290,7 +292,7 @@ class ItemEntity:
             self.is_attracting = False
             return
 
-        player_vec = pygame.math.Vector2((player.rect.centerx, player.rect.bottom))
+        player_vec = pygame.math.Vector2((player.hitbox.centerx, player.hitbox.bottom))
         self_vec = pygame.math.Vector2(self.rect.center)
 
         self.is_attracting = player.can_pickup_item(self.item_type) and player_vec.distance_to(self_vec) < config.BLOCK_SIZE * 2

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # from typing import TYPE_CHECKING
 
 # if TYPE_CHECKING:
@@ -11,7 +13,7 @@ class ShapeRecipe:
         self.shape = self._trim_shape(shape)  # 合成形狀
         self.result = {"type": result_type, "count": result_count}  # ex. {"type": "stone_pickaxe", "count": 1}  # 成品
 
-    def can_craft(self, crafting_grid):
+    def can_craft(self, crafting_grid: CraftingGrid) -> bool:
         grid_ingredients = crafting_grid.get_ingredients()
         for item, quantity in self.ingredients.items():
             if grid_ingredients.get(item, 0) < quantity:
@@ -20,7 +22,7 @@ class ShapeRecipe:
             return False
         return True
 
-    def craft(self, crafting_grid):
+    def craft(self, crafting_grid: CraftingGrid) -> dict[str, int] | None:
         if not self.can_craft(crafting_grid):
             return None
 

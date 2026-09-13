@@ -14,6 +14,7 @@ IMAGE_PATH = BASE_DIR / "images"
 
 BLOCKS_PATH = IMAGE_PATH / "blocks"
 ITEMS_PATH = IMAGE_PATH / "items"
+PLAYER_UI_PATH = IMAGE_PATH / "player"
 
 pygame.init()
 
@@ -148,7 +149,6 @@ class AssetManager:
 
     def _load_ui_assets(self):
         try:
-            # 1. 載入主 UI 背景底圖
             for img in self.UI_IMAGES:
                 path = IMAGE_PATH / "ui" / f"{img}.png"
                 if not path.exists():
@@ -159,15 +159,8 @@ class AssetManager:
                 self.ui_rects[img] = self.ui_images[img].get_rect()
                 self.ui_rects[img].center = (config.WIDTH // 2, config.HEIGHT // 2)
 
-            # 2. 載入熔爐專用動態進度條素材 (放在 ui/furnace/ 資料夾下)
-            furnace_ui_path = IMAGE_PATH / "ui" / "furnace"
-            if furnace_ui_path.exists():
-                for path in furnace_ui_path.glob("*.png"):
-                    name = path.stem  # 取得 "burn_progress" 或 "lit_progress"
-                    img_surf = pygame.image.load(str(path)).convert_alpha()
-                    # 必須配合主 UI 放大 3.5 倍，像素尺寸才會精準對齊！
-                    self.ui_images[name] = pygame.transform.scale_by(img_surf, 3.5)
-                    # self.ui_rects[name] = self.ui_images[name].get_rect()
+            self._load_images_from_folder(IMAGE_PATH / "ui" / "furnace")
+            self._load_images_from_folder(PLAYER_UI_PATH / "hp")
         except FileNotFoundError as e:
             sys.exit(f"找不到 ui 的圖片\n{e}")
 
@@ -185,9 +178,9 @@ class AssetManager:
             self.lever_img = pygame.transform.scale_by(self.lever_img, 0.5)
             self.lever_rect = self.lever_img.get_rect()
 
-            self.swich_base_img = pygame.image.load(f"{str(IMAGE_PATH)}/ui/switch_base.png")
-            self.swich_base_img = pygame.transform.scale_by(self.swich_base_img, 0.5)
-            self.swich_base_rect = self.swich_base_img.get_rect()
+            self.switch_base_img = pygame.image.load(f"{str(IMAGE_PATH)}/ui/switch_base.png")
+            self.switch_base_img = pygame.transform.scale_by(self.switch_base_img, 0.5)
+            self.switch_base_rect = self.switch_base_img.get_rect()
 
         except FileNotFoundError as e:
             sys.exit(f"找不到 setting_button 或 FOV 或 FOV_lever 的圖片\n{e}")
@@ -212,6 +205,15 @@ class AssetManager:
         tinted_img.blit(color_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
         return tinted_img
+
+    def _load_images_from_folder(self, folder_path: Path):
+        """掃描指定資料夾內所有png，各自載入、放大3.5倍後存進 self.ui_images，用檔名(不含副檔名)當key"""
+        if not folder_path.exists():
+            return
+        for path in folder_path.glob("*.png"):
+            name = path.stem
+            img_surf = pygame.image.load(str(path)).convert_alpha()
+            self.ui_images[name] = pygame.transform.scale_by(img_surf, 3.5)
 
     """小工具"""
 

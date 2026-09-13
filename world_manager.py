@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -162,7 +164,7 @@ class World:
             if pos not in container_dict:
                 container_dict[pos] = state_class()
 
-            target_ui = getattr(ui, config_entry["ui_attr"])
+            target_ui = target_ui = ui.interfaces[config_entry["ui_attr"]]
             target_ui.set_state(container_dict[pos])
 
         return True
@@ -245,7 +247,7 @@ class World:
         elif any(keyword in item_type for keyword in NON_PLACEABLE_KEYWORDS):
             return False
 
-        if player.rect.colliderect(clicked.rect) or player.mode == "spectator":
+        if player.hitbox.colliderect(clicked.rect) or player.mode == "spectator":
             return False
 
         if fluid_manager.is_fluid(clicked.block):
@@ -293,7 +295,7 @@ class World:
             item.try_attract(player)
 
             # 處理碰到玩家
-            if player.rect.colliderect(item.rect) and player.can_pickup_item(item.item_type) and item.pickup_delay == 0:
+            if player.hitbox.colliderect(item.rect) and player.can_pickup_item(item.item_type) and item.pickup_delay == 0:
                 remaining = player.give_item(item.item_type, item.count)
                 if remaining == 0:
                     picked_items.append(item)

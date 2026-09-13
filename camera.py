@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -21,7 +23,7 @@ class Camera:
         self.assets = assets
 
         # 世界座標中的左上角
-        self.scroll_x = player.rect.centerx
+        self.scroll_x = player.hitbox.centerx
         self.scroll_y = 0
 
         # 縮放倍率
@@ -45,8 +47,8 @@ class Camera:
         view_width = config.current_width / self.zoom
         view_height = config.current_height / self.zoom
 
-        target_scroll_x = player.rect.centerx - view_width / 2
-        target_scroll_y = player.rect.centery - view_height / 2
+        target_scroll_x = player.hitbox.centerx - view_width / 2
+        target_scroll_y = player.hitbox.centery - view_height / 2
 
         # max_scroll_x = config.MAP_WIDTH * self.block_size - view_width
         max_scroll_y = config.MAP_HEIGHT * self.block_size - view_height
@@ -71,7 +73,7 @@ class Camera:
 
     def _load_visible_chunks(self, player: Player, fluid_manager: FluidManager = None):
         # 第一步：生成玩家附近的 chunk
-        current_chunk = player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
+        current_chunk = player.hitbox.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
 
         for chunk_x in range(current_chunk - 5, current_chunk + 6):
             chunk_manager.get_chunk(chunk_x, fluid_manager)

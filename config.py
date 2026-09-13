@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -6,7 +8,7 @@ if TYPE_CHECKING:
 import random
 from pathlib import Path
 
-GAME_VERSION = "V0.26.11.2"  # 11是樹苗
+GAME_VERSION = "V0.26.11.5"
 
 # Types
 Item = dict[str, str | int]
