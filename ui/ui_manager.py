@@ -5,6 +5,7 @@ if TYPE_CHECKING:
 
     from asset_manager import AssetManager
     from camera import Camera
+    from chunk_manager import ChunkManager
     from craft_manager import CraftingManager
     from player import Player
     from world_manager import World
@@ -12,11 +13,11 @@ if TYPE_CHECKING:
 import config
 
 from . import (
-    debug_screen,  # noqa: F401
-    hot_bar,  # noqa: F401
+    debug_screen,
 )
-from .hud import HealthBar, HungerBar  # noqa: F401
-from .inventory import ChestUI, CraftingTableUI, FurnaceUI, InventoryUI  # noqa: F401
+from .hud import HealthBar, HungerBar, hotbar
+from .inventory import ChestUI, CraftingTableUI, FurnaceUI, InventoryUI
+from .menu import menu_manager
 
 
 class UIInterface(Protocol):
@@ -31,7 +32,9 @@ class UIInterface(Protocol):
 
 class UI:
     def __init__(self, assets: AssetManager):
-        self.hotbar = hot_bar.Hotbar(assets)
+        self.menu_manager = menu_manager.MenuManager(assets)
+
+        self.hotbar = hotbar.Hotbar(assets)
         self.health_bar = HealthBar(assets)
         self.hunger_bar = HungerBar(assets)
         self.debug_screen = debug_screen.DebugScreen(assets)
@@ -61,14 +64,26 @@ class UI:
             self.interfaces[self.last_inv_type].clear_grid_and_drop(player, world_manager)
             self.last_inv_type = None
 
-    def update(self, player: Player, fps, mouse_pos: tuple[int, int], game_camera: Camera, world_manager: World):
+    def update(
+        self,
+        events,
+        player: Player,
+        fps,
+        mouse_pos: config.Pos,
+        mouse_buttons,
+        game_camera: Camera,
+        world_manager: World,
+        chunk_manager: ChunkManager,
+    ):
         self.hotbar.update(player)
-        self.health_bar.update()  # player
+        self.health_bar.update(player)
         self.hunger_bar.update()  # player
-        self.debug_screen.update(player, fps, mouse_pos, game_camera, world_manager)
+        self.debug_screen.update(player, fps, mouse_pos, game_camera, world_manager, chunk_manager)
 
         if player.inv_type is not None:
             self.interfaces[player.inv_type].update(player)
+
+        self.menu_manager.update(events, mouse_pos, mouse_buttons, player)
 
     def draw(self, screen: pygame.Surface, player: Player):
         self.hotbar.draw(screen, player)
@@ -80,3 +95,5 @@ class UI:
 
         if config.show_debug_screen:
             self.debug_screen.draw(screen)
+
+        self.menu_manager.draw(screen)

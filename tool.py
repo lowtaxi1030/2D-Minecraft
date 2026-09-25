@@ -19,8 +19,6 @@ p.mixer.init()
 # clock = p.time.Clock()
 # 設定全域變數
 T, F = True, False
-s = p.display.set_mode((config.current_width, config.current_height))
-
 
 # class RangeError(Exception):
 #     __module__ = "builtins"
@@ -172,19 +170,19 @@ class GradientColor:
         screen.blit(scaled_surface, rect)
 
 
-def screen_vague(vague: int):
+def screen_vague(screen: p.Surface, vague: int, color: Color = Colors.BLACK, alpha: int = 150):
     """要放在此函式上的物件才會被模糊"""
-    snapshot = s.copy()
+    snapshot = screen.copy()
 
     if vague > 0:
         small = p.transform.smoothscale(snapshot, (config.current_width // vague, config.current_height // vague))
         blurred = p.transform.smoothscale(small, (config.current_width, config.current_height))
-        s.blit(blurred, (0, 0))
+        screen.blit(blurred, (0, 0))
 
     overlay = p.Surface((config.current_width, config.current_height))
-    overlay.set_alpha(150)
-    overlay.fill((0, 0, 0))
-    s.blit(overlay, (0, 0))
+    overlay.fill(color)
+    overlay.set_alpha(alpha)
+    screen.blit(overlay, (0, 0))
 
 
 def os_open_file(pt):

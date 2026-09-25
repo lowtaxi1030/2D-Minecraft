@@ -3,20 +3,22 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from chunk_manager import ChunkManager
     from player import Player
     from world_manager import World
 
 import json
 import os
 
-import chunk_manager
 import config
 from states.chest_state import ChestState
 from states.furnace_state import FurnaceState
 
 
 class SaveManager:
-    def __init__(self):
+    def __init__(self, chunk_manager: ChunkManager):
+        self.chunk_manager = chunk_manager
+
         self.world_dir = config.BASE_DIR / "saves" / config.CURRENT_WORLD / "chunks"
         self.info_dir = config.BASE_DIR / "saves" / config.CURRENT_WORLD
 
@@ -46,13 +48,13 @@ class SaveManager:
             )
 
     def save_loaded_chunks(self):
-        for index, chunk in config.chunks.items():
+        for index, chunk in self.chunk_manager.chunks.items():
             if not chunk.is_dirty:
                 continue
 
             file_path = self.chunk_path(index)
             with open(file_path, 'w') as f:
-                chunk = config.chunks[index]
+                chunk = self.chunk_manager.chunks[index]
                 json.dump(chunk.blocks, f)
             chunk.is_dirty = False
 
@@ -64,14 +66,14 @@ class SaveManager:
         file_path = self.level_path()
 
         if not file_path.exists():
-            chunk_manager.reseed_world()
+            self.chunk_manager.reseed_world()
             return False
 
         with file_path.open("r", encoding="utf-8") as f:
             level_data = json.load(f)
 
         config.WORLD_SEED = level_data.get("seed", config.WORLD_SEED)
-        chunk_manager.reseed_world()
+        self.chunk_manager.reseed_world()
 
         player_data = level_data.get("player")
 

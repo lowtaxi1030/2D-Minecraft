@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -9,7 +11,7 @@ import pygame
 
 import config
 import tool
-import ui_obs2 as ui
+from ui.element import ui_widgets as ui
 
 
 def draw_item(screen: pygame.Surface, assets: AssetManager, item, center_x, center_y):

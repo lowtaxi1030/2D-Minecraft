@@ -4,16 +4,16 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from asset_manager import AssetManager
+    from chunk_manager import ChunkManager
     from environment_systems import EnvironmentSystems
     from fluid_manager import FluidManager
     from player import Player
-    from ui_manager import UI
+    from ui.ui_manager import UI
 
 import random
 
 import pygame
 
-import chunk_manager
 import config
 import item_entity
 from camera import Camera
@@ -39,8 +39,9 @@ class BlockClick:
 
 
 class World:
-    def __init__(self, assets: AssetManager):
+    def __init__(self, assets: AssetManager, chunk_manager:ChunkManager):
         self.assets = assets
+        self.chunk_manager = chunk_manager
 
         self.item_entities = []
 
@@ -77,7 +78,7 @@ class World:
         decayed_leaves = environment_systems.update()
 
         for world_x, world_y, leaf_type in decayed_leaves:
-            drop_item_type, drop_count = self.get_drop_item(self.get_block_base_name(leaf_type), player.held_item)
+            drop_item_type, drop_count = self.get_drop_item(self.get_block_base_name(leaf_type), None)
             if drop_item_type is not None and drop_count > 0:
                 self.spawn_item_entity(
                     {"type": drop_item_type, "count": drop_count},
@@ -141,7 +142,7 @@ class World:
         # if world_x < 0 or world_x >= config.MAP_WIDTH or world_y < 0 or world_y >= config.MAP_HEIGHT:
         #     return None
 
-        clicked_block = chunk_manager.get_block(world_x * config.BLOCK_SIZE, world_y * config.BLOCK_SIZE)
+        clicked_block = self.chunk_manager.get_block(world_x * config.BLOCK_SIZE, world_y * config.BLOCK_SIZE)
         return BlockClick(
             world_x,
             world_y,
@@ -192,7 +193,7 @@ class World:
             if clicked.block.endswith("_source"):
                 fluid_manager.add_fluid(clicked.x, clicked.y, fluid)
 
-            chunk_manager.set_block(clicked.x, clicked.y, "air")
+            self.chunk_manager.set_block(clicked.x, clicked.y, "air")
 
             for f in fluid_manager.FLUID_PROPERTIES.keys():
                 fluid_manager.wake_fluid(f, clicked.x, clicked.y, fluid_manager.active_fluids)
@@ -273,7 +274,7 @@ class World:
         return True
 
     def _place_block(self, clicked: BlockClick, block_type, player: Player):
-        chunk_manager.set_block(clicked.x, clicked.y, block_type)
+        self.chunk_manager.set_block(clicked.x, clicked.y, block_type)
 
         new_block_rect = pygame.Rect(
             clicked.x * config.BLOCK_SIZE,

@@ -1,37 +1,20 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from asset_manager import AssetManager
     from camera import Camera
+    from chunk_manager import ChunkManager
     from player import Player
     from world_manager import World
 
 import pygame
 
-import chunk_manager
 import config
 import tool
-import ui_obs2 as ui
 
-
-def draw_item(screen: pygame.Surface, assets: AssetManager, item, center_x, center_y):
-    block_img = assets.block(item["type"])
-    block_img = pygame.transform.scale(block_img, (48, 48))
-    block_rect = block_img.get_rect()
-    block_rect.center = (center_x, center_y)
-    screen.blit(block_img, block_rect)
-    show_center_x = center_x - 5
-    if item["count"] < 10:
-        show_center_x = center_x + 11
-    ui.show_text(
-        screen,
-        str(item["count"]),
-        tool.Colors.WHITE,
-        show_center_x,
-        center_y + 5,
-        25,
-        show=item["count"] > 1,
-    )
+from .element import ui_widgets as ui
 
 
 class DebugScreen:
@@ -39,10 +22,24 @@ class DebugScreen:
         # self.assets = assets
 
         self.debug_frame = 0
-        self.left_lines = []
-        self.right_lines = []
 
-    def update(self, player: Player, fps, mouse_pos: tuple[int, int], camera: Camera, world: World):
+        self.left_text = ui.Text(
+            name="left_text",
+            text="",
+            pos=(10, 10),
+            colors=tool.Colors.WHITE,
+            size=18,
+        )
+
+        self.right_text = ui.Text(
+            name="left_text",
+            text="",
+            pos=(config.current_width - 300, 10),
+            colors=tool.Colors.WHITE,
+            size=18,
+        )
+
+    def update(self, player: Player, fps, mouse_pos: tuple[int, int], camera: Camera, world: World, chunk_manager: ChunkManager):
         self.debug_frame += 1
 
         if self.debug_frame >= 12:
@@ -79,9 +76,9 @@ class DebugScreen:
             )
             mouse_block = world.get_block_base_name(raw_mouse_block).replace("_", " ")
 
-            top_y = tool.clamp(0, config.MAP_HEIGHT - 1, int(player.hitbox.top // config.BLOCK_SIZE))
+            # top_y = tool.clamp(0, config.MAP_HEIGHT - 1, int(player.hitbox.top // config.BLOCK_SIZE))
 
-            self.left_lines = [
+            self.left_text.text = [
                 "=== Player ===",
                 f"Pos : ({player_block_x}, {show_player_y})",  # show_player_y
                 f"Vel : ({player.vel_x:.2f}, {player.vel_y:.2f})",
@@ -90,7 +87,6 @@ class DebugScreen:
                 f"Mode : {player.mode}",
                 f"Facing : {'Right' if player.facing == 1 else 'Left'}",
                 f"Is Submerged: {player.is_submerged}",
-                f"Head Block: {chunk_manager.get_block(player.hitbox.centerx, (top_y - 1) * config.BLOCK_SIZE)}",
                 f"Is Swmming: {player.is_swimming}",
                 "",
                 "=== Block ===",
@@ -102,12 +98,12 @@ class DebugScreen:
                 f"FPS : {fps:.0f}",
                 f"Screen Mouse Pos: {mouse_pos}",
                 f"Player Screen Pos: ({player.hitbox.centerx - camera.scroll_x:.0f}, {player.hitbox.centery - camera.scroll_y:.0f})",
-                f"Loaded Chunks : {len(config.chunks)}",
+                f"Loaded Chunks : {len(chunk_manager.chunks)}",
                 f"Entities : {len(world.item_entities)}",
-                f"Dirty Chunks : {sum(chunk.is_dirty for chunk in config.chunks.values())}",
+                f"Dirty Chunks : {sum(chunk.is_dirty for chunk in chunk_manager.chunks.values())}",
             ]
 
-            self.right_lines = [
+            self.right_text.text = [
                 "=== World ===",
                 f"World : {config.CURRENT_WORLD}",
                 f"Seed : {config.WORLD_SEED}",
@@ -121,29 +117,6 @@ class DebugScreen:
                 "",
             ]
 
-    def _draw_debug(self, screen):
-        """玩家按下 F3 時的畫面"""
-
-        ui.show_text(
-            screen,
-            self.left_lines,
-            tool.Colors.WHITE,
-            10,
-            10,
-            size=18,
-            use_cache=False,
-        )
-        ui.show_text(
-            screen,
-            self.right_lines,
-            tool.Colors.WHITE,
-            config.current_width - 300,
-            10,
-            size=18,
-            use_cache=False,
-        )
-
     def draw(self, screen: pygame.Surface):
-        if not config.show_debug_screen:
-            return
-        self._draw_debug(screen)
+        self.left_text.draw(screen)
+        self.right_text.draw(screen)

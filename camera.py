@@ -4,14 +4,15 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from asset_manager import AssetManager
+    from chunk_manager import ChunkManager
     from fluid_manager import FluidManager
     from player import Player
     from world_manager import World
 import json
+import random
 
 import pygame
 
-import chunk_manager
 import config
 import tool
 
@@ -19,21 +20,57 @@ world_dir = config.BASE_DIR / "saves" / config.CURRENT_WORLD / "chunks"
 
 
 class Camera:
-    def __init__(self, assets: AssetManager, player: Player):
+    def __init__(self, assets: AssetManager, player: Player, chunk_manager: ChunkManager):
         self.assets = assets
+        self.chunk_manager = chunk_manager
 
         # 世界座標中的左上角
         self.scroll_x = player.hitbox.centerx
         self.scroll_y = 0
 
+        # 螢幕震動(之後做)
+        self.offset_x, self.offset_y = 0, 0
+
+        self.shake_intensity = 0  # 最大震動幅度
+        self.shake_duration = 0  # 這次震動總時間
+        self.shake_elapsed = 0  # 已經震了多久(ms)
+
+        # self.shake_strength = config.BLOCK_SIZE / 8  # px / 0.15s
+
         # 縮放倍率
         self.zoom = 1.0
+        self._last_frame_zoom = 1.0
 
         # 世界中真正的方塊大小(固定)
-        self.block_size = config.BLOCK_SIZE
         self.render_rect = pygame.Rect(0, 0, 0, 0)
 
-    def update(self, player: Player, fluid_manager: FluidManager):
+    def shake(self, intensity: float, duration: int):
+        """
+        外部呼叫用\n
+        duration: ms
+        """
+        self.shake_intensity = intensity
+        self.shake_duration = duration / 1000
+        self.shake_elapsed: int = 0
+
+    def _update_shake(self, dt: int | float):
+        """dt: s"""
+        if self.shake_elapsed >= self.shake_duration:
+            self.offset_x, self.offset_y = 0, 0
+            return
+
+        self.shake_elapsed += dt
+
+        progress = 0
+        if self.shake_elapsed > 0:
+            progress = self.shake_duration / self.shake_elapsed
+
+        strength = self.shake_intensity * (1 - progress)
+
+        self.offset_x = random.uniform(strength, -strength)
+        self.offset_y = random.uniform(strength, -strength)
+
+    def update(self, player: Player, fluid_manager: FluidManager, dt):
         base_zoom = config.ORG_FOV / config.fov
 
         sprint_multiplier = config.SPRINT_ZOOM_MULTIPLIER if player.is_running else 1.0
@@ -50,8 +87,8 @@ class Camera:
         target_scroll_x = player.hitbox.centerx - view_width / 2
         target_scroll_y = player.hitbox.centery - view_height / 2
 
-        # max_scroll_x = config.MAP_WIDTH * self.block_size - view_width
-        max_scroll_y = config.MAP_HEIGHT * self.block_size - view_height
+        # max_scroll_x = config.MAP_WIDTH * config.BLOCK_SIZE - view_width
+        max_scroll_y = config.MAP_HEIGHT * config.BLOCK_SIZE - view_height
 
         self.scroll_x = tool.update_scrolling(
             self.scroll_x,
@@ -69,6 +106,8 @@ class Camera:
         # self.scroll_x = tool.clamp(0, max_scroll_x, self.scroll_x)
         self.scroll_y = tool.clamp(0, max_scroll_y, self.scroll_y)
 
+        self._update_shake(dt)
+
         self._load_visible_chunks(player, fluid_manager)
 
     def _load_visible_chunks(self, player: Player, fluid_manager: FluidManager = None):
@@ -76,19 +115,19 @@ class Camera:
         current_chunk = player.hitbox.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
 
         for chunk_x in range(current_chunk - 5, current_chunk + 6):
-            chunk_manager.get_chunk(chunk_x, fluid_manager)
+            self.chunk_manager.get_chunk(chunk_x, fluid_manager)
 
         # 第二步：刪掉離玩家太遠的 chunk
         max_distance = 8
 
-        chunk_indexes = list(config.chunks.keys())
+        chunk_indexes = list(self.chunk_manager.chunks.keys())
         for index in chunk_indexes:
             if abs(index - current_chunk) > max_distance:
                 file_path = world_dir / f"chunk_{index}.json"
-                chunk = config.chunks[index]
+                chunk = self.chunk_manager.chunks[index]
                 if chunk.is_dirty:
                     with open(file_path, 'w') as f:
-                        chunk = config.chunks[index]
+                        chunk = self.chunk_manager.chunks[index]
                         json.dump(chunk.blocks, f)
                         """
                         之後可能會變成：
@@ -101,14 +140,14 @@ class Camera:
                             f,
                         )
                         """
-                del config.chunks[index]
+                del self.chunk_manager.chunks[index]
 
     """小工具"""
 
     def world_to_screen(self, world_x, world_y):
         return (
-            world_x * self.block_size - self.scroll_x,
-            world_y * self.block_size - self.scroll_y,
+            (world_x * config.BLOCK_SIZE - self.scroll_x),
+            (world_y * config.BLOCK_SIZE - self.scroll_y),
         )
 
     def screen_to_world(self, mouse_pos):
@@ -130,13 +169,13 @@ class Camera:
         view_width = config.current_width / self.zoom
         view_height = config.current_height / self.zoom
 
-        start_x = int(self.scroll_x // config.BLOCK_SIZE) - 1
+        start_x = int(self.scroll_x // config.BLOCK_SIZE) - 3
 
-        end_x = int((self.scroll_x + view_width) // config.BLOCK_SIZE) + 2
+        end_x = int((self.scroll_x + view_width) // config.BLOCK_SIZE) + 4
 
-        start_y = tool.clamp(0, config.MAP_HEIGHT, int(self.scroll_y // config.BLOCK_SIZE) - 1)
+        start_y = tool.clamp(0, config.MAP_HEIGHT, int(self.scroll_y // config.BLOCK_SIZE) - 3)
 
-        end_y = tool.clamp(0, config.MAP_HEIGHT, int((self.scroll_y + view_height) // config.BLOCK_SIZE) + 2)
+        end_y = tool.clamp(0, config.MAP_HEIGHT, int((self.scroll_y + view_height) // config.BLOCK_SIZE) + 4)
 
         return start_x, end_x, start_y, end_y
 
@@ -149,7 +188,7 @@ class Camera:
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
 
-                block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
+                block_name = self.chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
 
                 pixel_x, pixel_y = self.world_to_screen(x_pos, y_pos)
 
@@ -158,7 +197,7 @@ class Camera:
                     display_block_name = world.get_block_display_name(x_pos, y_pos, block_name)
                     if block_name == "grass":
                         chunk_x = x_pos // config.CHUNK_WIDTH
-                        chunk = chunk_manager.get_chunk(chunk_x)
+                        chunk = self.chunk_manager.get_chunk(chunk_x)
                         img = self.assets.get_biome_grass(chunk.biome_name)
                     else:
                         img = self.assets.block(display_block_name)  # .get_img(block_name, "block")
@@ -179,6 +218,13 @@ class Camera:
                     pygame.draw.rect(screen, tool.Colors.BLACK, block_rect, max(1, int(config.BLOCK_SIZE) // 20))
 
     def draw(self, screen: pygame.Surface, world_surface: pygame.Surface):
-        scaled = pygame.transform.smoothscale(world_surface, (config.current_width, config.current_height))
-        self.render_rect = scaled.get_rect(center=screen.get_rect().center)
+        if abs(self.zoom - self._last_frame_zoom) > 0.0005:
+            scaled = pygame.transform.smoothscale(world_surface, (config.current_width, config.current_height))
+        else:
+            scaled = pygame.transform.scale(world_surface, (config.current_width, config.current_height))
+        self._last_frame_zoom = self.zoom
+        screen_rect = screen.get_rect()
+        screen_rect.centerx += self.offset_x
+        screen_rect.centery += self.offset_y
+        self.render_rect = scaled.get_rect(center=screen_rect.center)
         screen.blit(scaled, self.render_rect)

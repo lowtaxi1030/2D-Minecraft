@@ -1,14 +1,16 @@
+"""提供所有遊戲全域變數"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from chunk_manager import Chunk
+    pass
 
 import random
 from pathlib import Path
 
-GAME_VERSION = "V0.26.11.5"
+GAME_VERSION = "V0.13.5"
 
 # Types
 Item = dict[str, str | int]
@@ -30,9 +32,6 @@ MAP_HEIGHT = 300
 
 BASE_LINE = 80
 
-chunks: dict[int, Chunk] = {}
-height_map = []
-
 CURRENT_WORLD = "test1"  # 可以隨意換成任何合法名字
 WORLD_SEED = random.randint(0, 999999)
 BIOME_NOISE_SCALE = 700
@@ -48,6 +47,7 @@ game_state = "PLAYING"
 running = True
 
 show_debug_screen = False
+fps_check = False
 
 pause_background = None
 

@@ -8,9 +8,11 @@ import random
 
 import pygame
 
-import chunk_manager
 import config
 import tool
+from chunk_manager import ChunkManager
+
+chunk_manager = ChunkManager()
 
 
 class ItemEntity:
@@ -111,7 +113,11 @@ class ItemEntity:
         self.vel_y = -4
 
     def _init_death(self):
-        pass
+        self.pickup_delay = 60
+
+        speed = random.randint(5, 18)
+        self.vel_x = random.choice([speed, -speed])
+        self.vel_y = -4
 
     def _init_mob(self):
         pass

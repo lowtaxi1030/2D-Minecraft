@@ -52,7 +52,7 @@ class AssetManager:
 
         self.animations = {}
 
-        self.ui_images = {}
+        self.ui_images: dict[str, pygame.Surface] = {}
         self.ui_rects: dict[str, pygame.Rect] = {}
 
         self.UI_IMAGES = [
@@ -63,6 +63,8 @@ class AssetManager:
             # "stonecutter",
             "chest",
         ]
+
+        self.hp_images = {}
 
     def load(self):
         self._load_blocks()
@@ -159,8 +161,10 @@ class AssetManager:
                 self.ui_rects[img] = self.ui_images[img].get_rect()
                 self.ui_rects[img].center = (config.WIDTH // 2, config.HEIGHT // 2)
 
-            self._load_images_from_folder(IMAGE_PATH / "ui" / "furnace")
-            self._load_images_from_folder(PLAYER_UI_PATH / "hp")
+            self.ui_images.update(
+                self._load_images_from_folder(IMAGE_PATH / "ui" / "furnace"),
+            )
+            self.hp_images = self._load_images_from_folder(PLAYER_UI_PATH / "hp", 2.9)
         except FileNotFoundError as e:
             sys.exit(f"找不到 ui 的圖片\n{e}")
 
@@ -206,14 +210,16 @@ class AssetManager:
 
         return tinted_img
 
-    def _load_images_from_folder(self, folder_path: Path):
-        """掃描指定資料夾內所有png，各自載入、放大3.5倍後存進 self.ui_images，用檔名(不含副檔名)當key"""
+    def _load_images_from_folder(self, folder_path: Path, scale: float = 3.5) -> dict[str, pygame.Surface]:
+        """掃描指定資料夾內所有png，各自載入、依比例放大，回傳 {檔名: 圖片} 的字典"""
+        images = {}
         if not folder_path.exists():
-            return
+            return images
         for path in folder_path.glob("*.png"):
             name = path.stem
             img_surf = pygame.image.load(str(path)).convert_alpha()
-            self.ui_images[name] = pygame.transform.scale_by(img_surf, 3.5)
+            images[name] = pygame.transform.scale_by(img_surf, scale)
+        return images
 
     """小工具"""
 

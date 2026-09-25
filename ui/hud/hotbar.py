@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -7,27 +9,7 @@ if TYPE_CHECKING:
 import pygame
 
 import tool
-import ui_obs2 as ui
-
-
-def draw_item(screen: pygame.Surface, assets: AssetManager, item, center_x, center_y):
-    block_img = assets.block(item["type"])
-    block_img = pygame.transform.scale(block_img, (48, 48))
-    block_rect = block_img.get_rect()
-    block_rect.center = (center_x, center_y)
-    screen.blit(block_img, block_rect)
-    show_center_x = center_x - 5
-    if item["count"] < 10:
-        show_center_x = center_x + 11
-    ui.show_text(
-        screen,
-        str(item["count"]),
-        tool.Colors.WHITE,
-        show_center_x,
-        center_y + 5,
-        25,
-        show=item["count"] > 1,
-    )
+from ui.element import ui_widgets as ui
 
 
 class Hotbar:
@@ -44,6 +26,14 @@ class Hotbar:
         self.INV_SPACING_Y = 63
 
         self.show_hotbar = True
+
+        self.item_text = ui.Text(
+            name="item_text",
+            text="",
+            pos=(self.assets.select_frame_rect.centerx, self.assets.select_frame_rect.centery - 80),
+            colors=tool.Colors.WHITE,
+            size=25,
+        )
 
     def handle_events(self, event, player: Player, mouse_pos):
         if event.type == pygame.KEYDOWN:
@@ -71,17 +61,11 @@ class Hotbar:
                 if item is not None:
                     item_center_x = first_slot_center_x + (i * self.SLOT_SPACING)
                     item_center_y = self.assets.select_frame_rect.centery
-                    draw_item(screen, self.assets, item, item_center_x, item_center_y)
+                    ui.draw_item(screen, self.assets, item, item_center_x, item_center_y)
             item = player.held_item
 
             if item is not None:
 
-                ui.show_text(
-                    screen,
-                    item["type"].replace("_", " "),
-                    tool.Colors.WHITE,
-                    self.assets.select_frame_rect.centerx,
-                    self.assets.select_frame_rect.centery - 80,
-                    25,
-                    screen_center=True,
-                )
+                self.item_text.text = item["type"].replace("_", " ")
+
+                self.item_text.draw(screen)

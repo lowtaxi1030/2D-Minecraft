@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -8,32 +10,10 @@ if TYPE_CHECKING:
 import pygame
 
 import config
-import tool
-import ui_obs2 as ui
 from craft_manager import CraftingManager
 from item_slot_manager import SlotHandler
 
 from .player_inventory import PlayerInventory
-
-
-def draw_item(screen: pygame.Surface, assets: AssetManager, item, center_x, center_y):
-    block_img = assets.block(item["type"])
-    block_img = pygame.transform.scale(block_img, (48, 48))
-    block_rect = block_img.get_rect()
-    block_rect.center = (center_x, center_y)
-    screen.blit(block_img, block_rect)
-    show_center_x = center_x - 5
-    if item["count"] < 10:
-        show_center_x = center_x + 11
-    ui.show_text(
-        screen,
-        str(item["count"]),
-        tool.Colors.WHITE,
-        show_center_x,
-        center_y + 5,
-        25,
-        show=item["count"] > 1,
-    )
 
 
 class BaseInventory(PlayerInventory):
