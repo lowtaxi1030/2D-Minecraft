@@ -29,14 +29,18 @@ class DebugScreen:
             pos=(10, 10),
             colors=tool.Colors.WHITE,
             size=18,
+            anchor="topleft",
+            align="left",
         )
 
         self.right_text = ui.Text(
-            name="left_text",
+            name="right_text",
             text="",
-            pos=(config.current_width - 300, 10),
+            pos=(config.current_width - 50, 10),
             colors=tool.Colors.WHITE,
             size=18,
+            anchor="topleft",
+            align="right",
         )
 
     def update(self, player: Player, fps, mouse_pos: tuple[int, int], camera: Camera, world: World, chunk_manager: ChunkManager):
@@ -116,6 +120,7 @@ class DebugScreen:
                 f"Zoom : {camera.zoom:.2f}",
                 "",
             ]
+            self.right_text.rect.right = config.current_width - 50
 
     def draw(self, screen: pygame.Surface):
         self.left_text.draw(screen)

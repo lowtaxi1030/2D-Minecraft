@@ -293,7 +293,7 @@ def get_font(font_type, size):
     return font
 
 
-def get_biggest_text_size(font: pygame.Font, text: StateGroup[str | list] | str | list):
+def get_biggest_text_size(font: pygame.Font, text: StateGroup[str | list] | str | list, line_gap=5):
     # if text is None:
     #     return (0, 0)
     text_group = as_state_group(text)
@@ -303,13 +303,17 @@ def get_biggest_text_size(font: pygame.Font, text: StateGroup[str | list] | str 
             height = 0
             for line in text_state:
                 max_width = max((size := font.size(line))[0], max_width)
-                height += size[1]
+                height += size[1] + line_gap
+            height -= line_gap
             max_height = max(height, max_height)
         elif isinstance(text_state, str):
             size = font.size(text_state)
             max_width = max(size[0], max_width)
             max_height = max(size[1], max_height)
     return max_width, max_height
+
+
+DEFAULT_FONT = "Minecraft3"
 
 
 class TextVisual(Visual):
@@ -320,11 +324,13 @@ class TextVisual(Visual):
         colors: StateGroup[pygame.Color] | pygame.Color | tuple[int, int, int],
         on_text: StateGroup[str] | str | None = None,
         on_colors: StateGroup[pygame.Color] | pygame.Color | None = None,
-        font_type: str | None = "Minecraft3",
+        font_type: str | None = DEFAULT_FONT,
         *,
+        align: str = "center",
         screen_center: bool = False,
         is_shadow: bool = False,
         shadow_offset: tuple[int, int] = (2, 2),
+        line_gap: int = 5,
     ):
         """
         文字顯示\n
@@ -340,9 +346,11 @@ class TextVisual(Visual):
         self.colors = as_state_group(colors)
         self.on_colors = as_state_group(on_colors, none_ok=True)
 
+        self.align = align
         self.screen_center = screen_center
         self.is_shadow = is_shadow
         self.shadow_offset = shadow_offset
+        self.line_gap = line_gap
 
     def draw(self, screen: pygame.Surface, rect: pygame.Rect, state: str, alpha, toggle=False):
         # 決定顏色
@@ -364,6 +372,10 @@ class TextVisual(Visual):
         # 多行文字渲染
         text_list = current_text if isinstance(current_text, list) else [current_text]
 
+        render_textes = []
+        relative_rects: list[pygame.Rect] = []
+        temp_y = 0
+
         for text in text_list:
             cache_key = (
                 (text, current_color, alpha, "shadow") if self.is_shadow else (text, current_color, alpha)
@@ -376,10 +388,31 @@ class TextVisual(Visual):
                 text_cache[cache_key] = render_text
                 if len(text_cache) > 300:
                     text_cache.clear()
-            text_rect = render_text.get_rect(center=rect.center)
+            render_textes.append(render_text)
+
+            rel_rect = render_text.get_rect()
+            rel_rect.top = temp_y
+            relative_rects.append(rel_rect)
+
+            temp_y += self.line_gap + rel_rect.height
+
+        total_height = relative_rects[-1].bottom
+        for render_text, rel_rect in zip(render_textes, relative_rects, strict=False):
+            draw_rect = rel_rect.copy()
+
+            offset = rel_rect.top + draw_rect.height / 2 - total_height / 2
+            draw_rect.centery = rect.centery + offset
+            if self.align == "left":
+                draw_rect.left = rect.left
+            elif self.align == "right":
+                draw_rect.right = rect.right
+            else:
+                draw_rect.centerx = rect.centerx
+
             if self.is_shadow:
-                text_rect.move_ip(*self.shadow_offset)
+                draw_rect.move_ip(*self.shadow_offset)
 
             if self.screen_center:
-                text_rect.centerx = config.current_width // 2
-            screen.blit(render_text, text_rect)
+                draw_rect.centerx = config.current_width // 2
+
+            screen.blit(render_text, draw_rect)

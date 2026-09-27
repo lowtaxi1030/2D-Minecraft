@@ -20,6 +20,15 @@ class DeathMenu:
         # self.btn_w, self.btn_h = 350, 40
         self.center_x = config.current_width // 2
 
+        self.title = ui.Text(
+            name="title",
+            text="You Died",
+            pos=(0, 100),
+            colors=tool.Colors.RED,
+            size=60,
+            screen_center=True,
+        )
+
         self.respawn_btn = ui.ImageTextButton(
             name="respawn",
             image=self.assets.setting_button_img,
@@ -36,7 +45,7 @@ class DeathMenu:
             text_colors=ui.StateGroup(tool.Colors.WHITE, tool.Colors.MC_YELLOW),
         )
 
-        self.all_uis = [self.respawn_btn]  # , self.menu_btn
+        self.all_uis = [self.title, self.respawn_btn]  # , self.menu_btn
 
     def update(self, events, mouse_pos, mouse_buttons, player: Player):
         for ob in self.all_uis:
@@ -60,7 +69,6 @@ class DeathMenu:
 
     def draw(self, screen):
         tool.screen_vague(screen, 10, tool.Colors.DARK_RED, alpha=50)  # 模糊背景
-        ui.show_text(screen, "You Died", tool.Colors.RED, 0, 100, 60, screen_center=True)
 
         for ob in self.all_uis:
             ob.draw(screen)

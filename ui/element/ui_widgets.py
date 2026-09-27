@@ -30,44 +30,36 @@ class TextOwnerMixin:
             self.shadow_visual.text.set_normal(value)
 
 
-def _init_text_visual(
-    ui_ob: Text | TextButton | ImageTextButton,
-    text,
-    size,
-    colors,
-    on_text,
-    on_colors,
-    font_type,
-    screen_center,
-    shadow,
-    shadow_offset,
-):
-
+def _init_text_visual(ui_ob: Text | TextButton | ImageTextButton, *, shadow, shadow_offset, **text_visual_kwargs):
     ui_ob.shadow_visual = None
+
     if shadow:
-        ui_ob.shadow_visual = TextVisual(
-            text=text,
-            size=size,
-            colors=tool.Colors.BLACK,
-            on_text=on_text,
-            on_colors=tool.Colors.BLACK,
-            font_type=font_type,
-            screen_center=screen_center,
-            is_shadow=True,
-            shadow_offset=shadow_offset,
-        )
+        shadow_kwargs = text_visual_kwargs.copy()
+
+        shadow_kwargs["colors"] = tool.Colors.BLACK
+        shadow_kwargs["on_colors"] = tool.Colors.BLACK
+        shadow_kwargs["is_shadow"] = True
+        shadow_kwargs["shadow_offset"] = shadow_offset
+
+        ui_ob.shadow_visual = TextVisual(**shadow_kwargs)
         ui_ob.visuals.append(ui_ob.shadow_visual)
 
-    ui_ob.text_visual = TextVisual(
-        text=text,
-        size=size,
-        colors=colors,
-        on_text=on_text,
-        on_colors=on_colors,
-        font_type=font_type,
-        screen_center=screen_center,
-    )
+    ui_ob.text_visual = TextVisual(**text_visual_kwargs)
     ui_ob.visuals.append(ui_ob.text_visual)
+
+
+def _resize_rect(font, text, on_text, anchor_pos, anchor_mode, line_gap):
+    sizes = [ui_core.get_biggest_text_size(font, t, line_gap) for t in [text, on_text] if t is not None]
+    max_width = max((width for width, _ in sizes), default=0)
+    max_height = max((height for _, height in sizes), default=0)
+
+    rect = pygame.Rect(0, 0, max_width, max_height)
+    if anchor_mode == "topleft":
+        rect.topleft = anchor_pos
+    else:
+        rect.center = anchor_pos
+
+    return rect
 
 
 class Text(BaseUI, TextOwnerMixin):
@@ -80,25 +72,37 @@ class Text(BaseUI, TextOwnerMixin):
         size: int = 24,
         on_text: StateGroup[str] | None = None,
         on_colors: StateGroup[pygame.Color] | None = None,
-        font_type: str | None = "Minecraft",
+        font_type: str | None = ui_core.DEFAULT_FONT,
         screen_center: bool = False,
         *,
+        line_gap: int = 5,
+        anchor: str = "center",
+        align: str = "center",
         shadow: bool = True,
         shadow_offset: tuple[int, int] = (2, 2),
         interaction_mode: InteractionMode | None = InteractionMode.CLICK,
     ):
-        font = ui_core.get_font(font_type, size)
 
-        sizes = [ui_core.get_biggest_text_size(font, t) for t in [text, on_text] if t is not None]
+        self._font = ui_core.get_font(font_type, size)
 
-        max_width = max((width for width, _ in sizes), default=0)
-        max_height = max((height for _, height in sizes), default=0)
+        self._anchor_pos = pos
+        self._anchor_mode = anchor
 
-        rect = pygame.Rect(0, 0, max_width, max_height)
-        rect.center = pos
+        self._line_gap = line_gap
 
         interactive = Interactive(interaction_mode) if interaction_mode is not None else None
-        super().__init__(name, rect, interactive)
+        super().__init__(
+            name,
+            _resize_rect(
+                font=self._font,
+                text=text,
+                on_text=on_text,
+                anchor_pos=self._anchor_pos,
+                anchor_mode=self._anchor_mode,
+                line_gap=self._line_gap,
+            ),
+            interactive,
+        )
 
         _init_text_visual(
             ui_ob=self,
@@ -107,10 +111,23 @@ class Text(BaseUI, TextOwnerMixin):
             colors=colors,
             on_text=on_text,
             on_colors=on_colors,
+            align=align,
+            line_gap=line_gap,
             screen_center=screen_center,
             shadow=shadow,
             shadow_offset=shadow_offset,
             font_type=font_type,
+        )
+
+    @property
+    def text(self):
+        return self.text_visual.text
+
+    @text.setter
+    def text(self, value):
+        TextOwnerMixin.text.fset(self, value)
+        self.rect = _resize_rect(
+            self._font, self.text_visual.text, self.text_visual.on_text, self._anchor_pos, self._anchor_mode, self._line_gap
         )
 
 
@@ -147,9 +164,10 @@ class TextButton(Button, TextOwnerMixin):
         on_text: StateGroup[str] | None = None,
         text_on_colors: StateGroup[pygame.Color] | None = None,
         rect_on_colors: StateGroup[pygame.Color] | None = None,
-        font_type: str | None = "Minecraft",
+        font_type: str | None = ui_core.DEFAULT_FONT,
         screen_center: bool = False,
         *,
+        text_align: str = "center",
         shadow: bool = True,
         shadow_offset: tuple[int, int] = (2, 2),
         interaction_mode: InteractionMode | None = InteractionMode.CLICK,
@@ -169,6 +187,7 @@ class TextButton(Button, TextOwnerMixin):
             colors=text_colors,
             on_text=on_text,
             on_colors=text_on_colors,
+            align=text_align,
             screen_center=screen_center,
             shadow=shadow,
             shadow_offset=shadow_offset,
@@ -205,14 +224,18 @@ class ImageTextButton(ImageButton, TextOwnerMixin):
         size: int = 24,
         on_text: StateGroup[str] | None = None,
         text_on_colors: StateGroup[pygame.Color] | None = None,
-        font_type: str | None = "Minecraft",
+        font_type: str | None = ui_core.DEFAULT_FONT,
         screen_center: bool = False,
         *,
+        text_align: str = "center",
         shadow: bool = True,
         shadow_offset: tuple[int, int] = (2, 2),
         interaction_mode: InteractionMode | None = InteractionMode.CLICK,
+        show: bool = True,
     ):
         super().__init__(name=name, image=image, pos=pos, interaction_mode=interaction_mode)
+
+        self.show = show
 
         _init_text_visual(
             ui_ob=self,
@@ -221,11 +244,16 @@ class ImageTextButton(ImageButton, TextOwnerMixin):
             colors=text_colors,
             on_text=on_text,
             on_colors=text_on_colors,
+            align=text_align,
             screen_center=screen_center,
             shadow=shadow,
             shadow_offset=shadow_offset,
             font_type=font_type,
         )
+
+    def draw(self, screen):
+        if self.show:
+            super().draw(screen)
 
 
 item_uis: dict[str, ImageTextButton] = {}
