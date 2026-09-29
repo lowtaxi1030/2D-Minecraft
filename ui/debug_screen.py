@@ -103,7 +103,7 @@ class DebugScreen:
                 f"Screen Mouse Pos: {mouse_pos}",
                 f"Player Screen Pos: ({player.rect.centerx - camera.scroll_x:.0f}, {player.rect.centery - camera.scroll_y:.0f})",
                 f"Loaded Chunks : {len(chunk_manager.chunks)}",
-                f"Entities : {len(world.item_entities)}",
+                f"Entities : {len(world.entity_manager.entities)}",
                 f"Dirty Chunks : {sum(chunk.is_dirty for chunk in chunk_manager.chunks.values())}",
             ]
 

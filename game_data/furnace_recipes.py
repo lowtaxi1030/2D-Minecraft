@@ -39,6 +39,12 @@ RAW_FURNACE_RECIPES = [
         "result_count": 1,
         "cook_time": 600,
     },
+    {
+        "input": "sand",
+        "result_type": "glass",
+        "result_count": 1,
+        "cook_time": 600,
+    },
 ]
 
 def expand_furnace_recipe(recipe: dict) -> list[dict]:

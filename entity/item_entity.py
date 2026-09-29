@@ -135,6 +135,8 @@ class ItemEntity(Entity):
         if self.pickup_delay > 0:
             self.pickup_delay -= 1
 
+        self.is_attracting = self._should_attract(player)
+
         if self.is_attracting:
             self._apply_attraction(player)
         else:
@@ -147,6 +149,16 @@ class ItemEntity(Entity):
 
         self.rect.y += self.vel_y
         self._collide_y(chunk_manager)
+
+    def _should_attract(self, player: Player) -> bool:
+        if self.pickup_delay > 0:
+            return False
+
+        player_vec = pygame.math.Vector2((player.rect.centerx, player.rect.bottom))
+
+        self_vec = pygame.math.Vector2(self.rect.center)
+
+        return player.can_pickup_item(self.item_type) and player_vec.distance_to(self_vec) < config.BLOCK_SIZE * 2
 
     def _get_collision_range(self):
         center_grid_x = self.rect.centerx // config.BLOCK_SIZE
@@ -291,15 +303,8 @@ class ItemEntity(Entity):
 
     """外部用函式"""
 
-    def try_attract(self, player: Player):
-        if self.pickup_delay > 0:
-            self.is_attracting = False
-            return
-
-        player_vec = pygame.math.Vector2((player.rect.centerx, player.rect.bottom))
-        self_vec = pygame.math.Vector2(self.rect.center)
-
-        self.is_attracting = player.can_pickup_item(self.item_type) and player_vec.distance_to(self_vec) < config.BLOCK_SIZE * 2
+    def pick_up(self):
+        self.remove = True
 
     """判斷函式"""
 

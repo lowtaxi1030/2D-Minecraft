@@ -78,7 +78,8 @@ class UI:
         self.hotbar.update(player)
         self.health_bar.update(player)
         self.hunger_bar.update()  # player
-        self.debug_screen.update(player, fps, mouse_pos, game_camera, world_manager, chunk_manager)
+        if config.show_debug_screen:
+            self.debug_screen.update(player, fps, mouse_pos, game_camera, world_manager, chunk_manager)
 
         if player.inv_type is not None:
             self.interfaces[player.inv_type].update(player)

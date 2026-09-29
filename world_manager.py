@@ -17,6 +17,7 @@ import pygame
 import config
 import entity.item_entity as item_entity
 from camera import Camera
+from entity.entity_manager import EntityManager
 from game_data.block_drops import BLOCK_DROPS
 from item.__init__ import NON_PLACEABLE_KEYWORDS, NON_PLACEABLE_TAGS
 from special_blocks import SPECIAL_BLOCKS
@@ -42,8 +43,7 @@ class World:
     def __init__(self, assets: AssetManager, chunk_manager: ChunkManager):
         self.assets = assets
         self.chunk_manager = chunk_manager
-
-        self.item_entities: list[item_entity.ItemEntity] = []
+        self.entity_manager = EntityManager()
 
         self.last_pos = (0, 0)
         self.last_mouse_btn = -1
@@ -176,7 +176,7 @@ class World:
             # print(drop_item_type)
 
             if player.will_drop_item_entity() and drop_item_type is not None and drop_count > 0:
-                self.item_entities.append(
+                self.entity_manager.add(
                     item_entity.ItemEntity(
                         {"type": drop_item_type, "count": drop_count},
                         clicked.x * config.BLOCK_SIZE,
@@ -283,26 +283,26 @@ class World:
             config.BLOCK_SIZE,
         )
 
-        for item in self.item_entities:
-            if item.rect.colliderect(new_block_rect):
-                item.resolve_stuck(new_block_rect, player, self.chunk_manager)
+        for entity in self.entity_manager.entities:
+            if entity.rect.colliderect(new_block_rect):
+                entity.resolve_stuck(new_block_rect, player, self.chunk_manager)
 
     def _handle_item_entities(self, player: Player):
-        picked_items = []
+        self.entity_manager.update(player, self.chunk_manager)
 
-        for item in self.item_entities:
-            item.update(player, self.chunk_manager)
+        self._handle_item_pickup(player)
 
-            item.try_attract(player)
+    def _handle_item_pickup(self, player: Player):
+        for entity in self.entity_manager.entities:
 
-            # 處理碰到玩家
-            if player.rect.colliderect(item.rect) and player.can_pickup_item(item.item_type) and item.pickup_delay == 0:
-                remaining = player.give_item(item.item_type, item.count)
+            if not isinstance(entity, item_entity.ItemEntity):
+                continue
+
+            if player.rect.colliderect(entity.rect) and player.can_pickup_item(entity.item_type) and entity.pickup_delay == 0:
+                remaining = player.give_item(entity.item_type, entity.count)
+
                 if remaining == 0:
-                    picked_items.append(item)
-
-        for item in picked_items:
-            self.item_entities.remove(item)
+                    entity.destroy()
 
     @staticmethod
     def get_drop_item(block_name: str, tool_item: config.Item | None) -> tuple[str | None, int]:
@@ -355,22 +355,22 @@ class World:
     def spawn_item_entity(self, item, x, y, spawn_reason, player):
         new_entity = item_entity.ItemEntity(item, x, y, spawn_reason, player, self.assets.block(item["type"]))
 
-        self.item_entities.append(new_entity)
+        self.entity_manager.add(new_entity)
 
     def draw(self, screen, scroll_x, scroll_y, camera_zoom):
         # 設定一個安全的緩衝距離，確保漂浮動畫或邊緣圖片不會被切掉
         buffer = config.BLOCK_SIZE
 
-        for item in self.item_entities:
+        for entity in self.entity_manager.entities:
             if (
-                item.rect.right < scroll_x - buffer
-                or item.rect.left > scroll_x + config.current_width / camera_zoom + buffer
-                or item.rect.top < scroll_y - buffer
-                or item.rect.bottom > scroll_y + config.current_height / camera_zoom + buffer
+                entity.rect.right < scroll_x - buffer
+                or entity.rect.left > scroll_x + config.current_width / camera_zoom + buffer
+                or entity.rect.top < scroll_y - buffer
+                or entity.rect.bottom > scroll_y + config.current_height / camera_zoom + buffer
             ):
                 continue
 
-            item.draw(screen, scroll_x, scroll_y)
+            entity.draw(screen, scroll_x, scroll_y)
 
     def get_block_display_name(self, x, y, block_name):
         if block_name == "furnace":
