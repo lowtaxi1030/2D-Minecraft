@@ -5,37 +5,16 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from asset_manager import AssetManager
     from craft_manager import CraftingManager
-    from player import Player
+    from entity.player import Player
     from world_manager import World
 
 import pygame
 
 import config
-import tool
+import ui.element.ui_widgets as ui
 from states import FurnaceState
-from ui.element import ui_widgets as ui
 
 from .base_inventory import BaseInventory
-
-
-def draw_item(screen: pygame.Surface, assets: AssetManager, item, center_x, center_y):
-    block_img = assets.block(item["type"])
-    block_img = pygame.transform.scale(block_img, (48, 48))
-    block_rect = block_img.get_rect()
-    block_rect.center = (center_x, center_y)
-    screen.blit(block_img, block_rect)
-    show_center_x = center_x - 5
-    if item["count"] < 10:
-        show_center_x = center_x + 11
-    ui.show_text(
-        screen,
-        str(item["count"]),
-        tool.Colors.WHITE,
-        show_center_x,
-        center_y + 5,
-        25,
-        show=item["count"] > 1,
-    )
 
 
 class FurnaceUI(BaseInventory):
@@ -224,28 +203,28 @@ class FurnaceUI(BaseInventory):
 
         mouse_x, mouse_y = pygame.mouse.get_pos()
 
-        draw_item(screen, self.assets, self.held_item, mouse_x, mouse_y)
+        ui.draw_item(screen, self.assets, self.held_item, mouse_x, mouse_y)
 
     def _draw_input_item(self, screen: pygame.Surface):
         if self.input_item is None:
-            # draw_item(screen, self.assets, {"type": "oak_log", "count": 5}, self.input_pos[0], self.input_pos[1])
+            # ui.draw_item(screen, self.assets, {"type": "oak_log", "count": 5}, self.input_pos[0], self.input_pos[1])
             return
 
-        draw_item(screen, self.assets, self.input_item, self.input_pos[0], self.input_pos[1])
+        ui.draw_item(screen, self.assets, self.input_item, self.input_pos[0], self.input_pos[1])
 
     def _draw_fuel_item(self, screen: pygame.Surface):
         if self.fuel_item is None:
-            # draw_item(screen, self.assets, {"type": "oak_planks", "count": 5}, self.fuel_pos[0], self.fuel_pos[1])
+            # ui.draw_item(screen, self.assets, {"type": "oak_planks", "count": 5}, self.fuel_pos[0], self.fuel_pos[1])
             return
 
-        draw_item(screen, self.assets, self.fuel_item, self.fuel_pos[0], self.fuel_pos[1])
+        ui.draw_item(screen, self.assets, self.fuel_item, self.fuel_pos[0], self.fuel_pos[1])
 
     def _draw_output_item(self, screen: pygame.Surface):
         if self.output_item is None:
-            # draw_item(screen, self.assets, {"type": "oak_planks", "count": 5}, self.output_pos[0], self.output_pos[1])
+            # ui.draw_item(screen, self.assets, {"type": "oak_planks", "count": 5}, self.output_pos[0], self.output_pos[1])
             return
 
-        draw_item(screen, self.assets, self.output_item, self.output_pos[0], self.output_pos[1])
+        ui.draw_item(screen, self.assets, self.output_item, self.output_pos[0], self.output_pos[1])
 
     def _draw_fire_progress(self, screen: pygame.Surface):
         if self.furnace_state.burn_time_left <= 0 or self.furnace_state.burn_time <= 0:

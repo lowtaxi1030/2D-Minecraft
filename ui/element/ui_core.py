@@ -377,6 +377,8 @@ class TextVisual(Visual):
         temp_y = 0
 
         for text in text_list:
+            if not isinstance(text, str):
+                raise TypeError(f"text_list must be list of textes, not {type(text)}")
             cache_key = (
                 (text, current_color, alpha, "shadow") if self.is_shadow else (text, current_color, alpha)
             )  # 加上標籤避免跟主要文字快取衝突

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from asset_manager import AssetManager
-    from player import Player
+    from entity.player import Player
 
 import pygame
 
@@ -81,13 +81,16 @@ class GameMenu(BaseMenu):
         self.back_btn.rect.center = (self.center_x, config.current_height - 60)
 
     def _update_mode(self):
-        self.mode_switch.text = (f"mode: {self.modes[self.mode_index]}",)
+        self.mode_switch.text = f"mode: {self.modes[self.mode_index]}"
         self.mode = self.modes[self.mode_index]
 
     def _handle_event(self, events, mouse_pos, player: Player, **kwargs):
         if self.mode_switch.is_clicked:
             self.mode_index += 1
             self.mode_index %= len(self.modes)
+
+        if self.hitbox_switch.is_clicked:
+            player.hit_box_open = self.hitbox_switch.interactive.toggle
 
         for event in events:
             if event.type == pygame.KEYDOWN:

@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from camera import Camera
     from chunk_manager import ChunkManager
     from craft_manager import CraftingManager
-    from player import Player
+    from entity.player import Player
     from world_manager import World
 
 import config
@@ -31,11 +31,11 @@ class UIInterface(Protocol):
 
 
 class UI:
-    def __init__(self, assets: AssetManager):
+    def __init__(self, assets: AssetManager, player: Player):
         self.menu_manager = menu_manager.MenuManager(assets)
 
         self.hotbar = hotbar.Hotbar(assets)
-        self.health_bar = HealthBar(assets)
+        self.health_bar = HealthBar(assets, player)
         self.hunger_bar = HungerBar(assets)
         self.debug_screen = debug_screen.DebugScreen(assets)
 

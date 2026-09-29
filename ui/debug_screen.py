@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from asset_manager import AssetManager
     from camera import Camera
     from chunk_manager import ChunkManager
-    from player import Player
+    from entity.player import Player
     from world_manager import World
 
 import pygame
@@ -36,11 +36,11 @@ class DebugScreen:
         self.right_text = ui.Text(
             name="right_text",
             text="",
-            pos=(config.current_width - 50, 10),
+            pos=(config.current_width - 10, 10),
             colors=tool.Colors.WHITE,
             size=18,
-            anchor="topleft",
-            align="right",
+            anchor="topright",
+            align="left",
         )
 
     def update(self, player: Player, fps, mouse_pos: tuple[int, int], camera: Camera, world: World, chunk_manager: ChunkManager):
@@ -53,23 +53,23 @@ class DebugScreen:
 
             show_mouse_y = 63 + (config.BASE_LINE - world_mouse_y)
 
-            player_block_x = player.hitbox.centerx // config.BLOCK_SIZE
-            player_block_y = player.hitbox.centery // config.BLOCK_SIZE
+            player_block_x = player.rect.centerx // config.BLOCK_SIZE
+            player_block_y = player.rect.centery // config.BLOCK_SIZE
 
             show_player_y = 63 + (config.BASE_LINE - player_block_y)
 
-            current_chunk = player.hitbox.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
+            current_chunk = player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
             local_x = player_block_x % config.CHUNK_WIDTH
 
             standing_block = (
                 "None"
                 if player.is_flying
                 else chunk_manager.get_block(
-                    player.hitbox.centerx,
+                    player.rect.centerx,
                     tool.clamp(
                         0,
                         config.MAP_HEIGHT * config.BLOCK_SIZE - 1,
-                        player.hitbox.bottom,
+                        player.rect.bottom,
                     ),
                 ).replace("_", " ")
             )
@@ -101,7 +101,7 @@ class DebugScreen:
                 "=== Performance ===",
                 f"FPS : {fps:.0f}",
                 f"Screen Mouse Pos: {mouse_pos}",
-                f"Player Screen Pos: ({player.hitbox.centerx - camera.scroll_x:.0f}, {player.hitbox.centery - camera.scroll_y:.0f})",
+                f"Player Screen Pos: ({player.rect.centerx - camera.scroll_x:.0f}, {player.rect.centery - camera.scroll_y:.0f})",
                 f"Loaded Chunks : {len(chunk_manager.chunks)}",
                 f"Entities : {len(world.item_entities)}",
                 f"Dirty Chunks : {sum(chunk.is_dirty for chunk in chunk_manager.chunks.values())}",
@@ -113,14 +113,16 @@ class DebugScreen:
                 f"Seed : {config.WORLD_SEED}",
                 f"Chunk : {current_chunk}",
                 f"Local X : {local_x}",
-                f"Biome : {chunk_manager.get_biome(player.hitbox.centerx // config.BLOCK_SIZE)}",
+                f"Biome : {chunk_manager.get_biome(player.rect.centerx // config.BLOCK_SIZE)}",
                 "",
                 "=== Camera ===",
                 f"Scroll : ({camera.scroll_x:.1f}, {camera.scroll_y:.1f})",
                 f"Zoom : {camera.zoom:.2f}",
                 "",
             ]
-            self.right_text.rect.right = config.current_width - 50
+
+            self.left_text.rect.topleft = (10, 10)
+            self.right_text.rect.topright = (config.current_width - 10, 10)
 
     def draw(self, screen: pygame.Surface):
         self.left_text.draw(screen)

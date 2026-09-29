@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from chunk_manager import ChunkManager
-    from player import Player
+    from entity.player import Player
     from world_manager import World
 
 import json
@@ -34,8 +34,8 @@ class SaveManager:
                 {
                     "seed": config.WORLD_SEED,
                     "player": {
-                        "x": player.hitbox.x,
-                        "y": player.hitbox.y,
+                        "x": player.rect.x,
+                        "y": player.rect.y,
                         "hotbar": player.hotbar,
                         "inventory": player.inventory,
                     },
@@ -77,8 +77,8 @@ class SaveManager:
 
         player_data = level_data.get("player")
 
-        player.hitbox.x = player_data.get("x", 0)
-        player.hitbox.y = player_data.get("y", 20 * config.BLOCK_SIZE)
+        player.rect.x = player_data.get("x", 0)
+        player.rect.y = player_data.get("y", 20 * config.BLOCK_SIZE)
         player.hotbar = player_data.get("hotbar", [None] * 9)
         player.inventory = player_data.get("inventory", [None] * 27)
 

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from asset_manager import AssetManager
-    from player import Player
+    from entity.player import Player
 
 import pygame
 
@@ -30,9 +30,10 @@ class Hotbar:
         self.item_text = ui.Text(
             name="item_text",
             text="",
-            pos=(self.assets.select_frame_rect.centerx, self.assets.select_frame_rect.centery - 80),
+            pos=(self.assets.hotbar_bg_rect.centerx, self.assets.hotbar_bg_rect.centery - 80),
             colors=tool.Colors.WHITE,
             size=25,
+            align="center",
         )
 
     def handle_events(self, event, player: Player, mouse_pos):
@@ -43,11 +44,12 @@ class Hotbar:
     def update(self, player: Player):
         self.assets.update_img_pos(self.assets.hotbar_bg_rect, screen_center=True, is_bottom=True)
 
+        self.item_text.pos = (self.assets.hotbar_bg_rect.centerx, self.assets.hotbar_bg_rect.centery - 100)
         self.assets.select_frame_rect.left = self.assets.hotbar_bg_rect.left - 1 + (player.selected_hotbar_index * self.SLOT_SPACING)
         self.assets.select_frame_rect.top = self.assets.hotbar_bg_rect.top - 3
 
     def draw(self, screen: pygame.Surface, player: Player):
-        if self.show_hotbar:
+        if self.show_hotbar and player.inv_type is None:
             # 畫圖片
             screen.blit(self.assets.hotbar_bg, self.assets.hotbar_bg_rect)
             screen.blit(self.assets.select_frame, self.assets.select_frame_rect)

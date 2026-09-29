@@ -14,23 +14,37 @@ import pygame
 import config
 import tool
 
+from .living_entity import LivingEntity
 
-class Player:
-    def __init__(self, x, y, chunk_manager: ChunkManager):
+
+class Player(LivingEntity):
+    def __init__(self, spawn_x: int, spawn_y: int, chunk_manager: ChunkManager):
+
         self.chunk_manager = chunk_manager
 
-        self.spawn_x = x * config.BLOCK_SIZE
-        self.spawn_y = y * config.BLOCK_SIZE
+        self.spawn_x = spawn_x * config.BLOCK_SIZE
+        self.spawn_y = spawn_y * config.BLOCK_SIZE
 
         # 1. 初始化玩家的形狀與位置 (先用 Rect 方塊代替)
-        self.hitbox_width, self.hitbox_height = config.BLOCK_SIZE * 0.6, config.BLOCK_SIZE * 1.8  # 0.6, 1.8
+        self.width, self.height = config.BLOCK_SIZE * 0.6, config.BLOCK_SIZE * 1.8
+        self.rect = pygame.Rect(
+            self.spawn_x * config.BLOCK_SIZE,
+            self.spawn_y * config.BLOCK_SIZE,
+            self.width,
+            self.height,
+        )
+
         self.display_width, self.display_height = config.BLOCK_SIZE * 0.875, config.BLOCK_SIZE * 1.75
-        self.hitbox = pygame.Rect(x * config.BLOCK_SIZE, y * config.BLOCK_SIZE, self.hitbox_width, self.hitbox_height)
-        self.display_rect = pygame.Rect(self.hitbox.x, self.hitbox.y, self.display_width, self.display_height)  # 用於顯示的矩形
+        self.display_rect = pygame.Rect(
+            self.rect.x,
+            self.rect.y,
+            self.display_width,
+            self.display_height,
+        )  # 用於顯示的矩形
+
+        super().__init__(self.rect)
 
         # 2. 物理相關變數
-        self.vel_x = 0
-        self.vel_y = 0
         self.jump_strength = -10  # 1.2522 blocks per second
         self.is_grounded = False
         self.all_modes = ["survival", "creative", "spectator"]  # , "adventure" 之後再用
@@ -39,7 +53,6 @@ class Player:
         self.current_speed = 4.317  # blocks per second
         self.jump_buffer = 0
 
-        self.gravity = 40
         self.walk_speed = 4.317  # blocks per second
         self.cheat_speed = 30  # blocks per second
         self.run_speed = 5.612  # blocks per second  10 or 5.612
@@ -63,7 +76,6 @@ class Player:
         self.is_running = False
         self.auto_jump = True
         self.is_flying = False
-        self.is_die = False
 
         self.desired_swimming = False
         self.is_swimming = False
@@ -89,8 +101,6 @@ class Player:
 
         self.facing = 1  # 向右
         self.move_direction = 0
-        self.hp = 20
-        self.max_hp = 20
 
         # 掉落傷害
         self.fall_distance = 0  # 玩家從空中掉落的距離，單位是像素
@@ -176,7 +186,7 @@ class Player:
 
     def _handle_run_and_swim(self, is_double: bool, fluid_manager: FluidManager):
         water_surface_y = self._get_water_surface_y(fluid_manager)
-        if self.is_submerged and water_surface_y is not None and self.hitbox.top > water_surface_y:
+        if self.is_submerged and water_surface_y is not None and self.rect.top > water_surface_y:
             self.wants_to_swim = is_double
             self.is_running = False
         else:
@@ -247,10 +257,10 @@ class Player:
             return
 
         if self.auto_jump and self.is_grounded and not self.is_flying:
-            height_difference = self.hitbox.bottom - block_rect.top
+            height_difference = self.rect.bottom - block_rect.top
 
-            head_grid_x = int(self.hitbox.centerx // config.BLOCK_SIZE)  #       ----之後這段可以做成----
-            head_grid_y = int((self.hitbox.top - config.BLOCK_SIZE) // config.BLOCK_SIZE)
+            head_grid_x = int(self.rect.centerx // config.BLOCK_SIZE)  #       ----之後這段可以做成----
+            head_grid_y = int((self.rect.top - config.BLOCK_SIZE) // config.BLOCK_SIZE)
 
             head_grid_y = tool.clamp(0, config.MAP_HEIGHT - 1, head_grid_y)  # _get_head_grid()
             head_grid_x = head_grid_x  #                                       ------------------------
@@ -270,7 +280,7 @@ class Player:
         """
         # 計算玩家中心點的格子座標
         center_grid_x = x_pos // config.BLOCK_SIZE
-        bottom_grid_y = tool.clamp(0, config.MAP_HEIGHT - 1, (self.hitbox.bottom - 1) // config.BLOCK_SIZE)
+        bottom_grid_y = tool.clamp(0, config.MAP_HEIGHT - 1, (self.rect.bottom - 1) // config.BLOCK_SIZE)
 
         # 取得玩家中心點所在的方塊名稱
         block_name = self.chunk_manager.get_block(center_grid_x * config.BLOCK_SIZE, bottom_grid_y * config.BLOCK_SIZE)
@@ -280,8 +290,8 @@ class Player:
 
     def _get_water_surface_y(self, fluid_manager: FluidManager):
         # 玩家目前的格子座標
-        grid_x = self.hitbox.centerx // config.BLOCK_SIZE
-        grid_y = self.hitbox.centery // config.BLOCK_SIZE
+        grid_x = self.rect.centerx // config.BLOCK_SIZE
+        grid_y = self.rect.centery // config.BLOCK_SIZE
 
         # 從玩家位置往上找，直到不是水為止
         while grid_y > 0:
@@ -296,31 +306,29 @@ class Player:
     # 更新邏輯
     def update(self, mouse_pos: tuple[int, int], dt: int, game_camera: Camera, fluid_manager: FluidManager):
 
-        self.is_submerged = any(
-            self._is_submerged(x, fluid_manager) for x in [self.hitbox.left, self.hitbox.centerx, self.hitbox.right - 1]
-        )
+        self.is_submerged = any(self._is_submerged(x, fluid_manager) for x in [self.rect.left, self.rect.centerx, self.rect.right - 1])
 
         # keys = pygame.key.get_pressed()
         # still_moving = keys[pygame.K_a] or keys[pygame.K_d] or keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
 
         self.desired_swimming = self._get_desired_swimming_state(fluid_manager)
 
-        old_bottom = self.hitbox.bottom
-        test_rect = self.hitbox.copy()
+        old_bottom = self.rect.bottom
+        test_rect = self.rect.copy()
         test_rect.size = (new_size := self._get_pose_size())
         test_rect.bottom = old_bottom
         if self._can_change_pose(test_rect):
-            self.hitbox = self._change_pose(new_size, old_bottom)
+            self.rect = self._change_pose(new_size, old_bottom)
         # else:
         #     self.desired_swimming = True
 
         """處理重力、移動位置、以及與地圖方塊的碰撞偵測"""
         self.current_speed = self.run_speed if self.is_running else self.walk_speed  # self.cheat_speed
 
-        left_x = int(self.hitbox.left // config.BLOCK_SIZE)
-        right_x = int((self.hitbox.right - 1) // config.BLOCK_SIZE)
-        top_y = tool.clamp(0, config.MAP_HEIGHT - 1, int(self.hitbox.top // config.BLOCK_SIZE))
-        bottom_y = tool.clamp(0, config.MAP_HEIGHT - 1, int((self.hitbox.bottom - 1) // config.BLOCK_SIZE))
+        left_x = int(self.rect.left // config.BLOCK_SIZE)
+        right_x = int((self.rect.right - 1) // config.BLOCK_SIZE)
+        top_y = tool.clamp(0, config.MAP_HEIGHT - 1, int(self.rect.top // config.BLOCK_SIZE))
+        bottom_y = tool.clamp(0, config.MAP_HEIGHT - 1, int((self.rect.bottom - 1) // config.BLOCK_SIZE))
 
         self.is_stuck = (
             not tool.is_passable(self.chunk_manager.get_block(left_x * config.BLOCK_SIZE, top_y * config.BLOCK_SIZE))
@@ -329,15 +337,15 @@ class Player:
             or not tool.is_passable(self.chunk_manager.get_block(right_x * config.BLOCK_SIZE, bottom_y * config.BLOCK_SIZE))
         ) and self.mode != "spectator"
 
-        head_stuck = not tool.is_passable(self.chunk_manager.get_block(self.hitbox.centerx, top_y))
-        feet_stuck = not tool.is_passable(self.chunk_manager.get_block(self.hitbox.centerx, bottom_y))
+        head_stuck = not tool.is_passable(self.chunk_manager.get_block(self.rect.centerx, top_y))
+        feet_stuck = not tool.is_passable(self.chunk_manager.get_block(self.rect.centerx, bottom_y))
 
         self.is_fully_stuck = head_stuck and feet_stuck
 
         if self.is_submerged and not self.is_flying:
             self._apply_swim_horizontal_physics(dt)
 
-        self.hitbox.x += self.vel_x * config.BLOCK_SIZE * dt
+        self.rect.x += self.vel_x * config.BLOCK_SIZE * dt
 
         if not self.is_fully_stuck:
             self._collide_x(is_swich_mode=self.just_switched_mode)
@@ -353,7 +361,7 @@ class Player:
 
         self._collide_y(dt, fluid_manager, game_camera)
 
-        screen_player_x = (self.hitbox.centerx - game_camera.scroll_x) * game_camera.zoom
+        screen_player_x = (self.rect.centerx - game_camera.scroll_x) * game_camera.zoom
         if mouse_pos[0] < screen_player_x:
             self.facing = -1
         elif mouse_pos[0] > screen_player_x:
@@ -363,9 +371,9 @@ class Player:
 
     def _get_pose_size(self):
         if self.desired_swimming:
-            return (self.hitbox_width, self.hitbox_width)
+            return (self.width, self.width)
         else:
-            return (self.hitbox_width, self.hitbox_height)
+            return (self.width, self.height)
 
     def _get_display_size(self):
         if self.is_swimming:
@@ -399,7 +407,7 @@ class Player:
         return True
 
     def _change_pose(self, size: tuple[int, int], bottom: int):
-        new_rect = pygame.Rect(self.hitbox.x, self.hitbox.y, *size)
+        new_rect = pygame.Rect(self.rect.x, self.rect.y, *size)
         new_rect.bottom = bottom
         self.is_swimming = self.desired_swimming
 
@@ -423,7 +431,7 @@ class Player:
 
     def _can_swim(self, fluid_manager: FluidManager):
         water_surface_y = self._get_water_surface_y(fluid_manager)
-        return self.wants_to_swim and self.is_submerged and water_surface_y is not None and self.hitbox.top > water_surface_y
+        return self.wants_to_swim and self.is_submerged and water_surface_y is not None and self.rect.top > water_surface_y
 
     def _get_desired_swimming_state(self, fluid_manager: FluidManager):
 
@@ -441,7 +449,7 @@ class Player:
 
     def _get_collision_range(self, target_rect: pygame.Rect = None):
         if target_rect is None:
-            target_rect = self.hitbox
+            target_rect = self.rect
 
         center_grid_x = target_rect.centerx // config.BLOCK_SIZE
         center_grid_y = target_rect.centery // config.BLOCK_SIZE
@@ -475,16 +483,18 @@ class Player:
                     self.vel_x = 0
 
                 # 如果 X 移動後撞到了方塊
-                if self.hitbox.colliderect(block_rect) and self.mode != "spectator":
+                if self.rect.colliderect(block_rect) and self.mode != "spectator":
                     # 往右走時撞到（速度大於 0）
                     if self.vel_x > 0:
                         # 把玩家的右側擋在方塊的左側
-                        self.hitbox.right = block_rect.left
+                        self.vel_x = 0
+                        self.rect.right = block_rect.left
                         self._try_auto_jump(block_rect)
                     # 往左走時撞到（速度小於 0）
                     elif self.vel_x < 0:
                         # 把玩家的左側擋在方塊的右側
-                        self.hitbox.left = block_rect.right
+                        self.vel_x = 0
+                        self.rect.left = block_rect.right
                         self._try_auto_jump(block_rect)
 
     def _collide_y(self, dt, fluid_manager: FluidManager, game_camera: Camera):
@@ -496,13 +506,13 @@ class Player:
 
         while rem_y > 0:
             current_step = min(4, rem_y)  # 每次最多試探 4 像素
-            self.hitbox.y += current_step * sign_y
+            self.rect.y += current_step * sign_y
             rem_y -= current_step
             if sign_y > 0:
                 self.fall_distance += current_step
                 if any(
-                    fluid_manager.is_fluid(self.chunk_manager.get_block(x_pos, self.hitbox.bottom - 5))
-                    for x_pos in [self.hitbox.left, self.hitbox.centerx, self.hitbox.right - 1]
+                    fluid_manager.is_fluid(self.chunk_manager.get_block(x_pos, self.rect.bottom - 5))
+                    for x_pos in [self.rect.left, self.rect.centerx, self.rect.right - 1]
                 ):
                     self.fall_distance = 0
             else:
@@ -524,9 +534,10 @@ class Player:
                         config.BLOCK_SIZE,
                     )
 
-                    if self.hitbox.colliderect(block_rect):
+                    if self.rect.colliderect(block_rect):
                         if sign_y > 0:
-                            self.hitbox.bottom = block_rect.top
+                            self.vel_y = 0
+                            self.rect.bottom = block_rect.top
                             self.is_grounded = True
                             fallen_blocks = self.fall_distance / config.BLOCK_SIZE
                             if fallen_blocks >= self.safe_fall_distance and self.fall_damage:
@@ -535,7 +546,8 @@ class Player:
                             self.fall_distance = 0  # 落地後重置掉落距離
 
                         else:
-                            self.hitbox.top = block_rect.bottom
+                            self.vel_y = 0
+                            self.rect.top = block_rect.bottom
 
                         self.vel_y = 0  # 速度煞車歸零
                         # print(f"vel_y after collision: {self.vel_y}")
@@ -550,8 +562,8 @@ class Player:
     def _update_display_rect(self):
         """更新顯示用的矩形位置與大小"""
         self.display_rect.width, self.display_rect.height = self._get_display_size()
-        self.display_rect.centerx = self.hitbox.centerx
-        self.display_rect.bottom = self.hitbox.bottom
+        self.display_rect.centerx = self.rect.centerx
+        self.display_rect.bottom = self.rect.bottom
 
     def draw(self, screen: pygame.Surface, scroll_x, scroll_y):
         """將玩家畫在畫面上 (記得扣除鏡頭捲動位移)"""
@@ -559,7 +571,7 @@ class Player:
         render_x = self.display_rect.x - scroll_x
         render_y = self.display_rect.y - scroll_y
 
-        hit_box_rect = pygame.Rect(self.hitbox.x - scroll_x, self.hitbox.y - scroll_y, self.hitbox.width, self.hitbox.height)
+        hit_box_rect = pygame.Rect(self.rect.x - scroll_x, self.rect.y - scroll_y, self.rect.width, self.rect.height)
 
         if self.mode == "spectator":
             # 1. 建立一個全新的臨時 Surface，大小跟你的 rect 一樣
@@ -591,11 +603,9 @@ class Player:
 
     def take_damage(self, amount: int, game_camera: Camera):
         game_camera.shake(config.BLOCK_SIZE / 8, 150)
-        self.hp = tool.clamp(0, self.max_hp, self.hp - amount)
-        if self.hp <= 0:
-            self._die()
+        super().take_damage(amount)
 
-    def _die(self):
+    def die(self):
         for item in self.hotbar + self.inventory:
             if item is not None:
                 self.pending_drops.append(item)
@@ -603,20 +613,18 @@ class Player:
         self.hotbar = [None] * 9
         self.inventory = [None] * 27
 
-        self.is_die = True
-        self.vel_x = 0
-        self.vel_y = 0
+        super().die()
         self.fall_distance = 0
 
         config.game_state = "DEATH"
 
     def _respawn(self):
 
-        self.is_die = False
+        self.dead = False
 
         self.hp = self.max_hp
-        self.hitbox.x = self.spawn_x
-        self.hitbox.y = self.spawn_y
+        self.rect.x = self.spawn_x
+        self.rect.y = self.spawn_y
 
         self.vel_x = 0
         self.vel_y = 0

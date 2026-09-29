@@ -4,12 +4,13 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from asset_manager import AssetManager
-    from player import Player
+    from entity.player import Player
     from world_manager import World
 
 import pygame
 
 import config
+import tool
 from craft_manager import CraftingManager
 from item_slot_manager import SlotHandler
 
@@ -156,9 +157,7 @@ class BaseInventory(PlayerInventory):
         if area is None:
             if not self.assets.ui_rects[self.interface_name].collidepoint(mouse_pos):
                 if self.held_item is not None:
-                    world_manager.spawn_item_entity(
-                        self.held_item, player.hitbox.centerx, player.hitbox.top, "inv_drop", player
-                    )  # 生成掉落物
+                    world_manager.spawn_item_entity(self.held_item, player.rect.centerx, player.rect.top, "inv_drop", player)  # 生成掉落物
                     self.held_item = None
             return
 
@@ -285,5 +284,6 @@ class BaseInventory(PlayerInventory):
         super().update()
 
     def draw(self, screen: pygame.Surface, player):
+        tool.screen_vague(screen, 0, alpha=80)
         screen.blit(self.assets.ui_images[self.interface_name], self.assets.ui_rects[self.interface_name])
         super().draw(screen, player)

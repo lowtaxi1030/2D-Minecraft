@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from asset_manager import AssetManager
     from chunk_manager import ChunkManager
+    from entity.player import Player
     from environment_systems import EnvironmentSystems
     from fluid_manager import FluidManager
-    from player import Player
     from ui.ui_manager import UI
 
 import random
@@ -15,7 +15,7 @@ import random
 import pygame
 
 import config
-import item_entity
+import entity.item_entity as item_entity
 from camera import Camera
 from game_data.block_drops import BLOCK_DROPS
 from item.__init__ import NON_PLACEABLE_KEYWORDS, NON_PLACEABLE_TAGS
@@ -39,11 +39,11 @@ class BlockClick:
 
 
 class World:
-    def __init__(self, assets: AssetManager, chunk_manager:ChunkManager):
+    def __init__(self, assets: AssetManager, chunk_manager: ChunkManager):
         self.assets = assets
         self.chunk_manager = chunk_manager
 
-        self.item_entities = []
+        self.item_entities: list[item_entity.ItemEntity] = []
 
         self.last_pos = (0, 0)
         self.last_mouse_btn = -1
@@ -248,7 +248,7 @@ class World:
         elif any(keyword in item_type for keyword in NON_PLACEABLE_KEYWORDS):
             return False
 
-        if player.hitbox.colliderect(clicked.rect) or player.mode == "spectator":
+        if player.rect.colliderect(clicked.rect) or player.mode == "spectator":
             return False
 
         if fluid_manager.is_fluid(clicked.block):
@@ -285,18 +285,18 @@ class World:
 
         for item in self.item_entities:
             if item.rect.colliderect(new_block_rect):
-                item.resolve_stuck(new_block_rect, player)
+                item.resolve_stuck(new_block_rect, player, self.chunk_manager)
 
     def _handle_item_entities(self, player: Player):
         picked_items = []
 
         for item in self.item_entities:
-            item.update(player)
+            item.update(player, self.chunk_manager)
 
             item.try_attract(player)
 
             # 處理碰到玩家
-            if player.hitbox.colliderect(item.rect) and player.can_pickup_item(item.item_type) and item.pickup_delay == 0:
+            if player.rect.colliderect(item.rect) and player.can_pickup_item(item.item_type) and item.pickup_delay == 0:
                 remaining = player.give_item(item.item_type, item.count)
                 if remaining == 0:
                     picked_items.append(item)

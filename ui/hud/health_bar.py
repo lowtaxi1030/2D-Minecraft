@@ -6,12 +6,13 @@ if TYPE_CHECKING:
     import pygame
 
     from asset_manager import AssetManager
-    from player import Player
+    from entity.player import Player
 
 
 class HealthBar:
-    def __init__(self, assets: AssetManager):
+    def __init__(self, assets: AssetManager, player: Player):
         self.assets = assets
+        self.player = player
 
         self.hp = 0
         self.max_hp = 0
@@ -32,20 +33,21 @@ class HealthBar:
         self.max_hp = player.max_hp
 
     def draw(self, screen: pygame.Surface):
-        full_img = self.assets.hp_images["full"]
-        half_img = self.assets.hp_images["half"]
-        empty_img = self.assets.hp_images["container"]
+        if self.player.mode == "survival":
+            full_img = self.assets.hp_images["full"]
+            half_img = self.assets.hp_images["half"]
+            empty_img = self.assets.hp_images["container"]
 
-        total_hearts = self.max_hp // 2
-        full_hearts = self.hp // 2
-        has_half = self.hp % 2 == 1
+            total_hearts = self.max_hp // 2
+            full_hearts = self.hp // 2
+            has_half = self.hp % 2 == 1
 
-        heart_width = full_img.get_width()
+            heart_width = full_img.get_width()
 
-        for i in range(total_hearts):
-            x = self.start_x + i * heart_width
-            screen.blit(empty_img, (x, self.start_y))  # 先畫空的容器當底
-            if i < full_hearts:
-                screen.blit(full_img, (x, self.start_y))
-            elif i == full_hearts and has_half:
-                screen.blit(half_img, (x, self.start_y))
+            for i in range(total_hearts):
+                x = self.start_x + i * heart_width
+                screen.blit(empty_img, (x, self.start_y))  # 先畫空的容器當底
+                if i < full_hearts:
+                    screen.blit(full_img, (x, self.start_y))
+                elif i == full_hearts and has_half:
+                    screen.blit(half_img, (x, self.start_y))

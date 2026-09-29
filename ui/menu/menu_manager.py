@@ -6,22 +6,22 @@ if TYPE_CHECKING:
     import pygame
 
     from asset_manager import AssetManager
-    from player import Player
+    from entity.player import Player
 
 
 import config
 import tool
 
-from . import controls_menu, death_menu, game_menu, option_menu, pause_menu, video_menu
+from . import death_menu, game_menu, option_menu, pause_menu, video_menu
 
 
 class MenuManager:
     def __init__(self, assets: AssetManager):
-        self.menus: dict[str] = {
+        self.menus: dict = {
             "PAUSE": pause_menu.PauseMenu(assets),
             "OPTION": option_menu.OptionMenu(assets),
             "VIDEO_OPTION": video_menu.VideoMenu(assets),
-            "CONTROLS_OPTION": controls_menu.ControlsMenu(assets),
+            # "CONTROLS_OPTION": controls_menu.ControlsMenu(assets),
             "GAME_OPTION": game_menu.GameMenu(assets),
             "DEATH": death_menu.DeathMenu(assets),
         }

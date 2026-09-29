@@ -4,36 +4,15 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from asset_manager import AssetManager
-    from player import Player
+    from entity.player import Player
 
 import pygame
 
 import config
-import tool
+import ui.element.ui_widgets as ui
 from states import ChestState
-from ui.element import ui_widgets as ui
 
 from .base_inventory import BaseInventory
-
-
-def draw_item(screen: pygame.Surface, assets: AssetManager, item, center_x, center_y):
-    block_img = assets.block(item["type"])
-    block_img = pygame.transform.scale(block_img, (48, 48))
-    block_rect = block_img.get_rect()
-    block_rect.center = (center_x, center_y)
-    screen.blit(block_img, block_rect)
-    show_center_x = center_x - 5
-    if item["count"] < 10:
-        show_center_x = center_x + 11
-    ui.show_text(
-        screen,
-        str(item["count"]),
-        tool.Colors.WHITE,
-        show_center_x,
-        center_y + 5,
-        25,
-        show=item["count"] > 1,
-    )
 
 
 class ChestUI(BaseInventory):
@@ -95,8 +74,8 @@ class ChestUI(BaseInventory):
             item_center_x = self.chest_pos[0] + col * self.CHEST_SPACING + config.SLOT_SIZE // 2
             item_center_y = self.chest_pos[1] + row * self.CHEST_SPACING + config.SLOT_SIZE // 2
             # if i == 0:
-            #     draw_item(screen, self.assets, {"type": "iron_block", "count": 64}, item_center_x, item_center_y)
-            draw_item(screen, self.assets, grid, item_center_x, item_center_y)
+            #     ui.draw_item(screen, self.assets, {"type": "iron_block", "count": 64}, item_center_x, item_center_y)
+            ui.draw_item(screen, self.assets, grid, item_center_x, item_center_y)
 
     def _draw_held_item(self, screen: pygame.Surface):
         # print("[from: _draw_held_item]", self.held_item)
@@ -105,4 +84,4 @@ class ChestUI(BaseInventory):
 
         mouse_x, mouse_y = pygame.mouse.get_pos()
 
-        draw_item(screen, self.assets, self.held_item, mouse_x, mouse_y)
+        ui.draw_item(screen, self.assets, self.held_item, mouse_x, mouse_y)

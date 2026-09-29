@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from asset_manager import AssetManager
-    from player import Player
+    from entity.player import Player
 
 # import pygame
 

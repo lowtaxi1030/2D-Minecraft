@@ -22,7 +22,6 @@ class VideoMenu(BaseMenu):
         self.fov_min = 30  # 最小值
         self.fov_max = 200  # 最大值（例如 Quake Pro 可以是 110）
         self.fov_width = self.assets.FOV_bg_rect.width
-        self.is_dragging_fov = False  # 標記目前滑鼠是不是正在「按住拖曳拉桿」
 
         self.start_y = 150
         self.spacing_x = 60
@@ -47,6 +46,7 @@ class VideoMenu(BaseMenu):
             name="FOV_lever",
             image=self.assets.lever_img,
             pos=(0, 0),  # 在update裡做
+            interaction_mode=ui.InteractionMode.DRAG,
         )
 
         self.back_btn = ui.ImageTextButton(
@@ -65,7 +65,7 @@ class VideoMenu(BaseMenu):
             size=30,
         )
 
-        self.all_uis = [self.title, self.fov_base, self.fov_lever, self.back_btn]
+        self.all_uis = [self.title, self.fov_base, self.fov_lever, self.fov_text, self.back_btn]
 
     def layout(self):
         self.fov_base.rect.center = (
@@ -74,6 +74,7 @@ class VideoMenu(BaseMenu):
         )
         self._update_slider()
         self.back_btn.rect.center = (self.center_x, config.current_height - 60)
+        self.fov_text.pos = (self.fov_base.rect.centerx, self.fov_base.rect.centery)
 
     def _update_slider(self):
         self.fov_lever.rect.centery = self.fov_base.rect.centery
@@ -85,15 +86,11 @@ class VideoMenu(BaseMenu):
 
         self._update_fov(mouse_pos)
 
-        self.fov_text.text = (f"FOV: {self.fov_value}",)
+        self.fov_text.text = f"FOV: {self.fov_value}"
+        self.layout()
 
     def _handle_event(self, events, **kwargs):
         for event in events:
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if self.fov_base.is_hover:
-                    self.is_dragging_fov = True
-            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-                self.is_dragging_fov = False
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
@@ -104,7 +101,7 @@ class VideoMenu(BaseMenu):
 
     def _update_fov(self, mouse_pos):
 
-        if self.is_dragging_fov:
+        if self.fov_lever.interactive.dragging or self.fov_base.interactive.holding:
             relative_x = mouse_pos[0] - self.fov_base.rect.left
             total_width = self.fov_base.rect.width
 

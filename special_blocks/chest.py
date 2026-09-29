@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from player import Player
+    from entity.player import Player
 
 
 class Chest:

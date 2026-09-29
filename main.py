@@ -12,10 +12,10 @@ import tool
 import world_manager
 from chunk_manager import ChunkManager
 from craft_manager import CraftingManager
+from entity.player import Player
 from environment_systems import EnvironmentSystems
 from fluid_manager import FluidManager
 from game_data import crafting_recipes
-from player import Player
 from ui import ui_manager
 
 chunk_manager = ChunkManager()
@@ -39,7 +39,7 @@ player = Player(0, 80, chunk_manager)
 asset = asset_manager.AssetManager()
 asset.load()
 
-ui = ui_manager.UI(asset)
+ui = ui_manager.UI(asset, player)
 world = world_manager.World(asset, chunk_manager)
 
 last_chunk = None
@@ -76,7 +76,7 @@ while config.running:
         pass
 
     elif config.game_state == "PLAYING":
-        current_chunk = player.hitbox.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
+        current_chunk = player.rect.centerx // (config.CHUNK_WIDTH * config.BLOCK_SIZE)
         game_camera.update(player, fluid_manager, dt)
 
         surface_width = int(config.current_width / game_camera.zoom)
@@ -128,10 +128,10 @@ while config.running:
         # frame_timers["all_updates"] = frame_timers.get("all_updates", 0) + (time.perf_counter() - t2_1)
 
         if dropped_item is not None:
-            world.spawn_item_entity(dropped_item, player.hitbox.centerx, player.hitbox.top, "drop", player)
+            world.spawn_item_entity(dropped_item, player.rect.centerx, player.rect.top, "drop", player)
 
         for item in player.pending_drops:
-            world.spawn_item_entity(item, player.hitbox.centerx, player.hitbox.top, "death", player)
+            world.spawn_item_entity(item, player.rect.centerx, player.rect.top, "death", player)
         player.pending_drops.clear()
 
         # print(player.rect.x, player.rect.y)
@@ -155,7 +155,7 @@ while config.running:
         # frame_timers["all_draws"] = frame_timers.get("all_draws", 0) + (time.perf_counter() - t3_1)
 
         # 不要顯示ui
-        if player.is_die:
+        if player.dead:
             config.pause_background = screen.copy()
             config.game_state = "DEATH"
 

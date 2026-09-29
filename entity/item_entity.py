@@ -3,19 +3,19 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from player import Player
+    from chunk_manager import ChunkManager
+    from entity.player import Player
 import random
 
 import pygame
 
 import config
 import tool
-from chunk_manager import ChunkManager
 
-chunk_manager = ChunkManager()
+from .entity import Entity
 
 
-class ItemEntity:
+class ItemEntity(Entity):
     def __init__(self, item: dict[str, int], x, y, spawn_reason: str, player: Player, img: pygame.Surface):
         """
         直接傳入方塊的左上角座標，至中由本身自行處理\n
@@ -40,9 +40,7 @@ class ItemEntity:
         offset = (config.BLOCK_SIZE - self.size) / 2
 
         self.rect = pygame.Rect(x + offset, y + offset, self.size, self.size)
-
-        self.vel_x = 0
-        self.vel_y = 0
+        super().__init__(self.rect)
 
         self.gravity = 1
         self.is_grounded = True
@@ -131,9 +129,7 @@ class ItemEntity:
     def _init_command(self):
         pass
 
-    """"""
-
-    def update(self, player):
+    def update(self, player: Player, chunk_manager: ChunkManager):
         self.age += 1
 
         if self.pickup_delay > 0:
@@ -144,6 +140,15 @@ class ItemEntity:
         else:
             self._handle_movement()
 
+        self.is_grounded = False
+
+        self.rect.x += self.vel_x
+        self._collide_x(chunk_manager)
+
+        self.rect.y += self.vel_y
+        self._collide_y(chunk_manager)
+
+    def _get_collision_range(self):
         center_grid_x = self.rect.centerx // config.BLOCK_SIZE
         center_grid_y = self.rect.centery // config.BLOCK_SIZE
 
@@ -152,14 +157,7 @@ class ItemEntity:
 
         start_y = max(0, center_grid_y - 3)
         end_y = min(config.MAP_HEIGHT, center_grid_y + 4)
-
-        self.is_grounded = False
-
-        self.rect.x += self.vel_x
-        self._collide_x(start_x, end_x, start_y, end_y)
-
-        self.rect.y += self.vel_y
-        self._collide_y(start_x, end_x, start_y, end_y)
+        return (start_x, end_x, start_y, end_y)
 
     def _handle_movement(self):
         self.vel_y += self.gravity
@@ -170,9 +168,7 @@ class ItemEntity:
             else:
                 self.vel_x *= self.air_friction
 
-    """"""
-
-    def resolve_stuck(self, new_block_rect: pygame.Rect, player: Player):
+    def resolve_stuck(self, new_block_rect: pygame.Rect, player: Player, chunk_manager: ChunkManager):
         if not new_block_rect.colliderect(self.rect):
             return
 
@@ -194,12 +190,12 @@ class ItemEntity:
             center_grid_x = self.rect.centerx // config.BLOCK_SIZE
             center_grid_y = self.rect.centery // config.BLOCK_SIZE
 
-            if self.rect.centerx > player.hitbox.centerx:
+            if self.rect.centerx > player.rect.centerx:
                 step = -1
 
             self.rect.x += step
 
-            if not self._is_colliding(start_x, end_x, start_y, end_y):
+            if not self._is_colliding(start_x, end_x, start_y, end_y, chunk_manager):
                 return
 
         self.rect.x = original_x
@@ -207,20 +203,20 @@ class ItemEntity:
         step *= -1
 
         for _ in range(config.BLOCK_SIZE):
-            if not self._is_colliding(start_x, end_x, start_y, end_y):
+            if not self._is_colliding(start_x, end_x, start_y, end_y, chunk_manager):
                 return
 
         self.rect.x = original_x
 
         for _ in range(config.BLOCK_SIZE):
             self.rect.y -= 1
-            if not self._is_colliding(start_x, end_x, start_y, end_y):
+            if not self._is_colliding(start_x, end_x, start_y, end_y, chunk_manager):
                 return
 
         self.rect.y = original_y
 
     def _apply_attraction(self, player: Player):
-        player_pos = pygame.math.Vector2(player.hitbox.center)
+        player_pos = pygame.math.Vector2(player.rect.center)
         self_pos = pygame.math.Vector2(self.rect.center)
         direction = player_pos - self_pos
 
@@ -235,7 +231,8 @@ class ItemEntity:
         self.vel_x = direction.x * speed
         self.vel_y = direction.y * speed
 
-    def _collide_x(self, start_x, end_x, start_y, end_y):
+    def _collide_x(self, chunk_manager: ChunkManager):
+        start_x, end_x, start_y, end_y = self._get_collision_range()
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
                 block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
@@ -259,7 +256,8 @@ class ItemEntity:
                         self.rect.left = block_rect.right
                     self.vel_x = 0
 
-    def _collide_y(self, start_x, end_x, start_y, end_y):
+    def _collide_y(self, chunk_manager: ChunkManager):
+        start_x, end_x, start_y, end_y = self._get_collision_range()
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
                 block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
@@ -298,14 +296,14 @@ class ItemEntity:
             self.is_attracting = False
             return
 
-        player_vec = pygame.math.Vector2((player.hitbox.centerx, player.hitbox.bottom))
+        player_vec = pygame.math.Vector2((player.rect.centerx, player.rect.bottom))
         self_vec = pygame.math.Vector2(self.rect.center)
 
         self.is_attracting = player.can_pickup_item(self.item_type) and player_vec.distance_to(self_vec) < config.BLOCK_SIZE * 2
 
     """判斷函式"""
 
-    def _is_colliding(self, start_x, end_x, start_y, end_y):
+    def _is_colliding(self, start_x, end_x, start_y, end_y, chunk_manager: ChunkManager):
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
                 block_name = block_name = chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)

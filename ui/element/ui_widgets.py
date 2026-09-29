@@ -48,16 +48,23 @@ def _init_text_visual(ui_ob: Text | TextButton | ImageTextButton, *, shadow, sha
     ui_ob.visuals.append(ui_ob.text_visual)
 
 
-def _resize_rect(font, text, on_text, anchor_pos, anchor_mode, line_gap):
+def replace_rect(target_rect: pygame.Rect, pos: config.Pos, anchor_mode: str) -> config.Pos:
+    if anchor_mode == "topleft":
+        target_rect.topleft = pos
+    elif anchor_mode == "topright":
+        target_rect.topright = pos
+    else:
+        target_rect.center = pos
+
+
+def _resize_rect(font, text, on_text, anchor_pos: config.Pos, anchor_mode: str, line_gap):
     sizes = [ui_core.get_biggest_text_size(font, t, line_gap) for t in [text, on_text] if t is not None]
     max_width = max((width for width, _ in sizes), default=0)
     max_height = max((height for _, height in sizes), default=0)
 
     rect = pygame.Rect(0, 0, max_width, max_height)
-    if anchor_mode == "topleft":
-        rect.topleft = anchor_pos
-    else:
-        rect.center = anchor_pos
+
+    replace_rect(rect, anchor_pos, anchor_mode)
 
     return rect
 
@@ -80,6 +87,7 @@ class Text(BaseUI, TextOwnerMixin):
         align: str = "center",
         shadow: bool = True,
         shadow_offset: tuple[int, int] = (2, 2),
+        show: bool = True,
         interaction_mode: InteractionMode | None = InteractionMode.CLICK,
     ):
 
@@ -104,6 +112,8 @@ class Text(BaseUI, TextOwnerMixin):
             interactive,
         )
 
+        self.show = show
+
         _init_text_visual(
             ui_ob=self,
             text=text,
@@ -120,6 +130,15 @@ class Text(BaseUI, TextOwnerMixin):
         )
 
     @property
+    def pos(self):
+        return self._anchor_pos
+
+    @pos.setter
+    def pos(self, value: config.Pos):
+        self._anchor_pos = value
+        replace_rect(self.rect, value, self._anchor_mode)
+
+    @property
     def text(self):
         return self.text_visual.text
 
@@ -129,6 +148,10 @@ class Text(BaseUI, TextOwnerMixin):
         self.rect = _resize_rect(
             self._font, self.text_visual.text, self.text_visual.on_text, self._anchor_pos, self._anchor_mode, self._line_gap
         )
+
+    def draw(self, screen):
+        if self.show:
+            super().draw(screen)
 
 
 class Button(BaseUI):
@@ -230,8 +253,8 @@ class ImageTextButton(ImageButton, TextOwnerMixin):
         text_align: str = "center",
         shadow: bool = True,
         shadow_offset: tuple[int, int] = (2, 2),
-        interaction_mode: InteractionMode | None = InteractionMode.CLICK,
         show: bool = True,
+        interaction_mode: InteractionMode | None = InteractionMode.CLICK,
     ):
         super().__init__(name=name, image=image, pos=pos, interaction_mode=interaction_mode)
 
@@ -256,29 +279,37 @@ class ImageTextButton(ImageButton, TextOwnerMixin):
             super().draw(screen)
 
 
-item_uis: dict[str, ImageTextButton] = {}
+item_uis: dict[tuple[str | int, tuple[int, int]], ImageButton | Text] = {}
 
 
-def draw_item(screen: pygame.Surface, assets: AssetManager, item, center_x, center_y):
-    block_img = assets.block(item["type"])
-    block_img = pygame.transform.scale(block_img, (48, 48))
-    block_rect = block_img.get_rect()
-    block_rect.center = (center_x, center_y)
-    show_center_x = center_x - 5
-    if item["count"] < 10:
-        show_center_x = center_x + 11
+def draw_item(screen: pygame.Surface, assets: AssetManager, item: config.Item, center_x, center_y):
+    count_show_x = center_x + 28
 
-    cache_key = f"{item["type"]}_{item["count"]}"
+    block_pos = (center_x + 1, center_y)
 
-    if not item_uis.get(cache_key):
-        item_uis[cache_key] = ImageTextButton(
-            name=cache_key,
-            text=str(item["count"]),
+    block_cache_key = (item["type"], block_pos)
+    if not item_uis.get(block_cache_key):
+        block_img = assets.block(item["type"])
+        block_img = pygame.transform.scale(block_img, (48, 48))
+        item_uis[block_cache_key] = ImageButton(
+            name=str(block_cache_key),
             image=block_img,
-            pos=(show_center_x, center_y + 5),
-            text_colors=tool.Colors.WHITE,
-            size=25,
-            show=item["count"] > 1,
+            pos=block_pos,
+            interaction_mode=None,
         )
 
-    item_uis[cache_key].draw(screen)
+    count_cache_key = (item["count"], (count_show_x, center_y + 5))
+    if not item_uis.get(count_cache_key):
+        item_uis[count_cache_key] = Text(
+            name=str(count_cache_key),
+            pos=(count_show_x, center_y + 5),
+            text=str(item["count"]),
+            colors=tool.Colors.WHITE,
+            size=25,
+            show=item["count"] > 1,
+            anchor="topright",
+            interaction_mode=None,
+        )
+
+    item_uis[block_cache_key].draw(screen)
+    item_uis[count_cache_key].draw(screen)

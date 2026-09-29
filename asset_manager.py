@@ -8,9 +8,7 @@ import config
 import tool
 from animation_manager import Animation
 
-BASE_DIR = Path(__file__).parent
-
-IMAGE_PATH = BASE_DIR / "images"
+IMAGE_PATH = config.BASE_DIR / "images"
 
 BLOCKS_PATH = IMAGE_PATH / "blocks"
 ITEMS_PATH = IMAGE_PATH / "items"

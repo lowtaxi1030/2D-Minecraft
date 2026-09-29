@@ -5,37 +5,16 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from asset_manager import AssetManager
     from craft_manager import CraftingManager
-    from player import Player
+    from entity.player import Player
     from world_manager import World
 
 import pygame
 
 import config
 import craft_manager
-import tool
 from ui.element import ui_widgets as ui
 
 from .base_inventory import BaseInventory
-
-
-def draw_item(screen: pygame.Surface, assets: AssetManager, item, center_x, center_y):
-    block_img = assets.block(item["type"])
-    block_img = pygame.transform.scale(block_img, (48, 48))
-    block_rect = block_img.get_rect()
-    block_rect.center = (center_x, center_y)
-    screen.blit(block_img, block_rect)
-    show_center_x = center_x - 5
-    if item["count"] < 10:
-        show_center_x = center_x + 11
-    ui.show_text(
-        screen,
-        str(item["count"]),
-        tool.Colors.WHITE,
-        show_center_x,
-        center_y + 5,
-        25,
-        show=item["count"] > 1,
-    )
 
 
 class InventoryUI(BaseInventory):
@@ -112,7 +91,7 @@ class InventoryUI(BaseInventory):
                     remaining = player.give_item(result_item["type"], result_item["count"])  # 將成品放入玩家背包或掉落到地面
 
         if remaining > 0:
-            world_manager.spawn_item_entity(remaining, player.hitbox.centerx, player.hitbox.top, "inv_drop", player)  # 生成掉落物
+            world_manager.spawn_item_entity(remaining, player.rect.centerx, player.rect.top, "inv_drop", player)  # 生成掉落物
 
     def update(self, player):
 
@@ -194,7 +173,7 @@ class InventoryUI(BaseInventory):
                 if item is not None:
                     item_center_x = self.craft_start_x + col * self.INV_SPACING_X + config.SLOT_SIZE // 2
                     item_center_y = self.craft_start_y + row * self.INV_SPACING_Y + config.SLOT_SIZE // 2
-                    draw_item(screen, self.assets, item, item_center_x, item_center_y)
+                    ui.draw_item(screen, self.assets, item, item_center_x, item_center_y)
 
     def _draw_held_item(self, screen: pygame.Surface):
         if self.held_item is None:
@@ -202,12 +181,12 @@ class InventoryUI(BaseInventory):
 
         mouse_x, mouse_y = pygame.mouse.get_pos()
 
-        draw_item(screen, self.assets, self.held_item, mouse_x, mouse_y)
+        ui.draw_item(screen, self.assets, self.held_item, mouse_x, mouse_y)
 
     def _draw_result_item(self, screen: pygame.Surface):
         # 測試用：直接畫一個工作檯看位置對不對
-        # draw_item(screen, self.assets, {"type": "crafting_table", "count": 1}, self.craft_output_x, self.craft_output_y)
+        # ui.draw_item(screen, self.assets, {"type": "crafting_table", "count": 1}, self.craft_output_x, self.craft_output_y)
         if self.preview_item is None:
             return
 
-        draw_item(screen, self.assets, self.preview_item, self.craft_output_x, self.craft_output_y)
+        ui.draw_item(screen, self.assets, self.preview_item, self.craft_output_x, self.craft_output_y)
