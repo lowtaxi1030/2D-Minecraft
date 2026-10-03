@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from asset_manager import AssetManager
     from entity.player import Player
-    from world_manager import World
+    from world_manager import WorldManager
 
 import pygame
 
@@ -98,7 +98,7 @@ class PlayerInventory:
                 item_center_y = self.inv_hotbar_first_y + config.SLOT_SIZE // 2
                 ui.draw_item(screen, self.assets, item, item_center_x, item_center_y)
 
-    def clear_grid_and_drop(self, player: Player, world_manager: World):
+    def clear_grid_and_drop(self, player: Player, world_manager: WorldManager):
         if self.held_item is not None and self.held_item.get("count", 0) > 0:
             player.give_item(self.held_item["type"], self.held_item["count"])
             self.held_item = None

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from chunk_manager import ChunkManager
+    from contextes import UpdateContext
     from entity.player import Player
 import random
 
@@ -129,26 +130,26 @@ class ItemEntity(Entity):
     def _init_command(self):
         pass
 
-    def update(self, player: Player, chunk_manager: ChunkManager):
+    def update(self, context: UpdateContext, dt: float):
         self.age += 1
 
         if self.pickup_delay > 0:
             self.pickup_delay -= 1
 
-        self.is_attracting = self._should_attract(player)
+        self.is_attracting = self._should_attract(context.player)
 
         if self.is_attracting:
-            self._apply_attraction(player)
+            self._apply_attraction(context.player)
         else:
             self._handle_movement()
 
         self.is_grounded = False
 
         self.rect.x += self.vel_x
-        self._collide_x(chunk_manager)
+        self._collide_x(context.chunk_manager)
 
         self.rect.y += self.vel_y
-        self._collide_y(chunk_manager)
+        self._collide_y(context.chunk_manager)
 
     def _should_attract(self, player: Player) -> bool:
         if self.pickup_delay > 0:

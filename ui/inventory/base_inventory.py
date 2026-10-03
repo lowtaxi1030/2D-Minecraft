@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from asset_manager import AssetManager
     from entity.player import Player
-    from world_manager import World
+    from world_manager import WorldManager
 
 import pygame
 
@@ -40,7 +40,7 @@ class BaseInventory(PlayerInventory):
     def handle_input(self):
         self.keys = pygame.key.get_pressed()
 
-    def handle_events(self, event, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
+    def handle_events(self, event, player: Player, mouse_pos, world_manager: WorldManager, crafting_manager: CraftingManager):
         if event.type == pygame.MOUSEBUTTONDOWN:
 
             if event.button in (1, 3):
@@ -151,7 +151,7 @@ class BaseInventory(PlayerInventory):
         # 格子裡是「不同的物品」 -> 不可覆蓋！
         return False
 
-    def _handle_left_click(self, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
+    def _handle_left_click(self, player: Player, mouse_pos, world_manager: WorldManager, crafting_manager: CraftingManager):
 
         area, index = self._get_clicked_slot_info(mouse_pos)
         if area is None:
@@ -170,7 +170,7 @@ class BaseInventory(PlayerInventory):
         self._update_slot(player, area, index, slot_item)
         # print("[from: _handle_left_click]  UPDATE :", area, index, slot_item)
 
-    def _handle_right_click(self, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
+    def _handle_right_click(self, player: Player, mouse_pos, world_manager: WorldManager, crafting_manager: CraftingManager):
 
         area, index = self._get_clicked_slot_info(mouse_pos)
         if area is None or not self._can_interact_with_slot(area, index):

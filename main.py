@@ -34,13 +34,13 @@ clock = pygame.time.Clock()
 pygame.display.set_caption(f"2D Minecraft - {config.GAME_VERSION}")  # 之後放screen_text
 
 
-player = Player(0, 80, chunk_manager)
+player = Player(0, 80)
 
 asset = asset_manager.AssetManager()
 asset.load()
 
 ui = ui_manager.UI(asset, player)
-world = world_manager.World(asset, chunk_manager)
+world = world_manager.WorldManager(asset, chunk_manager, player)
 
 last_chunk = None
 
@@ -89,31 +89,22 @@ while config.running:
         game_camera.draw_world(world_surface, mouse_pos, world)
         frame_timers["camera.draw_world"] = frame_timers.get("camera.draw_world", 0) + (time.perf_counter() - t0)
 
-        dropped_item = None
 
-        player.handle_input()
+        world.handle_input(mouse_buttons, mouse_pos, player, game_camera, fluid_manager, ui)
         ui.handle_input()
 
         t1 = time.perf_counter()
-        player.just_switched_mode = False
         for event in events:
-            item = player.handle_event(event, keys, fluid_manager)
-
-            if item is not None:
-                dropped_item = item
+            world.handle_event(event, keys, chunk_manager, fluid_manager)
 
             ui.handle_events(event, player, mouse_pos, world, crafting_manager)
         frame_timers["event_loop"] = frame_timers.get("event_loop", 0) + (time.perf_counter() - t1)
 
         # 更新
         """任何一幀裡，只要牽涉到「滑鼠螢幕座標 → 世界座標」的換算，都必須使用「跟這一幀實際顯示畫面一致」的那個 zoom 值"""
-        t2 = time.perf_counter()
-        # t2_1 = time.perf_counter()
-        player.update(mouse_pos, dt, game_camera, fluid_manager)
-        frame_timers["player.update"] = frame_timers.get("player.update", 0) + (time.perf_counter() - t2)
 
         t3 = time.perf_counter()
-        world.update(mouse_buttons, mouse_pos, player, game_camera, fluid_manager, environment_systems, ui)
+        world.update(mouse_pos, player, game_camera, fluid_manager, environment_systems, dt)
         frame_timers["world.update"] = frame_timers.get("world.update", 0) + (time.perf_counter() - t3)
 
         t4 = time.perf_counter()
@@ -127,15 +118,9 @@ while config.running:
 
         # frame_timers["all_updates"] = frame_timers.get("all_updates", 0) + (time.perf_counter() - t2_1)
 
-        if dropped_item is not None:
-            world.spawn_item_entity(dropped_item, player.rect.centerx, player.rect.top, "drop", player)
-
-        for item in player.pending_drops:
-            world.spawn_item_entity(item, player.rect.centerx, player.rect.top, "death", player)
+        for item, reason in player.pending_drops:
+            world.spawn_item_entity(item, player.rect.centerx, player.rect.top, reason, player)
         player.pending_drops.clear()
-
-        # print(player.rect.x, player.rect.y)
-        # print(game_camera.scroll_x, game_camera.scroll_y)
 
         # t3_1 = time.perf_counter()
         # 畫圖
@@ -157,7 +142,6 @@ while config.running:
         # 不要顯示ui
         if player.dead:
             config.pause_background = screen.copy()
-            config.game_state = "DEATH"
 
         ui.draw(screen, player)
 
@@ -165,7 +149,7 @@ while config.running:
             t9 = time.perf_counter()
             game_camera._load_visible_chunks(player, fluid_manager)
             chunk_load_time = time.perf_counter() - t9
-            print(f"[chunk載入] 花了 {chunk_load_time*1000:.2f}ms")  # 獨立即時印出，不進平均
+            # print(f"[chunk載入] 花了 {chunk_load_time*1000:.2f}ms")  # 獨立即時印出，不進平均
             last_chunk = current_chunk
 
     elif config.game_state in ui.menu_manager.menus:

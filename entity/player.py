@@ -3,9 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from camera import Camera
-    from chunk_manager import ChunkManager
-    from fluid_manager import FluidManager
+    # from camera import Camera
+    from contextes import EventContext, UpdateContext
 
 # import math
 
@@ -18,9 +17,7 @@ from .living_entity import LivingEntity
 
 
 class Player(LivingEntity):
-    def __init__(self, spawn_x: int, spawn_y: int, chunk_manager: ChunkManager):
-
-        self.chunk_manager = chunk_manager
+    def __init__(self, spawn_x: int, spawn_y: int):
 
         self.spawn_x = spawn_x * config.BLOCK_SIZE
         self.spawn_y = spawn_y * config.BLOCK_SIZE
@@ -84,7 +81,6 @@ class Player(LivingEntity):
         # self.crafting_types = [None, "inventory", "crafting_table"]
         self.hit_box_open = False
 
-        self.just_switched_mode = False
 
         # 記錄格式： { pygame.K_d: 上次按下的時間(毫秒), pygame.K_a: 上次按下的時間(毫秒) }
         self.last_press_time = {}
@@ -99,15 +95,13 @@ class Player(LivingEntity):
         self.selected_hotbar_index = 0
         # self.held_item = self.hotbar[self.selected_hotbar_index]
 
-        self.facing = 1  # 向右
         self.move_direction = 0
 
         # 掉落傷害
         self.fall_distance = 0  # 玩家從空中掉落的距離，單位是像素
-        self.fall_damage = True  # 是否會受到掉落傷害
         self.safe_fall_distance = 3  # 安全掉落距離
 
-        self.pending_drops = []
+        self.pending_drops: list[tuple[config.Item, str]] = []
 
     @property
     def held_item(self):
@@ -132,7 +126,7 @@ class Player(LivingEntity):
         self.last_press_time[key] = current_time
         return is_double
 
-    def handle_event(self, event, keys, fluid_manager: FluidManager):
+    def handle_event(self, event, context: EventContext):
 
         if event.type == pygame.KEYDOWN:
             if not self.inv_type:
@@ -146,7 +140,7 @@ class Player(LivingEntity):
                 watched_keys = [pygame.K_d, pygame.K_RIGHT, pygame.K_a, pygame.K_LEFT]
                 if event.key in watched_keys:
                     is_double = self.check_double_press(event.key)
-                    self._handle_run_and_swim(is_double, fluid_manager)
+                    self._handle_run_and_swim(is_double, context)
 
                 if self.mode == "creative":
                     if event.key == pygame.K_SPACE:
@@ -160,11 +154,11 @@ class Player(LivingEntity):
                             self.is_flying = not self.is_flying
 
                 if self.can_drop_item():
-                    if keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]:
+                    if context.keys[pygame.K_LCTRL] or context.keys[pygame.K_RCTRL]:
                         if event.key == pygame.K_q:
-                            return self.drop_selected_item(drop_all=True)
+                            self.pending_drops.append((self.drop_selected_item(drop_all=True), "drop"))
                     elif event.key == pygame.K_q:
-                        return self.drop_selected_item()
+                        self.pending_drops.append((self.drop_selected_item(), "drop"))
 
             if event.key == pygame.K_e:
                 if self.inv_type is None:
@@ -184,8 +178,8 @@ class Player(LivingEntity):
             if self.selected_hotbar_index <= -1:
                 self.selected_hotbar_index = 8
 
-    def _handle_run_and_swim(self, is_double: bool, fluid_manager: FluidManager):
-        water_surface_y = self._get_water_surface_y(fluid_manager)
+    def _handle_run_and_swim(self, is_double: bool, context: EventContext):
+        water_surface_y = self._get_water_surface_y(context)
         if self.is_submerged and water_surface_y is not None and self.rect.top > water_surface_y:
             self.wants_to_swim = is_double
             self.is_running = False
@@ -251,7 +245,8 @@ class Player(LivingEntity):
         else:
             self.vel_x = 0
 
-    def _try_auto_jump(self, block_rect):
+    def _on_horizontal_collision(self, block_rect: pygame.Rect, context: UpdateContext):
+        """原型是 try alto jump"""
 
         if self.is_submerged or self.is_flying:
             return
@@ -259,13 +254,17 @@ class Player(LivingEntity):
         if self.auto_jump and self.is_grounded and not self.is_flying:
             height_difference = self.rect.bottom - block_rect.top
 
-            head_grid_x = int(self.rect.centerx // config.BLOCK_SIZE)  #       ----之後這段可以做成----
+            """之後這段可以做成 _get_head_grid()"""
+
+            head_grid_x = int(self.rect.centerx // config.BLOCK_SIZE)
             head_grid_y = int((self.rect.top - config.BLOCK_SIZE) // config.BLOCK_SIZE)
 
-            head_grid_y = tool.clamp(0, config.MAP_HEIGHT - 1, head_grid_y)  # _get_head_grid()
-            head_grid_x = head_grid_x  #                                       ------------------------
+            head_grid_y = tool.clamp(0, config.MAP_HEIGHT - 1, head_grid_y)
+            head_grid_x = head_grid_x
 
-            is_ceiling_clear = self.chunk_manager.get_block(head_grid_x, head_grid_y) == "air"
+            """"""
+
+            is_ceiling_clear = context.chunk_manager.get_block(head_grid_x, head_grid_y) == "air"
 
             # 💡 關鍵：高度差要在 1.5 格內，【並且】頭頂必須是空的才能跳！
             if (0 < height_difference <= config.BLOCK_SIZE * 1.5) and is_ceiling_clear:
@@ -274,7 +273,7 @@ class Player(LivingEntity):
             else:
                 self.is_running = False
 
-    def _is_submerged(self, x_pos: int, fluid_manager: FluidManager):
+    def _is_submerged(self, x_pos: int, context: UpdateContext) -> bool:
         """
         x_pos: 玩家的 x 座標 (像素)
         """
@@ -283,41 +282,43 @@ class Player(LivingEntity):
         bottom_grid_y = tool.clamp(0, config.MAP_HEIGHT - 1, (self.rect.bottom - 1) // config.BLOCK_SIZE)
 
         # 取得玩家中心點所在的方塊名稱
-        block_name = self.chunk_manager.get_block(center_grid_x * config.BLOCK_SIZE, bottom_grid_y * config.BLOCK_SIZE)
+        block_name = context.chunk_manager.get_block(center_grid_x * config.BLOCK_SIZE, bottom_grid_y * config.BLOCK_SIZE)
 
         # 判斷該方塊是否為水或熔岩
-        return fluid_manager.is_fluid(block_name)
+        return context.fluid_manager.is_fluid(block_name)
 
-    def _get_water_surface_y(self, fluid_manager: FluidManager):
+    def _get_water_surface_y(self, context: UpdateContext):
         # 玩家目前的格子座標
         grid_x = self.rect.centerx // config.BLOCK_SIZE
         grid_y = self.rect.centery // config.BLOCK_SIZE
 
         # 從玩家位置往上找，直到不是水為止
         while grid_y > 0:
-            block_name = self.chunk_manager.get_block(grid_x * config.BLOCK_SIZE, grid_y * config.BLOCK_SIZE)
-            if not fluid_manager.is_fluid(block_name):
+            block_name = context.chunk_manager.get_block(grid_x * config.BLOCK_SIZE, grid_y * config.BLOCK_SIZE)
+            if not context.fluid_manager.is_fluid(block_name):
                 # 上一格就是水面
                 return (grid_y + 1) * config.BLOCK_SIZE
             grid_y -= 1
 
         return None  # 沒找到水面
 
-    # 更新邏輯
-    def update(self, mouse_pos: tuple[int, int], dt: int, game_camera: Camera, fluid_manager: FluidManager):
+    # 更新邏輯  mouse_pos: tuple[int, int], dt: int, game_camera: Camera, fluid_manager: FluidManager
+    def update(self, context: UpdateContext, dt: float):
 
-        self.is_submerged = any(self._is_submerged(x, fluid_manager) for x in [self.rect.left, self.rect.centerx, self.rect.right - 1])
+        self.is_submerged = any(
+            self._is_submerged(x, context) for x in [self.rect.left, self.rect.centerx, self.rect.right - 1]
+        )
 
         # keys = pygame.key.get_pressed()
         # still_moving = keys[pygame.K_a] or keys[pygame.K_d] or keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
 
-        self.desired_swimming = self._get_desired_swimming_state(fluid_manager)
+        self.desired_swimming = self._get_desired_swimming_state(context)
 
         old_bottom = self.rect.bottom
         test_rect = self.rect.copy()
         test_rect.size = (new_size := self._get_pose_size())
         test_rect.bottom = old_bottom
-        if self._can_change_pose(test_rect):
+        if self._can_change_pose(test_rect, context):
             self.rect = self._change_pose(new_size, old_bottom)
         # else:
         #     self.desired_swimming = True
@@ -331,14 +332,14 @@ class Player(LivingEntity):
         bottom_y = tool.clamp(0, config.MAP_HEIGHT - 1, int((self.rect.bottom - 1) // config.BLOCK_SIZE))
 
         self.is_stuck = (
-            not tool.is_passable(self.chunk_manager.get_block(left_x * config.BLOCK_SIZE, top_y * config.BLOCK_SIZE))
-            or not tool.is_passable(self.chunk_manager.get_block(left_x * config.BLOCK_SIZE, bottom_y * config.BLOCK_SIZE))
-            or not tool.is_passable(self.chunk_manager.get_block(right_x * config.BLOCK_SIZE, top_y * config.BLOCK_SIZE))
-            or not tool.is_passable(self.chunk_manager.get_block(right_x * config.BLOCK_SIZE, bottom_y * config.BLOCK_SIZE))
+            not tool.is_passable(context.chunk_manager.get_block(left_x * config.BLOCK_SIZE, top_y * config.BLOCK_SIZE))
+            or not tool.is_passable(context.chunk_manager.get_block(left_x * config.BLOCK_SIZE, bottom_y * config.BLOCK_SIZE))
+            or not tool.is_passable(context.chunk_manager.get_block(right_x * config.BLOCK_SIZE, top_y * config.BLOCK_SIZE))
+            or not tool.is_passable(context.chunk_manager.get_block(right_x * config.BLOCK_SIZE, bottom_y * config.BLOCK_SIZE))
         ) and self.mode != "spectator"
 
-        head_stuck = not tool.is_passable(self.chunk_manager.get_block(self.rect.centerx, top_y))
-        feet_stuck = not tool.is_passable(self.chunk_manager.get_block(self.rect.centerx, bottom_y))
+        head_stuck = not tool.is_passable(context.chunk_manager.get_block(self.rect.centerx, top_y))
+        feet_stuck = not tool.is_passable(context.chunk_manager.get_block(self.rect.centerx, bottom_y))
 
         self.is_fully_stuck = head_stuck and feet_stuck
 
@@ -348,7 +349,7 @@ class Player(LivingEntity):
         self.rect.x += self.vel_x * config.BLOCK_SIZE * dt
 
         if not self.is_fully_stuck:
-            self._collide_x(is_swich_mode=self.just_switched_mode)
+            self._collide_x(context)
         # 應用重力
         if self.mode != "spectator" and not self.is_flying:
             if self.is_submerged:
@@ -359,12 +360,12 @@ class Player(LivingEntity):
         # 預設玩家在空中
         self.is_grounded = False
 
-        self._collide_y(dt, fluid_manager, game_camera)
+        self._collide_y(context, dt)
 
-        screen_player_x = (self.rect.centerx - game_camera.scroll_x) * game_camera.zoom
-        if mouse_pos[0] < screen_player_x:
+        screen_player_x = (self.rect.centerx - context.game_camera.scroll_x) * context.game_camera.zoom
+        if context.mouse_pos[0] < screen_player_x:
             self.facing = -1
-        elif mouse_pos[0] > screen_player_x:
+        elif context.mouse_pos[0] > screen_player_x:
             self.facing = 1
 
         self._update_display_rect()
@@ -381,14 +382,14 @@ class Player(LivingEntity):
         else:
             return (self.display_width, self.display_height)
 
-    def _can_change_pose(self, target_pose_rect: pygame.Rect):
+    def _can_change_pose(self, target_pose_rect: pygame.Rect, context: UpdateContext) -> bool:
         # 找出 target_pose_rect 覆蓋到的方塊範圍
         start_x, end_x, start_y, end_y = self._get_collision_range(target_pose_rect)
 
         # 逐一檢查這些方塊
         for y_pos in range(start_y, end_y):
             for x_pos in range(start_x, end_x):
-                block_name = self.chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
+                block_name = context.chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
                 if tool.is_passable(block_name) or self.mode == "spectator":
                     continue
 
@@ -429,16 +430,16 @@ class Player(LivingEntity):
         self.vel_y *= 1 - self.water_drag * dt
         self.vel_y = tool.clamp(-self.max_swim_speed, self.max_swim_speed, self.vel_y)
 
-    def _can_swim(self, fluid_manager: FluidManager):
-        water_surface_y = self._get_water_surface_y(fluid_manager)
+    def _can_swim(self, context: UpdateContext):
+        water_surface_y = self._get_water_surface_y(context)
         return self.wants_to_swim and self.is_submerged and water_surface_y is not None and self.rect.top > water_surface_y
 
-    def _get_desired_swimming_state(self, fluid_manager: FluidManager):
+    def _get_desired_swimming_state(self, context: UpdateContext):
 
         if self.is_flying:
             return False
 
-        if self._can_swim(fluid_manager):
+        if self._can_swim(context):
             return True
 
         if self.is_swimming and self.is_submerged:
@@ -447,117 +448,22 @@ class Player(LivingEntity):
 
         return False
 
-    def _get_collision_range(self, target_rect: pygame.Rect = None):
-        if target_rect is None:
-            target_rect = self.rect
+    """_collide_x、y"""
 
-        center_grid_x = target_rect.centerx // config.BLOCK_SIZE
-        center_grid_y = target_rect.centery // config.BLOCK_SIZE
+    def _can_take_fall_damage(self):
+        return self.mode == "survival"
 
-        start_x = center_grid_x - 2
-        end_x = center_grid_x + 3
+    def _handle_fall_damage(self):
+        fallen_blocks = self.fall_distance / config.BLOCK_SIZE
+        if fallen_blocks >= self.safe_fall_distance and self._can_take_fall_damage():
+            self.take_damage(damage := int(fallen_blocks) - (self.safe_fall_distance - 1))  # noqa: F841
+            # print(f"掉落了 {fallen_blocks:.2f} 格，受到{damage}傷害！")
+        self.fall_distance = 0  # 落地後重置掉落距離
 
-        start_y = max(0, center_grid_y - 2)
-        end_y = min(config.MAP_HEIGHT, center_grid_y + 3)
+    def _should_ignore_collision(self, block_name):
+        return tool.is_passable(block_name) or self.mode == "spectator"
 
-        return start_x, end_x, start_y, end_y
-
-    def _collide_x(self, is_swich_mode=False):
-        # 檢查玩家周圍的方塊
-        start_x, end_x, start_y, end_y = self._get_collision_range()
-        for y_pos in range(start_y, end_y):
-            for x_pos in range(start_x, end_x):
-                block_name = self.chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
-                if tool.is_passable(block_name) or self.mode == "spectator":
-                    continue
-
-                block_rect = pygame.Rect(
-                    x_pos * config.BLOCK_SIZE,
-                    y_pos * config.BLOCK_SIZE,
-                    config.BLOCK_SIZE,
-                    config.BLOCK_SIZE,
-                )
-
-                # 如果卡牆了，就不要移動，交給_collide_y處理
-                if is_swich_mode and self.is_stuck:
-                    self.vel_x = 0
-
-                # 如果 X 移動後撞到了方塊
-                if self.rect.colliderect(block_rect) and self.mode != "spectator":
-                    # 往右走時撞到（速度大於 0）
-                    if self.vel_x > 0:
-                        # 把玩家的右側擋在方塊的左側
-                        self.vel_x = 0
-                        self.rect.right = block_rect.left
-                        self._try_auto_jump(block_rect)
-                    # 往左走時撞到（速度小於 0）
-                    elif self.vel_x < 0:
-                        # 把玩家的左側擋在方塊的右側
-                        self.vel_x = 0
-                        self.rect.left = block_rect.right
-                        self._try_auto_jump(block_rect)
-
-    def _collide_y(self, dt, fluid_manager: FluidManager, game_camera: Camera):
-        move_y = self.vel_y * config.BLOCK_SIZE * dt
-        rem_y = abs(move_y)  # 還剩下多少 Y 距離要走
-        sign_y = 1 if move_y > 0 else -1
-
-        self.fall_damage = self.mode == "survival"  # 只有生存模式才會受到掉落傷害
-
-        while rem_y > 0:
-            current_step = min(4, rem_y)  # 每次最多試探 4 像素
-            self.rect.y += current_step * sign_y
-            rem_y -= current_step
-            if sign_y > 0:
-                self.fall_distance += current_step
-                if any(
-                    fluid_manager.is_fluid(self.chunk_manager.get_block(x_pos, self.rect.bottom - 5))
-                    for x_pos in [self.rect.left, self.rect.centerx, self.rect.right - 1]
-                ):
-                    self.fall_distance = 0
-            else:
-                self.fall_distance = 0  # 往上跳時，重置掉落距離
-
-            hit_y = False
-            start_x, end_x, start_y, end_y = self._get_collision_range()
-            # print(f"[GROUND HIT]\nvel_y before collision: {self.vel_y}\nmove_y before collision: {move_y}")
-            for y_pos in range(start_y, end_y):
-                for x_pos in range(start_x, end_x):
-                    block_name = self.chunk_manager.get_block(x_pos * config.BLOCK_SIZE, y_pos * config.BLOCK_SIZE)
-                    if tool.is_passable(block_name) or self.mode == "spectator":
-                        continue
-
-                    block_rect = pygame.Rect(
-                        x_pos * config.BLOCK_SIZE,
-                        y_pos * config.BLOCK_SIZE,
-                        config.BLOCK_SIZE,
-                        config.BLOCK_SIZE,
-                    )
-
-                    if self.rect.colliderect(block_rect):
-                        if sign_y > 0:
-                            self.vel_y = 0
-                            self.rect.bottom = block_rect.top
-                            self.is_grounded = True
-                            fallen_blocks = self.fall_distance / config.BLOCK_SIZE
-                            if fallen_blocks >= self.safe_fall_distance and self.fall_damage:
-                                self.take_damage(damage := int(fallen_blocks) - (self.safe_fall_distance - 1), game_camera)
-                                print(f"掉落了 {fallen_blocks:.2f} 格，受到{damage}傷害！")
-                            self.fall_distance = 0  # 落地後重置掉落距離
-
-                        else:
-                            self.vel_y = 0
-                            self.rect.top = block_rect.bottom
-
-                        self.vel_y = 0  # 速度煞車歸零
-                        # print(f"vel_y after collision: {self.vel_y}")
-                        hit_y = True
-                        break
-                if hit_y:
-                    break
-
-            if hit_y:
-                break
+    """"""
 
     def _update_display_rect(self):
         """更新顯示用的矩形位置與大小"""
@@ -601,22 +507,16 @@ class Player(LivingEntity):
 
     """受傷、死亡"""
 
-    def take_damage(self, amount: int, game_camera: Camera):
-        game_camera.shake(config.BLOCK_SIZE / 8, 150)
-        super().take_damage(amount)
-
     def die(self):
         for item in self.hotbar + self.inventory:
             if item is not None:
-                self.pending_drops.append(item)
+                self.pending_drops.append((item, "death"))
 
         self.hotbar = [None] * 9
         self.inventory = [None] * 27
 
         super().die()
         self.fall_distance = 0
-
-        config.game_state = "DEATH"
 
     def _respawn(self):
 

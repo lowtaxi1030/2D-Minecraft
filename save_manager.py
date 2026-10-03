@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from chunk_manager import ChunkManager
     from entity.player import Player
-    from world_manager import World
+    from world_manager import WorldManager
 
 import json
 import os
@@ -23,12 +23,12 @@ class SaveManager:
         self.info_dir = config.BASE_DIR / "saves" / config.CURRENT_WORLD
 
     # 儲存
-    def save_world(self, player: Player, world: World):
+    def save_world(self, player: Player, world: WorldManager):
 
         self.save_level(player, world)
         self.save_loaded_chunks()
 
-    def save_level(self, player: Player, world: World):
+    def save_level(self, player: Player, world: WorldManager):
         with self.level_path().open("w", encoding="utf-8") as f:
             json.dump(
                 {
@@ -59,10 +59,10 @@ class SaveManager:
             chunk.is_dirty = False
 
     # 載入
-    def load_world(self, player: Player, world: World):
+    def load_world(self, player: Player, world: WorldManager):
         self.load_level(player, world)
 
-    def load_level(self, player: Player, world: World):
+    def load_level(self, player: Player, world: WorldManager):
         file_path = self.level_path()
 
         if not file_path.exists():

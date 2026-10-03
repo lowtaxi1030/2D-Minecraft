@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from asset_manager import AssetManager
     from chunk_manager import ChunkManager
-    from entity.player import Player
     from environment_systems import EnvironmentSystems
     from fluid_manager import FluidManager
     from ui.ui_manager import UI
@@ -15,9 +14,12 @@ import random
 import pygame
 
 import config
-import entity.item_entity as item_entity
 from camera import Camera
+from contextes import EventContext, UpdateContext
 from entity.entity_manager import EntityManager
+from entity.item_entity import ItemEntity
+from entity.player import Player
+from events import DamageEvent, DeathEvent
 from game_data.block_drops import BLOCK_DROPS
 from item.__init__ import NON_PLACEABLE_KEYWORDS, NON_PLACEABLE_TAGS
 from special_blocks import SPECIAL_BLOCKS
@@ -39,11 +41,12 @@ class BlockClick:
         )
 
 
-class World:
-    def __init__(self, assets: AssetManager, chunk_manager: ChunkManager):
+class WorldManager:
+    def __init__(self, assets: AssetManager, chunk_manager: ChunkManager, player: Player):
         self.assets = assets
         self.chunk_manager = chunk_manager
         self.entity_manager = EntityManager()
+        self.entity_manager.add(player)
 
         self.last_pos = (0, 0)
         self.last_mouse_btn = -1
@@ -51,7 +54,7 @@ class World:
         self.furnaces: dict[config.Pos, FurnaceState] = {}
         self.chests: dict[config.Pos, ChestState] = {}
 
-        self.containers = {
+        self.containers: dict[str, dict[str, object]] = {
             "furnace": {
                 "container": self.furnaces,
                 "state": FurnaceState,
@@ -64,36 +67,16 @@ class World:
             },
         }
 
-    def update(
+    def handle_input(
         self,
         mouse_buttons: tuple[bool, bool, bool],
         mouse_pos: tuple[int, int],
         player: Player,
         camera: Camera,
         fluid_manager: FluidManager,
-        environment_systems: EnvironmentSystems,
         ui: UI,
     ):
-        """世界更新區"""
-        decayed_leaves = environment_systems.update()
-
-        for world_x, world_y, leaf_type in decayed_leaves:
-            drop_item_type, drop_count = self.get_drop_item(self.get_block_base_name(leaf_type), None)
-            if drop_item_type is not None and drop_count > 0:
-                self.spawn_item_entity(
-                    {"type": drop_item_type, "count": drop_count},
-                    world_x * config.BLOCK_SIZE,
-                    world_y * config.BLOCK_SIZE,
-                    "break",  # 或另外開一個 spawn_reason，看你要不要讓衰變掉落有不同的噴出手感
-                    player,
-                )
-
-        self._handle_item_entities(player)
-
-        for furnace in self.furnaces.values():
-            furnace.update()
-
-        """"""
+        self.entity_manager.handle_input()
 
         # 沒有按下任何鍵，或是正在合成中
         if not any(mouse_buttons) or player.inv_type is not None:
@@ -136,6 +119,54 @@ class World:
         self.last_pos = current_pos
         self.last_mouse_btn = current_btn
 
+    def handle_event(self, event, keys, chunk_manager: ChunkManager, fluid_manager: FluidManager):
+        context = EventContext(keys, chunk_manager, fluid_manager)
+
+        self.entity_manager.handle_event(event, context)
+
+    def update(
+        self,
+        mouse_pos: tuple[int, int],
+        player: Player,
+        camera: Camera,
+        fluid_manager: FluidManager,
+        environment_systems: EnvironmentSystems,
+        dt: float,
+    ):
+
+        context = UpdateContext(self.chunk_manager, fluid_manager, environment_systems, camera, player, mouse_pos)
+
+        decayed_leaves = environment_systems.update()
+
+        for world_x, world_y, leaf_type in decayed_leaves:
+            drop_item_type, drop_count = self.get_drop_item(self.get_block_base_name(leaf_type), None)
+            if drop_item_type is not None and drop_count > 0:
+                self.spawn_item_entity(
+                    {"type": drop_item_type, "count": drop_count},
+                    world_x * config.BLOCK_SIZE,
+                    world_y * config.BLOCK_SIZE,
+                    "break",  # 或另外開一個 spawn_reason，看你要不要讓衰變掉落有不同的噴出手感
+                    player,
+                )
+
+        self.entity_manager.update(context, dt)
+
+        # print(len(self.entity_manager.entities))
+        for entity in self.entity_manager.entities:
+            # print(entity, entity.pending_events)
+            if isinstance(entity, Player):
+                for event in entity.pending_events:
+                    if isinstance(event, DamageEvent):
+                        camera.shake(config.BLOCK_SIZE / 8, 150)
+                    elif isinstance(event, DeathEvent):
+                        config.game_state = "DEATH"
+            entity.pending_events.clear()
+
+        self._handle_item_entities(player)
+
+        for furnace in self.furnaces.values():
+            furnace.update()
+
     def _get_clicked_block(self, mouse_pos, camera: Camera):
         world_x, world_y = camera.screen_to_world(mouse_pos)
 
@@ -177,7 +208,7 @@ class World:
 
             if player.will_drop_item_entity() and drop_item_type is not None and drop_count > 0:
                 self.entity_manager.add(
-                    item_entity.ItemEntity(
+                    ItemEntity(
                         {"type": drop_item_type, "count": drop_count},
                         clicked.x * config.BLOCK_SIZE,
                         clicked.y * config.BLOCK_SIZE,
@@ -283,20 +314,15 @@ class World:
             config.BLOCK_SIZE,
         )
 
-        for entity in self.entity_manager.entities:
-            if entity.rect.colliderect(new_block_rect):
-                entity.resolve_stuck(new_block_rect, player, self.chunk_manager)
+        for entity in self.entity_manager.get_entities_in_rect(new_block_rect):
+            entity.resolve_stuck(new_block_rect, player, self.chunk_manager)
 
     def _handle_item_entities(self, player: Player):
-        self.entity_manager.update(player, self.chunk_manager)
 
         self._handle_item_pickup(player)
 
     def _handle_item_pickup(self, player: Player):
-        for entity in self.entity_manager.entities:
-
-            if not isinstance(entity, item_entity.ItemEntity):
-                continue
+        for entity in self.entity_manager.get_entities_by_type(ItemEntity):
 
             if player.rect.colliderect(entity.rect) and player.can_pickup_item(entity.item_type) and entity.pickup_delay == 0:
                 remaining = player.give_item(entity.item_type, entity.count)
@@ -353,8 +379,10 @@ class World:
         return parse_drop_data(raw_drops)
 
     def spawn_item_entity(self, item, x, y, spawn_reason, player):
-        new_entity = item_entity.ItemEntity(item, x, y, spawn_reason, player, self.assets.block(item["type"]))
+        if item is None or item["count"] <= 0:
+            return
 
+        new_entity = ItemEntity(item, x, y, spawn_reason, player, self.assets.block(item["type"]))
         self.entity_manager.add(new_entity)
 
     def draw(self, screen, scroll_x, scroll_y, camera_zoom):

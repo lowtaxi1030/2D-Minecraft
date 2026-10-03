@@ -363,6 +363,8 @@ def float_offset(time, speed=1, height=10, offset=-10):
     return sin(time / 100 * speed) * height + offset
 
 
+_CAN_PASS_BLOCK = ["rick", "cactus"]
+
 def is_passable(block: str | None) -> bool:
     """判斷方塊是否可穿透 / 碰不到 (空氣或任何型態的水)"""
     if block is None or block == "air":
@@ -375,7 +377,7 @@ def is_passable(block: str | None) -> bool:
     if block.endswith("_sapling"):
         return True
 
-    if block == "rick":
+    if block in _CAN_PASS_BLOCK:
         return True
 
     return False

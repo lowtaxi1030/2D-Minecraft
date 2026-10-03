@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from asset_manager import AssetManager
     from craft_manager import CraftingManager
     from entity.player import Player
-    from world_manager import World
+    from world_manager import WorldManager
 
 import pygame
 
@@ -76,7 +76,7 @@ class FurnaceUI(BaseInventory):
         if self.furnace_state:
             self.furnace_state.output_item = value
 
-    def _handle_left_click(self, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
+    def _handle_left_click(self, player: Player, mouse_pos, world_manager: WorldManager, crafting_manager: CraftingManager):
         area, _ = self._get_clicked_slot_info(mouse_pos)
         if area == "furnace_input":
             self.held_item, self.input_item = self.item_slot_manager.handle_slot_left_click(self.held_item, self.input_item)
@@ -103,7 +103,7 @@ class FurnaceUI(BaseInventory):
 
         super()._handle_left_click(player, mouse_pos, world_manager, crafting_manager)
 
-    def _handle_right_click(self, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
+    def _handle_right_click(self, player: Player, mouse_pos, world_manager: WorldManager, crafting_manager: CraftingManager):
         area, _ = self._get_clicked_slot_info(mouse_pos)
         if area == "furnace_input":
             self.held_item, self.input_item = self.item_slot_manager.handle_slot_right_click(self.held_item, self.input_item)

@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from camera import Camera
     from chunk_manager import ChunkManager
     from entity.player import Player
-    from world_manager import World
+    from world_manager import WorldManager
 
 import pygame
 
@@ -43,7 +43,7 @@ class DebugScreen:
             align="left",
         )
 
-    def update(self, player: Player, fps, mouse_pos: tuple[int, int], camera: Camera, world: World, chunk_manager: ChunkManager):
+    def update(self, player: Player, fps, mouse_pos: tuple[int, int], camera: Camera, world: WorldManager, chunk_manager: ChunkManager):
         self.debug_frame += 1
 
         if self.debug_frame >= 12:

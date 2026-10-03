@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from chunk_manager import ChunkManager
     from craft_manager import CraftingManager
     from entity.player import Player
-    from world_manager import World
+    from world_manager import WorldManager
 
 import config
 
@@ -53,7 +53,7 @@ class UI:
         for interface in self.interfaces.values():
             interface.handle_input()
 
-    def handle_events(self, event, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
+    def handle_events(self, event, player: Player, mouse_pos, world_manager: WorldManager, crafting_manager: CraftingManager):
         self.hotbar.handle_events(event, player, mouse_pos)
 
         if player.inv_type is not None:
@@ -72,7 +72,7 @@ class UI:
         mouse_pos: config.Pos,
         mouse_buttons,
         game_camera: Camera,
-        world_manager: World,
+        world_manager: WorldManager,
         chunk_manager: ChunkManager,
     ):
         self.hotbar.update(player)

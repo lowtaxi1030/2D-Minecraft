@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from asset_manager import AssetManager
     from craft_manager import CraftingManager
     from entity.player import Player
-    from world_manager import World
+    from world_manager import WorldManager
 
 import pygame
 
@@ -29,12 +29,12 @@ class InventoryUI(BaseInventory):
 
         self.player_craft_slots = craft_manager.CraftingGrid(2, 2)  # 合成欄位長度為2X2=4
 
-    def handle_events(self, event, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
+    def handle_events(self, event, player: Player, mouse_pos, world_manager: WorldManager, crafting_manager: CraftingManager):
         super().handle_events(event, player, mouse_pos, world_manager, crafting_manager)
 
         self._update_craft_preview(crafting_manager)
 
-    def _handle_left_click(self, player: Player, mouse_pos, world_manager: World, crafting_manager: CraftingManager):
+    def _handle_left_click(self, player: Player, mouse_pos, world_manager: WorldManager, crafting_manager: CraftingManager):
 
         area, _ = self._get_clicked_slot_info(mouse_pos)
 
@@ -73,7 +73,7 @@ class InventoryUI(BaseInventory):
     def _can_interact_with_slot(self, area, index):
         return area != "output_craft"
 
-    def _receive_crafted_item(self, result_item, player: Player, world_manager: World, force_inventory=False):
+    def _receive_crafted_item(self, result_item, player: Player, world_manager: WorldManager, force_inventory=False):
         remaining = 0
         if force_inventory:
             remaining = player.give_item(result_item["type"], result_item["count"])  # 將成品放入玩家背包或掉落到地面
