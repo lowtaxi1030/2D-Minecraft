@@ -18,10 +18,20 @@ class PhysicalEntity(Entity):
     def __init__(self, rect: pygame.Rect):
         super().__init__(rect)
 
+        self.move_direction = 0
+        self.move_speed = 0
         self.is_grounded = False
         self.gravity = 40
 
         self.fall_distance = 0
+
+    def _update_physics(self, context: UpdateContext, dt: float):
+        """vel_x 和 vel_y 由外面決定，這裡只負責把速度轉換成位移，並處理碰撞"""
+        self.rect.x += self.vel_x * config.BLOCK_SIZE * dt
+        self._collide_x(context)
+
+        self.is_grounded = False
+        self._collide_y(context, dt)
 
     def _get_collision_range(self, target_rect: pygame.Rect | None = None):
         if target_rect is None:

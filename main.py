@@ -125,8 +125,7 @@ while config.running:
         # t3_1 = time.perf_counter()
         # 畫圖
         t6 = time.perf_counter()
-        player.draw(world_surface, game_camera.scroll_x, game_camera.scroll_y)
-        world.draw(world_surface, game_camera.scroll_x, game_camera.scroll_y, game_camera.zoom)
+        world.draw(world_surface, game_camera)
         frame_timers["draw_to_surface"] = frame_timers.get("draw_to_surface", 0) + (time.perf_counter() - t6)
 
         t7 = time.perf_counter()

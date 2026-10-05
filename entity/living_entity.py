@@ -17,7 +17,7 @@ class LivingEntity(PhysicalEntity):
     def __init__(self, rect: pygame.Rect):
         super().__init__(rect)
 
-        self.gravity = 40
+        self.gravity = 40  # 格/秒²
 
         self.max_hp = 20
         self.hp = self.max_hp

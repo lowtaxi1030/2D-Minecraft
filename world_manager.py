@@ -15,10 +15,9 @@ import pygame
 
 import config
 from camera import Camera
-from contextes import EventContext, UpdateContext
+from contextes import DrawContext, EventContext, UpdateContext
+from entity import Cow, ItemEntity, Player
 from entity.entity_manager import EntityManager
-from entity.item_entity import ItemEntity
-from entity.player import Player
 from events import DamageEvent, DeathEvent
 from game_data.block_drops import BLOCK_DROPS
 from item.__init__ import NON_PLACEABLE_KEYWORDS, NON_PLACEABLE_TAGS
@@ -47,6 +46,7 @@ class WorldManager:
         self.chunk_manager = chunk_manager
         self.entity_manager = EntityManager()
         self.entity_manager.add(player)
+        self.entity_manager.add(Cow(-50, 60))
 
         self.last_pos = (0, 0)
         self.last_mouse_btn = -1
@@ -385,20 +385,22 @@ class WorldManager:
         new_entity = ItemEntity(item, x, y, spawn_reason, player, self.assets.block(item["type"]))
         self.entity_manager.add(new_entity)
 
-    def draw(self, screen, scroll_x, scroll_y, camera_zoom):
+    def draw(self, screen, game_camera: Camera):
+        context = DrawContext(screen, game_camera)
+
         # 設定一個安全的緩衝距離，確保漂浮動畫或邊緣圖片不會被切掉
         buffer = config.BLOCK_SIZE
 
         for entity in self.entity_manager.entities:
             if (
-                entity.rect.right < scroll_x - buffer
-                or entity.rect.left > scroll_x + config.current_width / camera_zoom + buffer
-                or entity.rect.top < scroll_y - buffer
-                or entity.rect.bottom > scroll_y + config.current_height / camera_zoom + buffer
+                entity.rect.right < context.camera.scroll_x - buffer
+                or entity.rect.left > context.camera.scroll_x + config.current_width / context.camera.zoom + buffer
+                or entity.rect.top < context.camera.scroll_y - buffer
+                or entity.rect.bottom > context.camera.scroll_y + config.current_height / context.camera.zoom + buffer
             ):
                 continue
 
-            entity.draw(screen, scroll_x, scroll_y)
+            entity.draw(context)
 
     def get_block_display_name(self, x, y, block_name):
         if block_name == "furnace":

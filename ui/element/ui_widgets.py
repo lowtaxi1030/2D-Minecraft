@@ -287,7 +287,7 @@ def draw_item(screen: pygame.Surface, assets: AssetManager, item: config.Item, c
 
     block_pos = (center_x + 1, center_y)
 
-    block_cache_key = (item["type"], block_pos)
+    block_cache_key = item["type"]
     if not item_uis.get(block_cache_key):
         block_img = assets.block(item["type"])
         block_img = pygame.transform.scale(block_img, (48, 48))
@@ -297,8 +297,10 @@ def draw_item(screen: pygame.Surface, assets: AssetManager, item: config.Item, c
             pos=block_pos,
             interaction_mode=None,
         )
+    else:
+        item_uis[block_cache_key].rect.center = block_pos
 
-    count_cache_key = (item["count"], (count_show_x, center_y + 5))
+    count_cache_key = item["count"]
     if not item_uis.get(count_cache_key):
         item_uis[count_cache_key] = Text(
             name=str(count_cache_key),
@@ -310,6 +312,8 @@ def draw_item(screen: pygame.Surface, assets: AssetManager, item: config.Item, c
             anchor="topright",
             interaction_mode=None,
         )
+    else:
+        item_uis[count_cache_key].rect.topright = (count_show_x, center_y + 5)
 
     item_uis[block_cache_key].draw(screen)
     item_uis[count_cache_key].draw(screen)

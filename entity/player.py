@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     # from camera import Camera
-    from contextes import EventContext, UpdateContext
+    from contextes import DrawContext, EventContext, UpdateContext
 
 # import math
 
@@ -80,7 +80,6 @@ class Player(LivingEntity):
         self.inv_type = None
         # self.crafting_types = [None, "inventory", "crafting_table"]
         self.hit_box_open = False
-
 
         # 記錄格式： { pygame.K_d: 上次按下的時間(毫秒), pygame.K_a: 上次按下的時間(毫秒) }
         self.last_press_time = {}
@@ -305,9 +304,7 @@ class Player(LivingEntity):
     # 更新邏輯  mouse_pos: tuple[int, int], dt: int, game_camera: Camera, fluid_manager: FluidManager
     def update(self, context: UpdateContext, dt: float):
 
-        self.is_submerged = any(
-            self._is_submerged(x, context) for x in [self.rect.left, self.rect.centerx, self.rect.right - 1]
-        )
+        self.is_submerged = any(self._is_submerged(x, context) for x in [self.rect.left, self.rect.centerx, self.rect.right - 1])
 
         # keys = pygame.key.get_pressed()
         # still_moving = keys[pygame.K_a] or keys[pygame.K_d] or keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]
@@ -471,13 +468,15 @@ class Player(LivingEntity):
         self.display_rect.centerx = self.rect.centerx
         self.display_rect.bottom = self.rect.bottom
 
-    def draw(self, screen: pygame.Surface, scroll_x, scroll_y):
+    def draw(self, context: DrawContext):
         """將玩家畫在畫面上 (記得扣除鏡頭捲動位移)"""
         # 計算在螢幕上的實際繪製位置
-        render_x = self.display_rect.x - scroll_x
-        render_y = self.display_rect.y - scroll_y
+        render_x = self.display_rect.x - context.camera.scroll_x
+        render_y = self.display_rect.y - context.camera.scroll_y
 
-        hit_box_rect = pygame.Rect(self.rect.x - scroll_x, self.rect.y - scroll_y, self.rect.width, self.rect.height)
+        hit_box_rect = pygame.Rect(
+            self.rect.x - context.camera.scroll_x, self.rect.y - context.camera.scroll_y, self.rect.width, self.rect.height
+        )
 
         if self.mode == "spectator":
             # 1. 建立一個全新的臨時 Surface，大小跟你的 rect 一樣
@@ -488,18 +487,18 @@ class Player(LivingEntity):
             temp_surface.fill((*tool.Colors.YELLOW, 128))
 
             # 3. 把這個半透明的 Surface 畫到螢幕上（記得扣掉鏡頭的捲動偏移 scroll）
-            screen.blit(temp_surface, (render_x, render_y))
+            context.screen.blit(temp_surface, (render_x, render_y))
         else:
             # 生存模式：照舊畫你原本完全不透明的普通方塊
             # 這裡的坐標一樣要記得扣掉你的 scroll 喔！
             pygame.draw.rect(
-                screen,
+                context.screen,
                 tool.Colors.YELLOW,
                 (render_x, render_y, self.display_rect.width, self.display_rect.height),
             )
             if self.hit_box_open:
                 pygame.draw.rect(
-                    screen,
+                    context.screen,
                     tool.Colors.RED,
                     hit_box_rect,
                     1,
@@ -538,44 +537,52 @@ class Player(LivingEntity):
                 self.held_item = None
 
     def pick_item(self, item_type: str | None):
-        if item_type == "air":
-            return
+        if self.mode == "survival":
+            self._survival_pick_item(item_type)
+        elif self.mode == "creative":
+            self._creative_pick_item(item_type)
 
-        # print("目前手上", self.selected_hotbar_index, self.held_item)
+    def _survival_pick_item(self, item_type: str | None):
+        """
+        背包 / hotbar 找 item_type
+            ↓
+        找到？
+        ├─ 是 → 把游標 / 選取欄位切到它
+        └─ 否 → 什麼都不做
+        """
 
-        # 步驟一：先巡一遍 Hotbar，如果有相同的物品，就把指標切換過去
         for i, item in enumerate(self.hotbar):
             if item is not None and item["type"] == item_type:
                 self.selected_hotbar_index = i
                 return
 
-        # 步驟二：如果 Hotbar 沒有這個物品，到主背包裡找
         for i, item in enumerate(self.inventory):
             if item is not None and item["type"] == item_type:
-
-                # 嘗試把手上的東西放進背包空位
-                if self._move_hand_item_to_inventory():
-                    # 情況 A：成功把手上物品移入背包（或本來就是空手）
-                    # print("拿出", self.inventory[i])
-                    self.held_item = self.inventory[i]
-                    self.inventory[i] = None
-                else:
-                    # 情況 B：背包滿了！直接將手上物品與背包內的 A 做「等價交換」！
-                    # print(f"背包已滿，直接交換手上的 {self.held_item['type']} 與背包中的 {item_type}")
-                    temp = self.held_item
-                    self.held_item = self.inventory[i]
-                    self.inventory[i] = temp
-
+                self.held_item, self.inventory[i] = self.inventory[i], self.held_item
                 return
 
-        # 步驟三：尋找空格
+    def _creative_pick_item(self, item_type: str | None):
+        if item_type == "air":
+            return
+
+        # 1. Hotbar 已經有相同物品？
+        for i, item in enumerate(self.hotbar):
+            if item is not None and item["type"] == item_type:
+                self.selected_hotbar_index = i
+                return
+
+        # 2.玩家目前是空手？
+        if self.held_item is None:
+            self.held_item = {"type": item_type, "count": 1}
+            return
+
+        # 3.Hotbar 有空格？
         for i, item in enumerate(self.hotbar):
             if item is None:
                 self.selected_hotbar_index = i
                 self.held_item = {"type": item_type, "count": 1}
-                return
 
-        # 步驟四：這時才逼不得已覆蓋目前選中的這一格。
+        # 4.Hotbar 沒空格
         self.held_item = {"type": item_type, "count": 1}
 
     def _move_hand_item_to_inventory(self):
@@ -597,15 +604,19 @@ class Player(LivingEntity):
 
     """掉落物相關"""
 
-    def give_item(self, item_type: str, count: int, should_modify=True):
+    def give_item(self, item_type: str, count: int, should_modify=True, target: str | None = None):
         if not should_modify:
             return count
 
-        count = self._try_merge_slots(self.hotbar, item_type, count)
-        count = self._try_merge_slots(self.inventory, item_type, count)
+        if target is None or target == "hotbar":
+            count = self._try_merge_slots(self.hotbar, item_type, count)
+        if target is None or target == "inventory":
+            count = self._try_merge_slots(self.inventory, item_type, count)
 
-        count = self._try_find_empty_slot(self.hotbar, item_type, count)
-        count = self._try_find_empty_slot(self.inventory, item_type, count)
+        if target is None or target == "hotbar":
+            count = self._try_find_empty_slot(self.hotbar, item_type, count)
+        if target is None or target == "inventory":
+            count = self._try_find_empty_slot(self.inventory, item_type, count)
 
         return count
 
@@ -697,4 +708,4 @@ class Player(LivingEntity):
         return self.mode == "survival"
 
     def can_pick_block(self):
-        return self.mode == "creative"
+        return self.mode in ["creative", "survival"]

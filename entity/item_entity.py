@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from chunk_manager import ChunkManager
-    from contextes import UpdateContext
+    from contextes import DrawContext, UpdateContext
     from entity.player import Player
 import random
 
@@ -292,15 +292,15 @@ class ItemEntity(Entity):
                     self.vel_y = 0
                     self.is_grounded = True
 
-    def draw(self, screen: pygame.Surface, scroll_x, scroll_y):
+    def draw(self, context: DrawContext):
         draw_rect = self.rect.copy()
-        draw_rect.x -= scroll_x
-        draw_rect.y -= scroll_y
+        draw_rect.x -= context.camera.scroll_x
+        draw_rect.y -= context.camera.scroll_y
         if not self.is_attracting:
             float_y = tool.float_offset(self.age, speed=10, offset=-15)
             draw_rect.y += float_y
 
-        screen.blit(self.image, draw_rect.topleft)
+        context.screen.blit(self.image, draw_rect.topleft)
 
     """外部用函式"""
 
